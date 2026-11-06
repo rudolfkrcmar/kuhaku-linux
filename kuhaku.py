@@ -15,7 +15,7 @@ import sys
 import threading
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import gi
@@ -338,45 +338,27 @@ LIMITS_FILE = STATE_DIR / "plan-limits.json"
 
 
 def plan_limits():
-    """Session and weekly limits of the Claude plan, as Claude Code's /usage shows them."""
+    """Session and weekly limits of the Claude plan, as Claude Code itself last reported them
+    (its rate_limit_event while working). Kūhaku never reads or uses the Claude sign-in."""
     if _limits_cache[1] is None and LIMITS_FILE.exists():
         try:
             _limits_cache[1] = json.loads(LIMITS_FILE.read_text())   # last known numbers after a restart
         except Exception:
             pass
-    if time.time() - _limits_cache[0] < 120 or time.time() < _limits_wait[0]:
-        return _limits_cache[1]
-    if not _limits_lock.acquire(blocking=False):   # one ask at a time
-        return _limits_cache[1]
-    import urllib.request
-    import urllib.error
-    try:
-        token = json.loads((accounts.config_dir() / ".credentials.json").read_text())["claudeAiOauth"]["accessToken"]
-        req = urllib.request.Request("https://api.anthropic.com/api/oauth/usage", headers={
-            "Authorization": f"Bearer {token}", "anthropic-beta": "oauth-2025-04-20"})
-        data = json.loads(urllib.request.urlopen(req, timeout=8).read())
-    except Exception as e:
-        # The endpoint rate-limits hard; back off instead of asking again on every look.
-        wait = 300
-        if isinstance(e, urllib.error.HTTPError) and e.code == 429:
-            try:
-                wait = max(wait, int(e.headers.get("retry-after") or 0))
-            except ValueError:
-                pass
-        _limits_wait[0] = time.time() + wait
-        return _limits_cache[1]
-    finally:
-        _limits_lock.release()
-    out = {}
-    for key, name in (("five_hour", "session"), ("seven_day", "week"), ("seven_day_opus", "opus"),
-                      ("seven_day_sonnet", "sonnet")):
-        v = data.get(key)
-        if v and v.get("utilization") is not None:
-            out[name] = {"percent": v["utilization"], "resets": v.get("resets_at")}
-    extra = data.get("extra_usage") or {}
-    if extra.get("is_enabled"):
-        out["extra"] = {"percent": extra.get("utilization"), "used": extra.get("used_credits"),
-                        "limit": extra.get("monthly_limit")}
+    return _limits_cache[1]
+
+
+def note_limits(info):
+    """Keep the plan limits Claude Code reports in its stream (type "rate_limit_event")."""
+    names = {"five_hour": "session", "seven_day": "week", "seven_day_opus": "opus", "seven_day_sonnet": "sonnet"}
+    out = dict(_limits_cache[1] or {})
+    for key, w in ((info or {}).get("unifiedWindows") or {}).items():
+        if key in names and w.get("utilization") is not None:
+            at = w.get("resetsAt")
+            out[names[key]] = {"percent": w["utilization"] * 100 if w["utilization"] <= 1 else w["utilization"],
+                               "resets": datetime.fromtimestamp(at, timezone.utc).isoformat() if at else None}
+    if not out:
+        return None
     _limits_cache[:] = [time.time(), out]
     try:
         LIMITS_FILE.write_text(json.dumps(out))
@@ -1652,6 +1634,10 @@ class Kuhaku:
                     except ValueError:
                         continue
                     session_id = ev.get("session_id") or session_id
+                    if ev.get("type") == "rate_limit_event":
+                        lim = note_limits(ev.get("rate_limit_info"))
+                        if lim:
+                            GLib.idle_add(self.send, "setLimits", lim)
                     if ev.get("subtype") == "init":
                         run.update(model=ev.get("model"), cwd=ev.get("cwd"))
                         if ev.get("model") and not run["agent"].startswith(("agent:", "acct:")):
