@@ -1,0 +1,17 @@
+[Unit]
+Description=Kūhaku: install the Claude desktop app from Anthropic, once online
+# On the installed computer only, and only while it is missing.
+ConditionPathExists=!/run/live/medium
+ConditionPathExists=/etc/apt/sources.list.d/claude-desktop.list
+ConditionPathExists=!/usr/bin/claude-desktop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=DEBIAN_FRONTEND=noninteractive
+ExecStart=/bin/sh -c 'for i in $(seq 1 60); do apt-get update -q -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/claude-desktop.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0 && apt-get install -y -q claude-desktop && exit 0; sleep 60; done; exit 1'
+TimeoutStartSec=2h
+
+[Install]
+WantedBy=multi-user.target

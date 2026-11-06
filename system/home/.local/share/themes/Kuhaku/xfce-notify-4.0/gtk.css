@@ -1,0 +1,15 @@
+/* Kūhaku notifications: a quiet card, the red line, Inter. */
+#XfceNotifyWindow {
+  background-color: #121212;
+  border: 1px solid rgba(236, 236, 236, 0.08);
+  border-radius: 0;
+  box-shadow: inset 2px 0 0 #f0705a;
+  padding: 14px 18px 14px 20px;
+}
+#XfceNotifyWindow label { color: #ececec; font-family: "Inter Variable", Inter, sans-serif; }
+#XfceNotifyWindow label#summary { font-size: 14px; font-weight: 400; }
+#XfceNotifyWindow label#body { font-size: 13px; font-weight: 300; color: #9a9a9a; }
+#XfceNotifyWindow button { background: transparent; border: none; box-shadow: none; color: #9a9a9a; }
+#XfceNotifyWindow button:hover { color: #ececec; }
+#XfceNotifyWindow progressbar progress { background-color: #f0705a; border: none; }
+#XfceNotifyWindow progressbar trough { background-color: rgba(236, 236, 236, 0.08); border: none; }

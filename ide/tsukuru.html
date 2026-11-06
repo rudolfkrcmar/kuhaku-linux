@@ -1,0 +1,983 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tsukuru</title>
+<link rel="stylesheet" href="vendor/codemirror/codemirror.css">
+<script src="vendor/codemirror/codemirror.js"></script>
+<script src="vendor/codemirror/addon/overlay.js"></script>
+<script src="vendor/codemirror/addon/simple.js"></script>
+<script src="vendor/codemirror/addon/multiplex.js"></script>
+<script src="vendor/codemirror/addon/matchbrackets.js"></script>
+<script src="vendor/codemirror/addon/closebrackets.js"></script>
+<script src="vendor/codemirror/addon/active-line.js"></script>
+<script src="vendor/codemirror/addon/comment.js"></script>
+<script src="vendor/codemirror/addon/searchcursor.js"></script>
+<script src="vendor/codemirror/mode/xml.js"></script>
+<script src="vendor/codemirror/mode/javascript.js"></script>
+<script src="vendor/codemirror/mode/css.js"></script>
+<script src="vendor/codemirror/mode/htmlmixed.js"></script>
+<script src="vendor/codemirror/mode/python.js"></script>
+<script src="vendor/codemirror/mode/shell.js"></script>
+<script src="vendor/codemirror/mode/markdown.js"></script>
+<script src="vendor/codemirror/mode/clike.js"></script>
+<script src="vendor/codemirror/mode/rust.js"></script>
+<script src="vendor/codemirror/mode/go.js"></script>
+<script src="vendor/codemirror/mode/yaml.js"></script>
+<script src="vendor/codemirror/mode/toml.js"></script>
+<script src="vendor/codemirror/mode/sql.js"></script>
+<script src="vendor/codemirror/mode/dockerfile.js"></script>
+<script src="vendor/codemirror/mode/lua.js"></script>
+<script src="vendor/codemirror/mode/php.js"></script>
+<script src="vendor/codemirror/mode/ruby.js"></script>
+<script src="vendor/codemirror/mode/perl.js"></script>
+<script src="vendor/codemirror/mode/diff.js"></script>
+<script src="vendor/codemirror/mode/properties.js"></script>
+<style>
+/* Tsukuru v3 (Claude Design): Claude in the middle, projects and their sessions on the left,
+   Files and Preview as views, Changes as a panel on the right. */
+:root { --bg:#f7f4f1; --side:#f1ede8; --panel:#ece8e2; --card:#fcfbf9; --hover:rgba(17,17,17,.045); --line:rgba(17,17,17,.08); --line2:rgba(17,17,17,.14);
+  --fg:#151413; --fg2:#3b3936; --muted:#77736c; --dim:#a7a29a; --accent:#e0301e; --onaccent:#fff; --ok:#2f8a4a; --warn:#a8741c;
+  --add:rgba(47,138,74,.10); --del:rgba(224,48,30,.08); --kw:#7b4b8a; --str:#3f7d4f; --num:#a06a00; --def:#2f5f8a; --com:#9a958f;
+  --shadow:rgba(0,0,0,.10); --scrim:rgba(20,18,16,.28); --sel:rgba(224,48,30,.16); }
+body.night { --bg:#0e0e0d; --side:#121211; --panel:#161615; --card:#1b1a19; --hover:rgba(255,255,255,.045); --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.12);
+  --fg:#ecebe7; --fg2:#cfcdc7; --muted:#8d8a83; --dim:#5d5b56; --accent:#f0705a; --onaccent:#140b09; --ok:#7fc18f; --warn:#e3b86b;
+  --add:rgba(127,193,143,.10); --del:rgba(240,112,90,.10); --kw:#c7a6e0; --str:#9fcfa8; --num:#e8c27f; --def:#8fb6e0; --com:#6a6762;
+  --shadow:rgba(0,0,0,.35); --scrim:rgba(0,0,0,.55); --sel:rgba(240,112,90,.28); }
+html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--fg); -webkit-font-smoothing:antialiased;
+  font-family:'Inter',system-ui,sans-serif; font-size:14px; font-weight:300; }
+body.night { color-scheme:dark; }
+button, input, textarea { font:inherit; }
+[hidden] { display:none !important; }
+::selection { background:var(--sel); }
+input::placeholder, textarea::placeholder { color:var(--dim); }
+.mono { font-family:'JetBrains Mono','DejaVu Sans Mono',monospace; }
+@keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.8); } }
+@keyframes shimmer { from { background-position:200% 0; } to { background-position:-200% 0; } }
+.pulse { display:inline-block; width:7px; height:7px; border-radius:99px; background:var(--accent); flex-shrink:0; animation:pulse 1.3s ease-in-out infinite; }
+.btn { height:30px; padding:0 12px; border:0; border-radius:7px; background:var(--hover); box-shadow:inset 0 0 0 1px var(--line); color:var(--fg); font-size:13px; cursor:pointer; white-space:nowrap; }
+.btn:hover { box-shadow:inset 0 0 0 1px var(--line2); }
+.btn.main { background:var(--accent); color:var(--onaccent); font-weight:500; box-shadow:none; padding:0 14px; }
+.btn.ghost { background:none; box-shadow:none; color:var(--muted); padding:0 10px; }
+.btn.ghost:hover { color:var(--fg); background:var(--hover); }
+.icon { border:0; background:none; color:var(--muted); cursor:pointer; padding:6px; display:grid; place-items:center; border-radius:6px; }
+.icon:hover { color:var(--fg); }
+.app { position:fixed; inset:0; display:flex; }
+
+/* sidebar */
+.side { width:clamp(208px,20vw,256px); flex-shrink:0; background:var(--side); box-shadow:inset -1px 0 0 var(--line); display:flex; flex-direction:column; min-height:0; }
+body.noside .side { display:none; }
+.head { height:52px; flex-shrink:0; display:flex; align-items:center; gap:14px; box-shadow:inset 0 -1px 0 var(--line); }
+.side .head { padding:0 12px 0 28px; }
+.rline { width:2px; height:20px; background:var(--accent); flex-shrink:0; }
+.newsess { width:100%; display:flex; align-items:center; gap:10px; height:34px; padding:0 10px; border:0; border-radius:8px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); color:var(--fg); font-size:13.5px; cursor:pointer; }
+.newsess:hover { box-shadow:inset 0 0 0 1px var(--line2); }
+.kbd { margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); }
+.plist { flex:1; min-height:0; overflow:auto; scrollbar-width:none; padding:12px 12px 20px; }
+.label { display:flex; align-items:center; padding:0 8px 8px; font-size:11.5px; color:var(--dim); letter-spacing:.04em; }
+.prow { display:flex; align-items:center; gap:10px; height:34px; padding:0 8px; border-radius:8px; cursor:pointer; color:var(--fg2); margin-bottom:2px; }
+.prow:hover, .prow.on { background:var(--hover); } .prow.on { color:var(--fg); }
+.letter { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:11.5px; font-weight:600; flex-shrink:0; }
+.prow .nm { font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.prow .st { margin-left:auto; display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted); flex-shrink:0; }
+.srow { display:flex; align-items:center; gap:8px; height:30px; padding:0 8px 0 40px; border-radius:7px; cursor:pointer; font-size:13px; color:var(--muted); }
+.srow:hover { color:var(--fg); background:var(--hover); } .srow.on { color:var(--fg); background:var(--hover); }
+.srow span:first-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.srow .when { margin-left:auto; font-size:11.5px; color:var(--dim); flex-shrink:0; display:flex; align-items:center; gap:6px; }
+.sfoot { padding:10px 12px 14px; box-shadow:inset 0 1px 0 var(--line); display:flex; flex-direction:column; gap:2px; }
+.sfoot button { display:flex; align-items:center; gap:10px; height:34px; padding:0 8px; border:0; border-radius:8px; background:none; color:var(--fg2); font-size:13.5px; cursor:pointer; }
+.sfoot button:hover { background:var(--hover); }
+.dot { width:6px; height:6px; border-radius:9px; flex-shrink:0; display:inline-block; }
+.me { display:flex; align-items:center; gap:10px; height:34px; padding:0 8px; font-size:13px; color:var(--muted); }
+.me .av { width:22px; height:22px; border-radius:99px; background:var(--card); box-shadow:inset 0 0 0 1px var(--line2); display:grid; place-items:center; font-size:11px; color:var(--fg2); }
+
+/* main */
+main { flex:1; min-width:0; display:flex; flex-direction:column; }
+main .head { padding:0 16px 0 28px; }
+body.noside main .head { padding-left:14px; }
+.title { font-size:14px; font-weight:400; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.crumb { font-size:13px; color:var(--muted); white-space:nowrap; }
+.vtabs { display:flex; align-self:stretch; }
+.vtabs button { position:relative; border:0; background:none; font-size:13px; font-weight:300; cursor:pointer; padding:0 12px; white-space:nowrap; color:var(--muted); }
+.vtabs button:hover, .vtabs button.on { color:var(--fg); }
+.vtabs button.on::after { content:''; position:absolute; left:12px; right:12px; bottom:0; height:1.5px; background:var(--accent); }
+.hbtn { border:0; font-size:13px; font-weight:300; cursor:pointer; padding:6px 10px; white-space:nowrap; display:flex; align-items:center; gap:8px; background:none; color:var(--muted); }
+.hbtn:hover { color:var(--fg); } .hbtn.on { background:var(--hover); color:var(--fg); }
+.hbtn .n { color:var(--accent); }
+.body { flex:1; min-height:0; display:flex; }
+.center { flex:1 1 0; min-width:min(360px,100%); display:flex; flex-direction:column; }
+
+/* chat */
+.log { flex:1; min-height:0; overflow:auto; scrollbar-width:thin; scrollbar-color:var(--line2) transparent; }
+.login { max-width:760px; margin:0 auto; padding:32px 32px 28px; box-sizing:border-box; display:flex; flex-direction:column; gap:18px; }
+.empty { padding-top:16vh; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
+.empty .letter { width:44px; height:44px; border-radius:12px; font-size:19px; }
+.empty .q { font-size:24px; font-weight:300; letter-spacing:-.02em; }
+.empty .p { font-size:13px; color:var(--muted); }
+.u { align-self:flex-end; max-width:84%; background:var(--card); box-shadow:inset 0 0 0 1px var(--line); border-radius:14px 14px 4px 14px; padding:11px 16px; line-height:1.55; white-space:pre-wrap; color:var(--fg); overflow-wrap:anywhere; }
+.md { line-height:1.7; color:var(--fg2); overflow-wrap:anywhere; }
+.md p { margin:0 0 10px; } .md > :last-child { margin-bottom:0; }
+.md b, .md strong { font-weight:500; color:var(--fg); }
+.md h1, .md h2, .md h3, .md h4 { font-weight:500; color:var(--fg); margin:16px 0 8px; font-size:15px; } .md h1 { font-size:17px; }
+.md ul, .md ol { margin:0 0 10px; padding-left:22px; } .md li { margin:2px 0; }
+.md a { color:var(--fg); text-decoration:underline; text-decoration-color:var(--accent); text-underline-offset:3px; cursor:pointer; }
+.md code { font-family:'JetBrains Mono',monospace; font-size:12.5px; background:var(--hover); box-shadow:inset 0 0 0 1px var(--line); padding:1px 6px; border-radius:5px; color:var(--fg); }
+.md pre { margin:0 0 10px; background:var(--panel); box-shadow:inset 0 0 0 1px var(--line); border-radius:10px; padding:12px 16px; overflow:auto; scrollbar-width:none; }
+.md pre code { background:none; box-shadow:none; padding:0; font-size:12.5px; line-height:1.6; color:var(--fg2); white-space:pre; }
+.md blockquote { margin:0 0 10px; padding-left:14px; box-shadow:inset 2px 0 0 var(--line2); color:var(--muted); }
+.tbl { border-radius:10px; box-shadow:inset 0 0 0 1px var(--line); overflow:auto; margin:0 0 10px; }
+.tbl table { width:100%; border-collapse:collapse; font-size:13.5px; font-variant-numeric:tabular-nums; }
+.tbl th { text-align:left; font-weight:400; font-size:12px; color:var(--muted); padding:10px 16px; background:var(--panel); white-space:nowrap; }
+.tbl td { padding:10px 16px; border-top:1px solid var(--line); color:var(--fg2); }
+.card { border-radius:12px; box-shadow:inset 0 0 0 1px var(--line); background:var(--panel); }
+.todo { padding:12px 16px 10px; }
+.todo .top { display:flex; font-size:12px; color:var(--muted); margin-bottom:8px; }
+.todo .it { display:flex; align-items:center; gap:10px; padding:4px 0; font-size:13.5px; color:var(--fg); }
+.todo .it.done { color:var(--muted); }
+.box { width:15px; height:15px; border-radius:5px; display:grid; place-items:center; flex-shrink:0; box-shadow:inset 0 0 0 1px var(--line2); }
+.done .box { background:var(--ok); box-shadow:inset 0 0 0 1px var(--ok); }
+.tool { border-radius:10px; overflow:hidden; }
+.tool .th { display:flex; align-items:center; gap:10px; height:38px; padding:0 12px 0 14px; }
+.tool.has .th { cursor:pointer; } .tool .th:hover { background:var(--hover); }
+.tool .verb { font-weight:500; font-size:13px; color:var(--fg); flex-shrink:0; }
+.tool .arg { font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.tool .arg.file { cursor:pointer; } .tool .arg.file:hover { color:var(--fg); }
+.tool .meta { margin-left:auto; display:flex; gap:8px; align-items:center; font-family:'JetBrains Mono',monospace; font-size:12px; flex-shrink:0; }
+.tool .note { font-family:'Inter',sans-serif; color:var(--muted); }
+.tool.running .note { color:var(--accent); } .tool.err .note { color:var(--accent); }
+.chev { transition:transform .15s; } .open > .th .chev, .open > .ch .chev { transform:rotate(90deg); }
+.add { color:var(--ok); } .del { color:var(--accent); }
+.diff { box-shadow:inset 0 1px 0 var(--line); padding:8px 0; max-height:300px; overflow:auto; scrollbar-width:none; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:21px; }
+.dl { display:flex; white-space:pre; color:var(--fg); }
+.dl .n { width:42px; flex-shrink:0; text-align:right; padding-right:12px; color:var(--dim); }
+.dl .s { width:16px; flex-shrink:0; }
+.dl .t { padding-right:16px; }
+.dl.p { background:var(--add); } .dl.p .s { color:var(--ok); }
+.dl.m { background:var(--del); } .dl.m .s { color:var(--accent); }
+.dl.c { color:var(--muted); } .dl.gap { color:var(--dim); }
+.dl.o { color:var(--fg2); }
+.denied { padding:12px 16px; display:flex; flex-direction:column; gap:8px; box-shadow:inset 0 0 0 1px var(--line2); }
+.denied .w { font-size:13.5px; color:var(--fg); }
+.denied .x { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.errb { color:var(--accent); font-size:13.5px; line-height:1.5; }
+.summary { display:flex; align-items:center; gap:14px; flex-wrap:wrap; border-radius:12px; background:var(--card); box-shadow:inset 0 0 0 1px var(--line2); padding:12px 12px 12px 16px; }
+.busy { display:flex; align-items:center; gap:10px; font-size:13.5px; }
+.shim { background:linear-gradient(90deg, var(--muted) 0%, var(--fg) 50%, var(--muted) 100%); background-size:200% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:shimmer 2.2s linear infinite; }
+.prompt { padding:0 32px 16px; flex-shrink:0; }
+@keyframes flash { 0% { box-shadow:inset 0 0 0 1px var(--accent), 0 0 0 4px var(--sel); } 100% { box-shadow:inset 0 0 0 1px var(--line2), 0 16px 40px var(--shadow); } }
+.pbox.flash { animation:flash .9s ease-out; }
+@keyframes rowin { from { background:var(--sel); } to { background:var(--hover); } }
+.srow.fresh { animation:rowin 1s ease-out; }
+.prow.more { color:var(--muted); }
+.pbox { max-width:760px; margin:0 auto; background:var(--card); border-radius:14px; box-shadow:inset 0 0 0 1px var(--line2), 0 16px 40px var(--shadow); }
+.pbox textarea { display:block; width:100%; box-sizing:border-box; background:none; border:0; outline:none; resize:none; padding:14px 16px 4px; font-size:14.5px; color:var(--fg); line-height:1.5; caret-color:var(--accent); max-height:40vh; }
+.pbar { display:flex; align-items:center; gap:4px; padding:6px 10px 10px; }
+.chip { display:flex; align-items:center; gap:6px; height:28px; padding:0 10px; border:0; border-radius:7px; background:none; font-size:12.5px; cursor:pointer; color:var(--muted); }
+.chip:hover { color:var(--fg); background:var(--hover); } .chip.mode { background:var(--hover); }
+.model { font-size:12px; color:var(--dim); padding-right:8px; }
+.sendb { width:30px; height:30px; border:0; border-radius:99px; display:grid; place-items:center; cursor:pointer; background:var(--hover); color:var(--dim); }
+.sendb.go { background:var(--accent); color:var(--onaccent); }
+
+/* files */
+.files { flex:1; min-height:0; display:flex; }
+.tree { width:232px; flex-shrink:0; overflow:auto; scrollbar-width:none; padding:12px 10px 40px; box-shadow:inset -1px 0 0 var(--line); box-sizing:border-box; user-select:none; }
+.node { display:flex; align-items:center; gap:8px; height:30px; padding-right:10px; border-radius:7px; cursor:pointer; font-size:13.5px; color:var(--muted); }
+.node:hover { background:var(--hover); color:var(--fg); } .node.on { background:var(--hover); color:var(--fg); }
+.node.dir { color:var(--fg2); }
+.node .cv { width:10px; display:grid; place-items:center; flex-shrink:0; transition:transform .15s; }
+.node.open .cv { transform:rotate(90deg); }
+.node .nm { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.node .mk { margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--warn); } .node .mk.a { color:var(--ok); }
+.tfoot { display:flex; gap:2px; padding:12px 4px 0; }
+.ed { flex:1; min-width:0; display:flex; flex-direction:column; }
+.fhead { height:44px; flex-shrink:0; display:flex; align-items:center; gap:8px; padding:0 12px 0 20px; box-shadow:inset 0 -1px 0 var(--line); font-size:13px; }
+.fhead .d { color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; } .fhead .f { color:var(--fg); white-space:nowrap; }
+.askf { display:flex; align-items:center; gap:7px; height:28px; padding:0 10px; border:0; border-radius:7px; background:var(--hover); box-shadow:inset 0 0 0 1px var(--line); color:var(--fg2); font-size:12.5px; cursor:pointer; white-space:nowrap; }
+.askf:hover { color:var(--fg); box-shadow:inset 0 0 0 1px var(--line2); }
+.editor { flex:1; min-height:0; position:relative; }
+.nofile { flex:1; display:grid; place-items:center; color:var(--muted); font-size:13.5px; }
+.CodeMirror { height:100%; background:var(--bg); color:var(--fg); font-family:'JetBrains Mono','DejaVu Sans Mono',monospace; font-size:13px; line-height:22px; }
+.CodeMirror-gutters { background:var(--bg); border-right:0; }
+.CodeMirror-linenumber { color:var(--dim); padding:0 18px 0 8px; }
+.CodeMirror-cursor { border-left:2px solid var(--accent); }
+.CodeMirror-selected, .CodeMirror-focused .CodeMirror-selected, .CodeMirror-line::selection, .CodeMirror-line > span::selection { background:var(--sel) !important; }
+.CodeMirror-activeline-background { background:var(--hover); }
+.CodeMirror-activeline-gutter .CodeMirror-linenumber { color:var(--fg2); }
+.CodeMirror-matchingbracket { color:var(--accent) !important; text-decoration:underline; }
+.CodeMirror-lines { padding:14px 0 40vh; }
+.CodeMirror pre.CodeMirror-line { padding:0 32px 0 6px; }
+.cm-s-default .cm-keyword, .cm-s-default .cm-builtin { color:var(--kw); }
+.cm-s-default .cm-string, .cm-s-default .cm-string-2 { color:var(--str); }
+.cm-s-default .cm-number, .cm-s-default .cm-atom { color:var(--num); }
+.cm-s-default .cm-def, .cm-s-default .cm-variable-2, .cm-s-default .cm-variable-3, .cm-s-default .cm-type,
+.cm-s-default .cm-property, .cm-s-default .cm-tag { color:var(--def); }
+.cm-s-default .cm-comment, .cm-s-default .cm-meta { color:var(--com); font-style:italic; }
+.cm-s-default .cm-header { color:var(--fg); font-weight:600; } .cm-s-default .cm-link { color:var(--def); }
+.cm-s-default .cm-operator, .cm-s-default .cm-variable, .cm-s-default .cm-punctuation { color:var(--fg2); }
+.cm-s-default .cm-qualifier, .cm-s-default .cm-attribute { color:var(--num); }
+.cm-s-default .cm-error { color:var(--accent); }
+.cm-searching { background:var(--sel); }
+.find { position:absolute; top:10px; right:28px; z-index:4; display:flex; align-items:center; gap:10px; background:var(--card); border-radius:9px;
+  box-shadow:inset 0 0 0 1px var(--line2), 0 12px 30px var(--shadow); padding:8px 12px; }
+.find input { border:0; outline:none; background:none; font-size:14px; color:var(--fg); width:240px; caret-color:var(--accent); }
+.find span { font-size:12px; color:var(--muted); min-width:56px; text-align:right; }
+
+/* preview */
+.preview { flex:1; min-height:0; display:flex; flex-direction:column; }
+.pvbar { height:48px; flex-shrink:0; display:flex; align-items:center; gap:6px; padding:0 14px 0 20px; box-shadow:inset 0 -1px 0 var(--line); overflow-x:auto; scrollbar-width:none; }
+.addr { flex:1; min-width:150px; height:30px; display:flex; align-items:center; gap:8px; padding:0 12px; border-radius:8px; background:var(--card); box-shadow:inset 0 0 0 1px var(--line);
+  font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; }
+.addr input { flex:1; min-width:0; border:0; outline:none; background:none; font:inherit; color:var(--fg); }
+.seg { height:30px; padding:0 10px; border:0; border-radius:7px; font-size:12.5px; cursor:pointer; white-space:nowrap; background:none; color:var(--muted); }
+.seg:hover { color:var(--fg); } .seg.on { background:var(--hover); color:var(--fg); }
+.vsep { width:1px; height:18px; background:var(--line2); margin:0 4px; flex-shrink:0; }
+.stage { flex:1; min-height:0; padding:16px; display:flex; justify-content:center; }
+.stage iframe { width:100%; max-width:100%; height:100%; border:0; border-radius:10px; background:#fbf9f6; box-shadow:0 0 0 1px var(--line), 0 20px 50px var(--shadow); transition:width .25s; }
+.stage .none { align-self:center; color:var(--muted); font-size:13.5px; text-align:center; line-height:1.7; }
+
+/* changes */
+.insp { flex:0 1 min(46%,600px); min-width:320px; display:flex; flex-direction:column; background:var(--side); box-shadow:inset 1px 0 0 var(--line); }
+.chlist { flex:1; min-height:0; overflow:auto; scrollbar-width:none; padding:10px 10px 20px; }
+.chi { border-radius:9px; margin-bottom:4px; overflow:hidden; } .chi.open { background:var(--panel); }
+.chi .ch { display:flex; align-items:center; gap:10px; height:34px; padding:0 10px; cursor:pointer; }
+.chi .ch:hover { background:var(--hover); }
+.mark { width:18px; height:18px; border-radius:5px; display:grid; place-items:center; font-family:'JetBrains Mono',monospace; font-size:10.5px; flex-shrink:0; background:var(--hover); color:var(--warn); }
+.mark.A { color:var(--ok); } .mark.D { color:var(--accent); }
+.chi .p { font-family:'JetBrains Mono',monospace; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; cursor:pointer; }
+.chi .p:hover { text-decoration:underline; text-decoration-color:var(--line2); }
+.chi .nums { margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:12px; display:flex; gap:8px; flex-shrink:0; }
+.chi .diff { box-shadow:none; max-height:none; padding:6px 0 10px; font-size:12px; line-height:20px; overflow-x:auto; }
+.chi .diff .n { width:38px; padding-right:10px; }
+.cfoot { flex-shrink:0; padding:14px; box-shadow:inset 0 1px 0 var(--line); }
+.cfoot textarea { display:block; width:100%; box-sizing:border-box; background:var(--card); border:0; outline:none; resize:none; border-radius:9px; box-shadow:inset 0 0 0 1px var(--line);
+  padding:10px 12px; font-size:13.5px; color:var(--fg); line-height:1.5; caret-color:var(--accent); }
+.cfoot textarea:focus { box-shadow:inset 0 0 0 1px var(--line2); }
+.crow { display:flex; align-items:center; gap:6px; margin-top:10px; flex-wrap:wrap; }
+.nochg { padding:40px 16px; text-align:center; color:var(--muted); font-size:13.5px; line-height:1.7; }
+.share { display:flex; gap:4px; flex-wrap:wrap; padding:10px 14px 12px; box-shadow:inset 0 -1px 0 var(--line); align-items:center; font-size:12.5px; color:var(--muted); }
+.share .br { color:var(--fg); margin-right:auto; display:flex; gap:8px; align-items:center; white-space:nowrap; overflow:hidden; }
+
+/* modals */
+.scrim { position:fixed; inset:0; z-index:20; background:var(--scrim); backdrop-filter:blur(3px); }
+.modal { position:absolute; left:50%; transform:translateX(-50%); background:var(--card); border-radius:16px; box-shadow:inset 0 0 0 1px var(--line2), 0 30px 80px var(--shadow); overflow:hidden; }
+.picker { top:14vh; width:min(580px,92vw); }
+.pkin { display:flex; align-items:center; gap:12px; height:56px; padding:0 18px; box-shadow:inset 0 -1px 0 var(--line); }
+.pkin input { flex:1; min-width:0; border:0; outline:none; background:none; font-size:15.5px; color:var(--fg); caret-color:var(--accent); }
+.pkl { padding:10px 8px 12px; max-height:56vh; overflow:auto; scrollbar-width:none; }
+.pkh { padding:14px 10px 6px; font-size:11.5px; color:var(--dim); } .pkh:first-child { padding-top:6px; }
+.pkr { display:flex; align-items:center; gap:12px; height:40px; padding:0 10px; border-radius:9px; cursor:pointer; }
+.pkr:hover, .pkr.sel { background:var(--hover); }
+.pkr .a { font-size:14px; white-space:nowrap; }
+.pkr .b { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pkr .c { margin-left:auto; font-size:12px; color:var(--muted); flex-shrink:0; }
+.pkmsg { display:flex; align-items:center; gap:12px; padding:8px 10px; font-size:13.5px; color:var(--muted); }
+.conn { top:10vh; width:min(720px,94vw); max-height:80vh; overflow:auto; scrollbar-width:none; padding:26px 28px 28px; box-sizing:border-box; }
+.conn h2 { margin:0; font-size:19px; font-weight:500; letter-spacing:-.01em; }
+.conn .sub { font-size:13.5px; color:var(--muted); margin-top:4px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
+.svc { border-radius:12px; background:var(--panel); box-shadow:inset 0 0 0 1px var(--line); padding:16px; display:flex; flex-direction:column; gap:12px; }
+.svc.on { box-shadow:inset 0 0 0 1px var(--line2); }
+.svc .ic { width:36px; height:36px; border-radius:9px; background:var(--hover); box-shadow:inset 0 0 0 1px var(--line); display:grid; place-items:center; color:var(--fg); flex-shrink:0; }
+.svc .nm { font-size:14.5px; font-weight:500; }
+.svc .stt { font-size:12.5px; display:flex; align-items:center; gap:6px; margin-top:2px; color:var(--dim); }
+.svc.on .stt { color:var(--ok); }
+.svc .ds { font-size:13px; color:var(--muted); line-height:1.5; flex:1; }
+.ask { position:fixed; inset:0; z-index:30; display:grid; place-items:center; background:var(--scrim); }
+.ask .modal { position:static; transform:none; padding:26px 28px 22px; width:min(440px,90vw); }
+.ask p { margin:0 0 20px; font-size:15px; line-height:1.5; }
+.ask .row { display:flex; gap:8px; justify-content:flex-end; }
+.toast { position:fixed; left:50%; top:66px; transform:translateX(-50%); background:var(--fg); color:var(--bg); font-size:13px; padding:9px 16px; border-radius:9px; z-index:40;
+  opacity:0; transition:opacity .25s; pointer-events:none; white-space:nowrap; }
+.toast.show { opacity:1; }
+.quick { top:12vh; width:min(620px,90vw); }
+</style></head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="head"><span class="rline"></span><span style="font-size:14px;font-weight:400">Tsukuru</span>
+      <button class="icon" id="hideSide" title="Hide sidebar (Cmd+B)" style="margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4v16M15 7l-5 5 5 5"/></svg></button></div>
+    <div style="padding:12px 12px 8px"><button class="newsess" id="newSess"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>New session<span class="kbd">⌘N</span></button></div>
+    <div class="plist">
+      <div class="label"><span>Projects</span><button class="icon" id="addProj" title="Open, clone or start a project (Cmd+O)" style="margin-left:auto;padding:2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></button></div>
+      <div id="projects"></div>
+    </div>
+    <div class="sfoot">
+      <button id="bConn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 15l6-6M10.5 6.5l1.8-1.8a4 4 0 0 1 5.7 5.7l-1.8 1.8M13.5 17.5l-1.8 1.8a4 4 0 0 1-5.7-5.7l1.8-1.8"/></svg>Connections<span id="connDots" style="margin-left:auto;display:flex;gap:4px"></span></button>
+      <div class="me"><span class="av" id="meAv"></span><span id="meName"></span><span id="meAcct" style="margin-left:auto;font-size:11.5px;color:var(--dim)"></span></div>
+    </div>
+  </aside>
+  <main>
+    <div class="head">
+      <button class="icon" id="showSide" title="Show sidebar (Cmd+B)" style="margin-right:-4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4v16M10 7l5 5-5 5"/></svg></button>
+      <span class="rline"></span><span class="title" id="title">Tsukuru</span><span class="crumb" id="crumb"></span>
+      <span style="flex:1"></span>
+      <div class="vtabs" id="vtabs"><button data-v="chat" title="Conversation">Claude</button><button data-v="files" title="Cmd+E">Files</button><button data-v="preview" title="See the pages">Preview</button></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:10px">
+        <button class="hbtn" id="bChanges" title="Review and commit">Changes</button>
+        <button class="hbtn" id="bTerm" title="Terminal (Cmd+`)">Terminal</button>
+      </div>
+    </div>
+    <div class="body">
+      <div class="center">
+        <div id="chat" style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div class="log" id="log"><div class="login" id="logIn"></div></div>
+          <div class="prompt"><div class="pbox">
+            <textarea id="input" rows="2" spellcheck="false"></textarea>
+            <div class="pbar">
+              <button class="chip mode" id="mode" title="Shift+Tab"></button>
+              <button class="chip" id="atFile" title="Mention a file">@ File</button>
+              <span style="flex:1"></span>
+              <span class="model" id="model"></span>
+              <button class="sendb" id="send" title="Send (Enter)"></button>
+            </div>
+          </div></div>
+        </div>
+        <div class="files" id="files" hidden>
+          <div class="tree"><div id="tree"></div>
+            <div class="tfoot"><button class="btn ghost" id="nFile">New file</button><button class="btn ghost" id="nFolder">New folder</button></div></div>
+          <div class="ed">
+            <div class="fhead" id="fhead" hidden><span class="d" id="fDir"></span><span class="f" id="fName"></span><span class="dot" id="fDirty" title="Unsaved (Cmd+S)" style="background:var(--accent)" hidden></span>
+              <span id="fMark" style="font-size:12px;margin-left:6px"></span><span style="flex:1"></span>
+              <button class="askf" id="askAbout"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v18M3 12h18M5.6 18.4L18.4 5.6" stroke="currentColor"/><path d="M5.6 5.6l12.8 12.8" stroke="var(--accent)"/></svg>Ask Claude about this file</button></div>
+            <div class="editor" id="editor"><div class="find" id="find" hidden><input id="findIn" placeholder="Find in this file" spellcheck="false"><span id="findN"></span></div></div>
+            <div class="nofile" id="nofile">Select a file.</div>
+          </div>
+        </div>
+        <div class="preview" id="preview" hidden>
+          <div class="pvbar">
+            <div class="addr"><span class="dot" id="pvDot" style="background:var(--ok)"></span><input id="pvAddr" spellcheck="false"></div>
+            <span id="pvPages" style="display:contents"></span>
+            <span class="vsep"></span>
+            <button class="seg on" data-dev="desktop">Desktop</button><button class="seg" data-dev="mobile">Mobile</button>
+            <button class="icon" id="pvReload" title="Reload"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>
+            <button class="btn main" id="pvOpen" style="display:flex;align-items:center;gap:7px;margin-left:4px;font-size:12.5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></svg>Open in browser</button>
+          </div>
+          <div class="stage" id="stage"></div>
+        </div>
+      </div>
+      <aside class="insp" id="insp" hidden>
+        <div class="share" id="share"></div>
+        <div class="chlist" id="chlist"></div>
+        <div class="cfoot" id="cfoot" hidden>
+          <textarea id="commitMsg" rows="2" placeholder="Commit message" spellcheck="false"></textarea>
+          <div class="crow"><button class="btn ghost" id="claudeCommit">Let Claude write it</button><span style="flex:1"></span>
+            <button class="btn" id="commit">Commit</button><button class="btn main" id="commitPush" hidden>Commit and push</button></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+<div class="scrim" id="picker" hidden><div class="modal picker" data-stop>
+  <div class="pkin"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6"><path d="M3 6.5h6l2 2h10v10H3z"/></svg>
+    <input id="pickIn" placeholder="Open a folder, paste a repository address, or name a new project" spellcheck="false"><span class="kbd">esc</span></div>
+  <div class="pkl" id="pickList"></div></div></div>
+<div class="scrim" id="conn" hidden><div class="modal conn" data-stop>
+  <div style="display:flex;align-items:flex-start;gap:12px"><div><h2>Connections</h2><div class="sub">Claude can use these in every project: push code, open pull requests, deploy and read logs.</div></div>
+    <button class="icon" data-close style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="connBody"></div></div></div>
+<div class="scrim" id="quick" hidden><div class="modal picker quick" data-stop>
+  <div class="pkin"><input id="quickIn" placeholder="Find a file" spellcheck="false"><span class="kbd">esc</span></div>
+  <div class="pkl" id="quickRes"></div></div></div>
+<div class="ask" id="ask" hidden></div>
+<div class="toast" id="toast"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const send = (m) => window.webkit.messageHandlers.ide.postMessage(JSON.stringify(m));
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const night = new URLSearchParams(location.search).get('theme') === 'night';
+if (night) document.body.classList.add('night');
+const CHEV = (s = 10, c = 'var(--dim)') => `<svg class="chev" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4"><path d="M8 4l8 8-8 8"/></svg>`;
+const TICK = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="3.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const UP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
+const STOP = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
+const hueOf = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const tint = (h) => night ? `oklch(0.36 0.07 ${h})` : `oklch(0.9 0.05 ${h})`, ink = (h) => night ? `oklch(0.9 0.07 ${h})` : `oklch(0.38 0.09 ${h})`;
+const letterHtml = (name, cls = '') => { const h = hueOf(name); return `<span class="letter ${cls}" style="background:${tint(h)};color:${ink(h)}">${esc((name[0] || '?').toUpperCase())}</span>`; };
+const ago = (t) => { const s = Date.now() / 1000 - t; if (s < 90) return 'now'; if (s < 3600) return Math.round(s / 60) + 'm'; if (s < 86400) return Math.round(s / 3600) + 'h'; if (s < 172800) return 'Yesterday'; return Math.round(s / 86400) + 'd'; };
+try { localStorage.removeItem('mode'); } catch (e) {}
+const MODES = [['auto', 'Auto', 'var(--accent)'], ['plan', 'Plan', 'var(--def)'], ['ask', 'Ask first', 'var(--warn)']];
+
+let S = {
+  home: '', user: '', account: '', model: '',
+  projects: [], root: null, name: '', sessions: [], sid: null, logs: {}, busy: {}, needs: {}, open: {},
+  view: 'chat', side: true, panel: false, term: false, mode: 0,
+  git: { repo: false, changes: [] }, conn: {}, repos: null, chOpen: {}, diffs: {},
+  pages: [], urls: {}, page: null, device: 'desktop',
+};
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._h); el._h = setTimeout(() => el.classList.remove('show'), 2400); }
+window.toast = toast;
+
+// --- markdown, small and safe --------------------------------------------------------------
+function inl(t) {
+  const parts = [];
+  t = t.replace(/`([^`\n]+)`/g, (_, c) => { parts.push(`<code>${esc(c)}</code>`); return `\u0000${parts.length - 1}\u0000`; });
+  t = esc(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, '$1<i>$2</i>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a data-href="$2">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a data-href="$2">$2</a>');
+  return t.replace(/\u0000(\d+)\u0000/g, (_, i) => parts[+i]);
+}
+function md(src) {
+  const L = src.replace(/\r/g, '').split('\n'), out = [];
+  let i = 0;
+  while (i < L.length) {
+    const l = L[i];
+    if (/^```/.test(l)) { const buf = []; i++; while (i < L.length && !/^```/.test(L[i])) buf.push(L[i++]); i++; out.push(`<pre><code>${esc(buf.join('\n'))}</code></pre>`); continue; }
+    if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < L.length && /^\s*\|?[\s:-]+\|[\s|:-]*$/.test(L[i + 1])) {
+      const row = (r) => r.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+      const head = row(l); i += 2; const rows = [];
+      while (i < L.length && /^\s*\|.*\|\s*$/.test(L[i])) rows.push(row(L[i++]));
+      out.push(`<div class="tbl"><table><thead><tr>${head.map((h) => `<th>${inl(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${inl(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      continue;
+    }
+    let m;
+    if ((m = l.match(/^(#{1,4})\s+(.*)/))) { out.push(`<h${m[1].length}>${inl(m[2])}</h${m[1].length}>`); i++; continue; }
+    if (/^\s*([-*+]|\d+[.)])\s+/.test(l)) {
+      const ordered = /^\s*\d/.test(l), items = [];
+      while (i < L.length && /^\s*([-*+]|\d+[.)])\s+/.test(L[i])) { let t = L[i++].replace(/^\s*([-*+]|\d+[.)])\s+/, ''); while (i < L.length && /^\s{2,}\S/.test(L[i]) && !/^\s*([-*+]|\d+[.)])\s+/.test(L[i])) t += ' ' + L[i++].trim(); items.push(`<li>${inl(t)}</li>`); }
+      out.push(ordered ? `<ol>${items.join('')}</ol>` : `<ul>${items.join('')}</ul>`); continue;
+    }
+    if (/^>\s?/.test(l)) { const buf = []; while (i < L.length && /^>\s?/.test(L[i])) buf.push(L[i++].replace(/^>\s?/, '')); out.push(`<blockquote>${inl(buf.join(' '))}</blockquote>`); continue; }
+    if (!l.trim()) { i++; continue; }
+    const buf = []; while (i < L.length && L[i].trim() && !/^(```|#{1,4}\s|\s*([-*+]|\d+[.)])\s+|>)/.test(L[i]) && !/^\s*\|.*\|\s*$/.test(L[i])) buf.push(L[i++]);
+    if (!buf.length) buf.push(L[i++]);
+    out.push(`<p>${buf.map(inl).join('<br>')}</p>`);
+  }
+  return out.join('');
+}
+
+// --- sidebar -----------------------------------------------------------------------------------
+const projBusy = (root) => Object.values(S.busy).some((b) => b === root);
+function drawSide() {
+  document.body.classList.toggle('noside', !S.side);
+  $('showSide').hidden = S.side;
+  const known = new Set(S.projects.map((p) => p.root));
+  const list = S.projects.concat((S.more || []).filter((p) => !known.has(p.root)).slice(0, Math.max(0, 10 - S.projects.length)).map((p) => ({ ...p, more: true })));
+  $('projects').innerHTML = list.map((p) => {
+    const on = p.root === S.root, n = on && S.git.repo ? S.git.changes.length : 0;
+    let st = '';
+    if (projBusy(p.root)) st = '<span class="pulse" style="width:6px;height:6px"></span>';
+    else if (S.needs[p.root]) st = '<span style="color:var(--warn)">Needs you</span>';
+    else if (n) st = `<span class="mono" style="color:var(--warn)">${n}</span>`;
+    let h = `<div class="prow${on ? ' on' : ''}${p.more && !on ? ' more' : ''}" data-root="${esc(p.root)}" title="${esc(p.root.replace(S.home, '~'))}">${letterHtml(p.name)}<span class="nm">${esc(p.name)}</span><span class="st">${st}</span></div>`;
+    if (on) {
+      const list = S.sessions.slice();
+      if (S.sid && !list.some((x) => x.id === S.sid)) list.unshift({ id: S.sid, title: S.newTitle || 'New session', at: Date.now() / 1000 });
+      h += '<div style="padding:2px 0 8px">' + list.map((x) => `<div class="srow${x.id === S.sid ? ' on' : ''}" data-sid="${esc(x.id)}"><span>${esc(x.title)}</span><span class="when">${S.busy[x.id] ? '<span class="pulse" style="width:6px;height:6px"></span>' : esc(ago(x.at))}</span></div>`).join('') + '</div>';
+    }
+    return h;
+  }).join('') || '<div style="padding:4px 8px;font-size:13px;color:var(--muted)">No projects yet.</div>';
+  const dots = [['github', 'GitHub'], ['gitlab', 'GitLab'], ['railway', 'Railway']];
+  $('connDots').innerHTML = dots.map(([k, n]) => `<span class="dot" title="${n}" style="background:${S.conn[k] ? 'var(--ok)' : 'var(--line2)'}"></span>`).join('');
+}
+$('projects').addEventListener('click', (e) => {
+  const s = e.target.closest('[data-sid]'); if (s) return openSession(s.dataset.sid);
+  const p = e.target.closest('[data-root]'); if (p && p.dataset.root !== S.root) send({ type: 'openProject', path: p.dataset.root });
+});
+$('hideSide').onclick = $('showSide').onclick = () => { S.side = !S.side; drawSide(); cm.refresh(); };
+$('newSess').onclick = () => newSession();
+$('addProj').onclick = () => openPicker();
+$('bConn').onclick = () => openConn();
+
+// --- head -------------------------------------------------------------------------------------
+function drawHead() {
+  const ss = S.sessions.find((x) => x.id === S.sid);
+  $('title').textContent = S.root ? (ss ? ss.title : (S.sid && S.newTitle) || 'New session') : 'Tsukuru';
+  $('crumb').textContent = S.root ? S.name + (S.git.repo ? ' · ' + S.git.branch : '') : '';
+  [...$('vtabs').children].forEach((b) => b.classList.toggle('on', b.dataset.v === S.view));
+  const n = S.git.repo ? S.git.changes.length : 0;
+  $('bChanges').innerHTML = 'Changes' + (n ? ` <span class="n">${n}</span>` : '');
+  $('bChanges').classList.toggle('on', S.panel);
+  $('bTerm').classList.toggle('on', S.term);
+}
+$('vtabs').addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) setView(b.dataset.v); });
+$('bChanges').onclick = () => togglePanel();
+$('bTerm').onclick = () => send({ type: 'terminal' });
+window.terminalShown = (on) => { S.term = on; drawHead(); };
+function setView(v) {
+  S.view = v;
+  $('chat').hidden = v !== 'chat'; $('files').hidden = v !== 'files'; $('preview').hidden = v !== 'preview';
+  if (v === 'files') { if (!S.treeLoaded && S.root) send({ type: 'list', path: S.root }); showEditor(); setTimeout(() => cur ? cm.focus() : 0, 30); }
+  if (v === 'preview') { send({ type: 'pages' }); drawPreview(); }
+  if (v === 'chat') { setTimeout(() => $('input').focus(), 30); scrollLog(true); }
+  drawHead();
+}
+function togglePanel(on = !S.panel) { S.panel = on; $('insp').hidden = !on; if (on) { send({ type: 'gitRefresh' }); drawChanges(); } drawHead(); cm.refresh(); }
+
+// --- project and sessions ----------------------------------------------------------------------
+window.init = (d) => {
+  Object.assign(S, { home: d.home, user: d.user, account: d.account, model: d.model || '' });
+  $('meAv').textContent = (d.user[0] || '?').toUpperCase(); $('meName').textContent = d.user; $('meAcct').textContent = d.account;
+  drawModel();
+};
+window.projects = (list) => { S.projects = list; drawSide(); if (!$('picker').hidden) drawPicker(); };
+window.project = (d) => {
+  Object.assign(S, { root: d.root, name: d.name, sessions: d.sessions, sid: null, newTitle: '', git: { repo: false, changes: [] }, chOpen: {}, diffs: {}, pages: [], page: null, treeLoaded: false });
+  delete S.needs[d.root];
+  children = {}; expanded = new Set([d.root]); docs = {}; cur = null; showEditor();
+  closeModals();
+  if (d.sessions.length && d.resume !== false) openSession(d.sessions[0].id); else newSession(true);
+  if (S.view === 'files') send({ type: 'list', path: d.root });
+  if (S.view === 'preview') send({ type: 'pages' });
+  drawSide(); drawHead();
+};
+window.sessions = (d) => { if (d.root !== S.root) return; S.sessions = d.list; if (S.sessions.some((x) => x.id === S.sid)) S.newTitle = ''; drawSide(); drawHead(); };
+function openSession(sid) {
+  S.sid = sid;
+  if (!S.logs[sid]) { S.logs[sid] = null; send({ type: 'history', sid }); }
+  drawSide(); drawHead(); drawLog(); setView('chat');
+}
+function newSession(quiet) {
+  if (!S.root) return openPicker();
+  if (S.busy[S.sid] === undefined && S.sid && S.sid.startsWith('new:') && !(S.logs[S.sid] || []).length) delete S.logs[S.sid];
+  S.sid = 'new:' + Date.now(); S.newTitle = ''; S.logs[S.sid] = []; $('input').value = '';
+  drawSide(); drawHead(); drawLog(); setView('chat');
+  if (quiet) return;
+  const r = document.querySelector('.srow.on'); if (r) r.classList.add('fresh');
+  const b = document.querySelector('.pbox'); b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash');
+  toast(`New session in ${S.name}`);
+}
+const LOCAL = /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?[^\s)`'"<]*/;
+window.history_ = (d) => { if (d.root !== S.root) return; S.logs[d.sid] = d.blocks;
+  for (const b of d.blocks.slice().reverse()) { const m = (b.t || (b.out || []).join('\n')).match(LOCAL); if (m) { S.urls[d.root] = S.urls[d.root] || m[0].replace('0.0.0.0', 'localhost'); break; } } if (d.sid === S.sid) { drawLog(); scrollLog(true); } };
+
+// --- chat ---------------------------------------------------------------------------------------
+const isFile = (p) => p && S.root && p.startsWith('/') ;
+function blockHtml(b, i) {
+  if (b.k === 'user') return `<div class="u">${esc(b.t)}</div>`;
+  if (b.k === 'text') return `<div class="md">${md(b.t)}</div>`;
+  if (b.k === 'error') return `<div class="errb">${esc(b.t)}</div>`;
+  if (b.k === 'todo') {
+    const done = b.items.filter((x) => x[1]).length;
+    return `<div class="card todo"><div class="top"><span>Plan</span><span style="margin-left:auto">${done} of ${b.items.length} done</span></div>` +
+      b.items.map(([t, d]) => `<div class="it${d ? ' done' : ''}"><span class="box">${d ? TICK : ''}</span>${esc(t)}</div>`).join('') + '</div>';
+  }
+  if (b.k === 'denied') {
+    return `<div class="card denied"><div class="w">Claude needs your go-ahead for:</div>${b.items.map((x) => `<div class="x">${esc(x)}</div>`).join('')}
+      <div style="display:flex;gap:6px;margin-top:4px"><button class="btn main" data-allow>Allow and go on</button><button class="btn ghost" data-auto>Switch to Auto</button></div></div>`;
+  }
+  if (b.k === 'tool') {
+    const lines = b.diff && b.diff.length ? b.diff : null, out = b.out && b.out.length ? b.out : null;
+    const has = !!(lines || out), key = S.sid + ':' + (b.id || i), open = has && (S.open[key] ?? false);
+    const add = lines ? lines.filter((l) => l.s === '+').length : 0, del = lines ? lines.filter((l) => l.s === '-').length : 0;
+    const file = b.path && S.root && b.path.startsWith(S.root + '/');
+    let body = '';
+    if (open) body = '<div class="diff">' + (lines ? lines.map(dl).join('') : out.map((t) => `<div class="dl o"><span class="n"></span><span class="s"></span><span class="t">${esc(t)}</span></div>`).join('')) + '</div>';
+    return `<div class="card tool${has ? ' has' : ''}${open ? ' open' : ''}${b.running ? ' running' : ''}${b.error ? ' err' : ''}" data-key="${esc(key)}">
+      <div class="th"><span class="dot" style="background:${b.running ? 'var(--accent)' : b.error ? 'var(--accent)' : 'var(--ok)'}${b.running ? ';animation:pulse 1.3s infinite' : ''}"></span>
+      <span class="verb">${esc(b.verb)}</span><span class="arg${file ? ' file' : ''}" ${file ? `data-file="${esc(b.path)}"` : ''} title="${esc(b.arg)}">${esc(b.arg)}</span>
+      <span class="meta">${add ? `<span class="add">+${add}</span>` : ''}${del ? `<span class="del">−${del}</span>` : ''}${b.note || b.running ? `<span class="note">${esc(b.running ? (b.note || 'Working') : b.note)}</span>` : ''}${has ? CHEV() : ''}</span></div>${body}</div>`;
+  }
+  return '';
+}
+const dl = (l) => `<div class="dl ${l.t === '⋯' && l.s === ' ' ? 'gap' : l.s === '+' ? 'p' : l.s === '-' ? 'm' : 'c'}"><span class="n">${esc(l.n)}</span><span class="s">${l.s === ' ' ? '' : l.s === '-' ? '−' : '+'}</span><span class="t">${esc(l.t)}</span></div>`;
+function drawLog() {
+  const log = S.logs[S.sid], busy = !!S.busy[S.sid];
+  let h = '';
+  if (!S.root) h = `<div class="empty"><div class="q">Open a project to begin.</div><div><button class="btn main" onclick="openPicker()">Open or start a project</button></div></div>`;
+  else if (log === null || log === undefined) h = '<div class="busy" style="color:var(--muted)">Loading…</div>';
+  else if (!log.length && !busy) h = `<div class="empty">${letterHtml(S.name)}<div class="q">What are we making in ${esc(S.name)}?</div><div class="p mono">${esc(S.root.replace(S.home, '~'))}</div></div>`;
+  else {
+    h = log.map(blockHtml).join('');
+    if (busy) h += `<div class="busy"><span class="pulse"></span><span class="shim">${esc(busyText(log))}</span></div>`;
+    else if (log.length && log[log.length - 1].k !== 'user') h += summaryHtml();
+  }
+  $('logIn').innerHTML = h;
+  drawSend();
+}
+function busyText(log) {
+  const last = [...log].reverse().find((b) => b.k === 'tool' && b.running);
+  if (!last) return 'Thinking';
+  return { Run: 'Running', Read: 'Reading', Edit: 'Editing', Write: 'Writing', Search: 'Searching', Find: 'Looking', Agent: 'Working with a helper' }[last.verb] || 'Working';
+}
+function summaryHtml() {
+  if (!S.git.repo) return '';
+  const ch = S.git.changes, a = ch.reduce((x, c) => x + (c.add || 0), 0), d = ch.reduce((x, c) => x + (c.del || 0), 0);
+  return `<div class="summary"><span style="font-size:13.5px">${ch.length ? `${ch.length} file${ch.length > 1 ? 's' : ''} changed` : 'All changes committed'}</span>` +
+    (ch.length ? `<span class="mono" style="font-size:12px"><span class="add">+${a}</span> <span class="del">−${d}</span></span><span style="flex:1"></span>
+    <div style="display:flex;gap:6px"><button class="btn" data-go="review">Review</button><button class="btn" data-go="preview">Preview</button><button class="btn main" data-go="commit">Commit</button></div>` : '') + '</div>';
+}
+let pinned = true;
+$('log').addEventListener('scroll', () => { const el = $('log'); pinned = el.scrollHeight - el.clientHeight - el.scrollTop < 40; });
+function scrollLog(force) { const el = $('log'); if (force || pinned) { el.scrollTop = el.scrollHeight; requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; }); } }
+new ResizeObserver(() => scrollLog()).observe($('logIn'));
+$('logIn').addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-href]'); if (a) return send({ type: 'openUrl', url: a.dataset.href });
+  const f = e.target.closest('[data-file]'); if (f) { e.stopPropagation(); return openFile(f.dataset.file); }
+  const g = e.target.closest('[data-go]'); if (g) { const w = g.dataset.go; if (w === 'preview') return setView('preview'); togglePanel(true); if (w === 'commit') $('commitMsg').focus(); return; }
+  if (e.target.closest('[data-allow]')) return ask('Go ahead with that.', 'auto');
+  if (e.target.closest('[data-auto]')) { S.mode = 0; drawMode(); return ask('Go ahead with that.'); }
+  const t = e.target.closest('.tool.has'); if (t && e.target.closest('.th')) { S.open[t.dataset.key] = !t.classList.contains('open'); drawLog(); }
+});
+function drawMode() { const m = MODES[S.mode]; $('mode').innerHTML = `<span class="dot" style="background:${m[2]}"></span>${m[1]}`; $('mode').style.color = m[2]; }
+function drawModel() { const m = S.model.match(/(opus|sonnet|haiku|fable)-(\d+)-(\d+)/i); $('model').textContent = m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}` : (S.model || ''); }
+window.model = (m) => { S.model = m; drawModel(); };
+function drawSend() {
+  const busy = !!S.busy[S.sid], has = $('input').value.trim();
+  $('send').innerHTML = busy ? STOP : UP; $('send').className = 'sendb' + (busy || has ? ' go' : ''); $('send').title = busy ? 'Stop' : 'Send (Enter)';
+  $('input').placeholder = S.root ? (busy ? 'Claude is working. Stop it, or wait to ask the next thing.' : `Ask Claude to build something in ${S.name}`) : 'Open a project first';
+}
+$('mode').onclick = () => { S.mode = (S.mode + 1) % MODES.length; drawMode(); };
+$('atFile').onclick = () => { if (S.root) openQuick(true); };
+$('input').addEventListener('input', () => { const i = $('input'); i.style.height = 'auto'; i.style.height = Math.min(i.scrollHeight, innerHeight * 0.4) + 'px'; drawSend(); });
+$('input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
+  if (e.key === 'Tab' && e.shiftKey) { e.preventDefault(); $('mode').onclick(); }
+});
+$('send').onclick = () => S.busy[S.sid] ? send({ type: 'stop', sid: S.sid }) : ask();
+function ask(text, mode) {
+  text = text ?? $('input').value.trim();
+  if (!text || !S.root || S.busy[S.sid]) return;
+  const isNew = !S.sid || S.sid.startsWith('new:');
+  const log = S.logs[S.sid] || [];
+  log.push({ k: 'user', t: text });
+  if (isNew) S.newTitle = text.length > 60 ? text.slice(0, 59) + '…' : text;
+  S.logs[S.sid] = log;
+  if (text === $('input').value.trim()) { $('input').value = ''; $('input').style.height = ''; }
+  pinned = true;
+  send({ type: 'ask', sid: S.sid, text, mode: mode || MODES[S.mode][0], isNew });
+  S.busy[S.sid] = S.root; drawLog(); drawSide();
+}
+// The backend gives a new session its real id as soon as it starts.
+window.started = (d) => {
+  if (d.old && d.old !== d.sid) { S.logs[d.sid] = S.logs[d.old]; delete S.logs[d.old]; if (S.busy[d.old]) { S.busy[d.sid] = S.busy[d.old]; delete S.busy[d.old]; } if (S.sid === d.old) S.sid = d.sid; }
+  drawSide();
+};
+window.chat = (d) => {
+  if (d.kind === 'busy') {
+    if (d.busy) S.busy[d.sid] = d.root; else { delete S.busy[d.sid]; if (d.needs && d.root !== S.root) S.needs[d.root] = true; if (d.root === S.root) send({ type: 'sessions' }); }
+    drawSide(); if (d.sid === S.sid) drawLog(); return;
+  }
+  const log = S.logs[d.sid]; if (!log) return;
+  if (d.kind === 'block') {
+    if (d.block.k === 'todo') { const old = log.find((b) => b.k === 'todo'); if (old) { old.items = d.block.items; if (d.sid === S.sid) drawLog(); return; } }
+    log.push(d.block);
+    const txt = d.block.t || (d.block.out || []).join('\n');
+    const m = txt && txt.match(/https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?[^\s)`'"<]*/);
+    if (m) S.urls[d.root] = m[0].replace('0.0.0.0', 'localhost');
+  } else if (d.kind === 'update') {
+    const b = log.find((x) => x.id === d.upd.id); if (b) Object.assign(b, d.upd);
+    const m = (d.upd.out || []).join('\n').match(/https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?[^\s)`'"<]*/);
+    if (m) S.urls[d.root] = m[0].replace('0.0.0.0', 'localhost');
+  }
+  if (d.sid === S.sid) drawLog();
+};
+
+// --- files ---------------------------------------------------------------------------------------
+let children = {}, expanded = new Set(), docs = {}, cur = null, allFiles = [];
+const cm = CodeMirror($('editor'), {
+  lineNumbers: true, matchBrackets: true, autoCloseBrackets: true, styleActiveLine: true, indentUnit: 4,
+  tabSize: 4, indentWithTabs: false, lineWrapping: false, scrollbarStyle: 'native', value: '',
+  extraKeys: {
+    'Ctrl-/': 'toggleComment', 'Cmd-/': 'toggleComment',
+    Tab: (c) => c.somethingSelected() ? c.indentSelection('add') : c.replaceSelection(c.getOption('indentWithTabs') ? '\t' : ' '.repeat(c.getOption('indentUnit')), 'end'),
+    'Shift-Tab': (c) => c.indentSelection('subtract'),
+  },
+});
+function modeFor(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase(), base = name.toLowerCase();
+  if (base === 'dockerfile') return 'dockerfile';
+  return ({ js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: { name: 'javascript', jsx: true },
+    ts: 'text/typescript', tsx: 'text/typescript-jsx', json: 'application/json', py: 'python', pyw: 'python',
+    html: 'htmlmixed', htm: 'htmlmixed', xml: 'xml', svg: 'xml', css: 'css', scss: 'text/x-scss', less: 'text/x-less',
+    sh: 'shell', bash: 'shell', zsh: 'shell', md: 'markdown', markdown: 'markdown', c: 'text/x-csrc', h: 'text/x-csrc',
+    cpp: 'text/x-c++src', cc: 'text/x-c++src', hpp: 'text/x-c++src', java: 'text/x-java', kt: 'text/x-kotlin',
+    cs: 'text/x-csharp', rs: 'rust', go: 'go', yml: 'yaml', yaml: 'yaml', toml: 'toml', sql: 'sql', lua: 'lua',
+    php: 'php', rb: 'ruby', pl: 'perl', diff: 'diff', patch: 'diff', ini: 'properties', conf: 'properties',
+    cfg: 'properties', desktop: 'properties', env: 'properties', swift: 'text/x-swift', dart: 'text/x-dart' })[ext] || 'text/plain';
+}
+const relOf = (p) => S.root && p.startsWith(S.root + '/') ? p.slice(S.root.length + 1) : p;
+const chOf = (p) => S.git.changes.find((c) => c.path === relOf(p));
+window.listed = (d) => { children[d.path] = d.items; if (d.path === S.root) S.treeLoaded = true; drawTree(); };
+function drawTree() {
+  const out = [];
+  const walk = (dir, depth) => (children[dir] || []).forEach((n) => {
+    const open = expanded.has(n.path), c = !n.dir && chOf(n.path);
+    out.push(`<div class="node${n.dir ? ' dir' : ''}${open ? ' open' : ''}${cur && cur.path === n.path ? ' on' : ''}" data-p="${esc(n.path)}" data-dir="${n.dir ? 1 : ''}" style="padding-left:${10 + depth * 16}px">` +
+      `<span class="cv">${n.dir ? CHEV(8, 'currentColor') : ''}</span><span class="nm">${esc(n.name)}</span>${c ? `<span class="mk${c.mark === 'A' ? ' a' : ''}">${c.mark}</span>` : ''}</div>`);
+    if (n.dir && open) walk(n.path, depth + 1);
+  });
+  if (S.root) walk(S.root, 0);
+  $('tree').innerHTML = out.join('');
+}
+$('tree').addEventListener('click', (e) => {
+  const n = e.target.closest('.node'); if (!n) return;
+  const p = n.dataset.p;
+  if (n.dataset.dir) { if (expanded.has(p)) expanded.delete(p); else { expanded.add(p); if (!children[p]) send({ type: 'list', path: p }); } drawTree(); }
+  else openFile(p);
+});
+function openFile(p) {
+  if (S.view !== 'files') setView('files');
+  if (docs[p]) return activate(docs[p]);
+  send({ type: 'read', path: p });
+}
+window.opened = (d) => {
+  let t = docs[d.path];
+  if (!t) {
+    const doc = CodeMirror.Doc(d.text, modeFor(d.name)), lines = d.text.split('\n').slice(0, 200);
+    const tabsUsed = lines.filter((l) => l.startsWith('\t')).length, s2 = lines.filter((l) => /^  \S/.test(l)).length, s4 = lines.filter((l) => /^    \S/.test(l)).length;
+    t = docs[d.path] = { path: d.path, name: d.name, doc, clean: doc.changeGeneration(), tabs: tabsUsed > s4 + s2, unit: s2 > s4 ? 2 : 4 };
+    doc.on('change', () => { if (t === cur) drawFileHead(); });
+  }
+  if (S.view !== 'files') setView('files');
+  // Open the folders down to the file, so the tree shows where it is.
+  let dir = d.path.slice(0, d.path.lastIndexOf('/'));
+  while (S.root && dir.length > S.root.length) { if (!expanded.has(dir)) { expanded.add(dir); if (!children[dir]) send({ type: 'list', path: dir }); } dir = dir.slice(0, dir.lastIndexOf('/')); }
+  activate(t);
+};
+const dirty = (t) => !t.doc.isClean(t.clean);
+function activate(t) { cur = t; cm.swapDoc(t.doc); cm.setOption('indentWithTabs', t.tabs); cm.setOption('indentUnit', t.unit); showEditor(); drawTree(); cm.focus(); }
+function showEditor() { const any = !!cur; cm.getWrapperElement().style.display = any ? '' : 'none'; $('nofile').hidden = any; $('fhead').hidden = !any; if (any) { cm.refresh(); drawFileHead(); } }
+function drawFileHead() {
+  if (!cur) return;
+  const r = relOf(cur.path), c = chOf(cur.path);
+  $('fDir').textContent = r.includes('/') ? r.slice(0, r.lastIndexOf('/') + 1) : ''; $('fName').textContent = cur.name;
+  $('fDirty').hidden = !dirty(cur);
+  $('fMark').textContent = c ? (c.mark === 'A' ? 'New file' : `Modified · +${c.add || 0} −${c.del || 0}`) : '';
+  $('fMark').style.color = c && c.mark === 'A' ? 'var(--ok)' : 'var(--warn)';
+}
+$('askAbout').onclick = () => { if (!cur) return; const i = $('input'); i.value = (i.value ? i.value.trimEnd() + ' ' : '') + '@' + relOf(cur.path) + ' '; setView('chat'); i.focus(); };
+function save(t = cur) { if (t) send({ type: 'write', path: t.path, text: t.doc.getValue() }); }
+window.saved = (d) => { const t = docs[d.path]; if (t) { t.clean = t.doc.changeGeneration(); t.savedAt = Date.now(); drawFileHead(); toast(`Saved ${t.name}`); } };
+window.changedOnDisk = (d) => {
+  const t = docs[d.path]; if (!t || t.doc.getValue() === d.text) return;
+  if (t.savedAt && Date.now() - t.savedAt < 1500) return;
+  if (dirty(t)) return toast(`${t.name} changed on disk; your unsaved edits are kept`);
+  const c = t.doc.getCursor(), top = t === cur ? cm.getScrollInfo().top : 0;
+  t.doc.setValue(d.text); t.doc.setCursor(c); t.clean = t.doc.changeGeneration();
+  if (t === cur) cm.scrollTo(null, top);
+};
+window.deletedOnDisk = (d) => { const t = docs[d.path]; if (t) toast(`${t.name} was deleted on disk`); };
+const curDir = () => (cur ? cur.path.slice(0, cur.path.lastIndexOf('/')) : S.root);
+$('nFile').onclick = () => S.root && promptBox('New file', '', (name) => send({ type: 'newFile', dir: curDir(), name }));
+$('nFolder').onclick = () => S.root && promptBox('New folder', '', (name) => send({ type: 'newFolder', dir: curDir(), name }));
+
+let marks = [];
+function openFind() { if (!cur) return; $('find').hidden = false; const sel = cm.getSelection(); if (sel && !sel.includes('\n')) $('findIn').value = sel; $('findIn').focus(); $('findIn').select(); runFind(); }
+function runFind(step = 0) {
+  marks.forEach((m) => m.clear()); marks = [];
+  const q = $('findIn').value; if (!q) { $('findN').textContent = ''; return; }
+  let n = 0; const c = cm.getSearchCursor(q, CodeMirror.Pos(0, 0), { caseFold: true });
+  while (c.findNext() && n < 5000) { marks.push(cm.markText(c.from(), c.to(), { className: 'cm-searching' })); n++; }
+  $('findN').textContent = n ? `${n} found` : 'none';
+  if (step && n) {
+    let s = cm.getSearchCursor(q, step > 0 ? cm.getCursor('to') : cm.getCursor('from'), { caseFold: true });
+    if (!(step > 0 ? s.findNext() : s.findPrevious())) { s = cm.getSearchCursor(q, step > 0 ? CodeMirror.Pos(0, 0) : CodeMirror.Pos(cm.lastLine()), { caseFold: true }); step > 0 ? s.findNext() : s.findPrevious(); }
+    cm.setSelection(s.from(), s.to()); cm.scrollIntoView({ from: s.from(), to: s.to() }, 120);
+  }
+}
+$('findIn').addEventListener('input', () => runFind());
+$('findIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runFind(e.shiftKey ? -1 : 1); } if (e.key === 'Escape') { $('find').hidden = true; marks.forEach((m) => m.clear()); marks = []; cm.focus(); } });
+
+// Cmd+P: find a file.
+let qsel = 0, qres = [];
+window.allFiles_ = (f) => { allFiles = f; if (!$('quick').hidden) drawQuick(); };
+let quickMention = false;
+function openQuick(mention = false) { if (!S.root) return; quickMention = mention; send({ type: 'files' }); $('quickIn').placeholder = mention ? 'Which file should Claude look at?' : 'Find a file'; $('quick').hidden = false; $('quickIn').value = ''; drawQuick(); $('quickIn').focus(); }
+function quickPick(rel) {
+  $('quick').hidden = true;
+  if (!quickMention) return openFile(S.root + '/' + rel);
+  const i = $('input'); i.value = (i.value && !i.value.endsWith(' ') ? i.value + ' ' : i.value) + '@' + rel + ' ';
+  setView('chat'); i.focus(); drawSend();
+}
+function score(f, q) { let i = 0, s = 0, last = -1; const lf = f.toLowerCase(); for (const ch of q) { const j = lf.indexOf(ch, i); if (j < 0) return -1; s += j === last + 1 ? 3 : 1; if (j === lf.lastIndexOf('/') + 1) s += 4; last = j; i = j + 1; } return s - f.length / 100; }
+function drawQuick() {
+  const q = $('quickIn').value.trim().toLowerCase().replace(/\s+/g, '');
+  qres = (q ? allFiles.map((f) => [f, score(f, q)]).filter((x) => x[1] >= 0).sort((a, b) => b[1] - a[1]).map((x) => x[0]) : allFiles).slice(0, 60); qsel = 0;
+  $('quickRes').innerHTML = qres.map((f, i) => `<div class="pkr${i === qsel ? ' sel' : ''}" data-i="${i}"><span class="a">${esc(f.split('/').pop())}</span><span class="b">${esc(f)}</span></div>`).join('');
+}
+$('quickIn').addEventListener('input', drawQuick);
+$('quickIn').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); qsel = Math.max(0, Math.min(qres.length - 1, qsel + (e.key === 'ArrowDown' ? 1 : -1))); [...$('quickRes').children].forEach((r, i) => r.classList.toggle('sel', i === qsel)); $('quickRes').children[qsel]?.scrollIntoView({ block: 'nearest' }); }
+  if (e.key === 'Enter' && qres[qsel]) quickPick(qres[qsel]);
+});
+$('quickRes').addEventListener('click', (e) => { const r = e.target.closest('.pkr'); if (r) quickPick(qres[+r.dataset.i]); });
+
+// --- preview ------------------------------------------------------------------------------------
+window.pages = (d) => { if (d.root !== S.root) return; S.pages = d.list; drawPreview(); };
+function pvTarget() {
+  const url = S.urls[S.root];
+  if (S.page === '@url' && url) return { label: url, src: url, url };
+  const p = S.pages.includes(S.page) ? S.page : (url ? null : S.pages[0]);
+  if (!p) return url ? { label: url, src: url, url } : null;
+  S.page = p; return { label: p, src: 'file://' + encodeURI(S.root + '/' + p), url: 'file://' + S.root + '/' + p };
+}
+function drawPreview() {
+  const t = pvTarget(), url = S.urls[S.root];
+  if (document.activeElement !== $('pvAddr')) $('pvAddr').value = t ? t.label : '';
+  const segs = (url ? [['@url', url.replace(/^https?:\/\//, '')]] : []).concat(S.pages.slice(0, 6).map((p) => [p, p.split('/').pop().replace(/\.html?$/, '')]));
+  const curKey = t && t.src === url ? '@url' : S.page;
+  $('pvPages').innerHTML = segs.length > 1 ? segs.map(([k, n]) => `<button class="seg${k === curKey ? ' on' : ''}" data-pg="${esc(k)}">${esc(n)}</button>`).join('') : '';
+  [...document.querySelectorAll('[data-dev]')].forEach((b) => b.classList.toggle('on', b.dataset.dev === S.device));
+  const st = $('stage');
+  if (!t) { st.innerHTML = '<div class="none">No pages to preview in this project yet.<br>When Claude starts a server, it shows here.</div>'; return; }
+  let f = st.querySelector('iframe');
+  if (!f) { st.innerHTML = '<iframe name="tsukuru-preview" title="Preview"></iframe>'; f = st.querySelector('iframe'); }
+  if (f.dataset.src !== t.src) { f.dataset.src = t.src; f.src = t.src; }
+  f.style.width = S.device === 'mobile' ? '390px' : '100%';
+}
+$('pvPages').addEventListener('click', (e) => { const b = e.target.closest('[data-pg]'); if (b) { S.page = b.dataset.pg; drawPreview(); } });
+document.querySelectorAll('[data-dev]').forEach((b) => b.onclick = () => { S.device = b.dataset.dev; drawPreview(); });
+$('pvReload').onclick = () => { send({ type: 'pages' }); const f = $('stage').querySelector('iframe'); if (f) f.src = f.dataset.src; };
+$('pvOpen').onclick = () => { const t = pvTarget(); if (t) send({ type: 'openUrl', url: t.url }); };
+$('pvAddr').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  let v = e.target.value.trim(); if (!v) return;
+  if (/^\d+$/.test(v)) v = 'http://localhost:' + v; else if (/^(localhost|127\.)/.test(v)) v = 'http://' + v;
+  if (/^https?:/.test(v)) { S.urls[S.root] = v; S.page = '@url'; } else S.page = v.replace(/^\/+/, '');
+  e.target.blur(); drawPreview();
+});
+
+// --- changes -------------------------------------------------------------------------------------
+window.gitInfo = (g) => {
+  if (g.root && g.root !== S.root) return;
+  const before = JSON.stringify(S.git.changes || []);
+  S.git = g; if (before !== JSON.stringify(g.changes || [])) S.diffs = {};
+  drawHead(); drawSide(); drawChanges(); if (S.view === 'files') { drawTree(); drawFileHead(); }
+  if (!S.busy[S.sid] && S.view === 'chat') drawLog();
+  Object.keys(S.chOpen).forEach((p) => S.chOpen[p] && !S.diffs[p] && send({ type: 'diff', path: p }));
+};
+window.diff = (d) => { S.diffs[d.path] = d.rows; drawChanges(); };
+function drawChanges() {
+  if (!S.panel) return;
+  const g = S.git;
+  let share = '';
+  if (g.repo) {
+    const sync = [g.ahead ? `${g.ahead} to push` : '', g.behind ? `${g.behind} to pull` : ''].filter(Boolean).join(' · ');
+    share = `<span class="br"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v8M18 10c0 4-6 4-10 6"/></svg>${esc(g.branch)}${sync ? `<span style="color:var(--muted)">${esc(sync)}</span>` : ''}</span>` +
+      (g.remote ? `<button class="btn ghost" data-g="pull">Pull</button><button class="btn ghost" data-g="push">Push</button>` +
+        (g.host === 'github' || g.host === 'gitlab' ? `<button class="btn ghost" data-g="request">${g.host === 'github' ? 'Pull request' : 'Merge request'}</button><button class="btn ghost" data-g="webRepo">Open</button>` : '') : '');
+  }
+  $('share').innerHTML = share; $('share').hidden = !share;
+  if (!g.repo) {
+    $('chlist').innerHTML = `<div class="nochg">This folder is not tracking changes yet.<br><button class="btn" data-g="gitInit" style="margin-top:12px">Start tracking changes</button></div>`;
+    $('cfoot').hidden = true; return;
+  }
+  if (!g.changes.length) { $('chlist').innerHTML = `<div class="nochg">Nothing to commit.${g.last ? '<br>Last: ' + esc(g.last) : ''}</div>`; $('cfoot').hidden = true; return; }
+  $('chlist').innerHTML = g.changes.map((c) => {
+    const open = !!S.chOpen[c.path], rows = S.diffs[c.path];
+    return `<div class="chi${open ? ' open' : ''}" data-path="${esc(c.path)}"><div class="ch"><span class="mark ${c.mark}">${c.mark}</span><span class="p" data-openf title="Open in Files">${esc(c.path)}</span>
+      <span class="nums"><span class="add">+${c.add || 0}</span><span class="del">−${c.del || 0}</span></span>${CHEV()}</div>` +
+      (open ? `<div class="diff">${rows ? (rows.length ? rows.map(dl).join('') : '<div class="dl c"><span class="n"></span><span class="s"></span><span class="t">No text changes to show.</span></div>') : '<div class="dl c"><span class="n"></span><span class="s"></span><span class="t">…</span></div>'}</div>` : '') + '</div>';
+  }).join('');
+  $('cfoot').hidden = false;
+  $('commitPush').hidden = !g.remote;
+}
+$('insp').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-g]');
+  if (b) { const say = { pull: 'Pulling…', push: 'Pushing…', request: 'Opening a request in the terminal below', webRepo: 'Opening it in your browser', gitInit: 'Starting to track changes' }[b.dataset.g]; if (say) toast(say); return send({ type: b.dataset.g }); }
+  const row = e.target.closest('.chi'); if (!row) return;
+  const p = row.dataset.path;
+  if (e.target.closest('[data-openf]')) return openFile(S.root + '/' + p);
+  if (e.target.closest('.ch')) { S.chOpen[p] = !S.chOpen[p]; if (S.chOpen[p] && !S.diffs[p]) send({ type: 'diff', path: p }); drawChanges(); }
+});
+$('commit').onclick = () => send({ type: 'commit', message: $('commitMsg').value });
+$('commitPush').onclick = () => send({ type: 'commit', message: $('commitMsg').value, push: true });
+$('claudeCommit').onclick = () => { $('claudeCommit').textContent = 'Writing…'; send({ type: 'commitMsg' }); };
+$('commitMsg').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('commit').onclick(); } });
+window.commitMsg = (t) => { $('claudeCommit').textContent = 'Let Claude write it'; if (t) { $('commitMsg').value = t; $('commitMsg').focus(); } };
+window.committed = () => { $('commitMsg').value = ''; S.chOpen = {}; };
+
+// --- open a project ----------------------------------------------------------------------------
+let psel = 0, prows = [];
+function openPicker() { closeModals(); $('picker').hidden = false; $('pickIn').value = ''; drawPicker(); $('pickIn').focus(); if ((S.conn.github || S.conn.gitlab) && !S.repos) send({ type: 'repos' }); }
+window.openPicker = openPicker;
+function drawPicker() {
+  const q = $('pickIn').value.trim(), ql = q.toLowerCase(); prows = [];
+  let h = '';
+  const projs = S.projects.concat(S.more || []).filter((p) => !ql || p.name.toLowerCase().includes(ql) || p.root.toLowerCase().includes(ql));
+  const isUrl = /^(https?:|git@)|\.git$|^(github|gitlab)\./.test(q), isPath = /^[~\/.]/.test(q);
+  if (q && isUrl) { prows.push({ act: 'clone', v: q }); h += `<div class="pkh">Clone</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>', esc(q.replace(/^https?:\/\//, '')), '', 'Clone')}`; }
+  else if (q && isPath) { prows.push({ act: 'open', v: q.replace(/^~/, S.home) }); h += `<div class="pkh">Folder</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6"><path d="M3 6.5h6l2 2h10v10H3z"/></svg>', esc(q), '', 'Open')}`; }
+  if (projs.length) h += '<div class="pkh">Projects</div>' + projs.slice(0, 30).map((p) => { prows.push({ act: 'open', v: p.root }); return row(prows.length - 1, letterHtml(p.name), esc(p.name), esc(p.root.replace(S.home, '~')), p.root === S.root ? 'Open' : ''); }).join('');
+  if (q && !isUrl && !isPath) { prows.push({ act: 'new', v: q }); h += `<div class="pkh">New</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>', 'Start an empty project called ' + esc(q), '~/Projects', 'Create')}`; }
+  const signed = S.conn.github || S.conn.gitlab;
+  h += `<div class="pkh">Clone from ${S.conn.gitlab && !S.conn.github ? 'GitLab' : S.conn.github && !S.conn.gitlab ? 'GitHub' : 'GitHub or GitLab'}</div>`;
+  if (!signed) h += `<div class="pkmsg">Connect GitHub or GitLab to see your repositories.<button class="btn" data-conn style="margin-left:auto">Connections</button></div>`;
+  else if (!S.repos) h += '<div class="pkmsg">Loading your repositories…</div>';
+  else {
+    const rs = S.repos.filter((r) => !ql || r.name.toLowerCase().includes(ql)).slice(0, 40);
+    h += rs.map((r) => { prows.push({ act: 'clone', v: r.url }); return row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M6 4h10l3 3v13H6z"/><path d="M9 10h7M9 14h7"/></svg>', esc(r.name), esc(r.about || (r.host === 'github' ? 'GitHub' : 'GitLab')), 'Clone'); }).join('') || '<div class="pkmsg">No repositories match.</div>';
+  }
+  psel = Math.min(psel, Math.max(0, prows.length - 1));
+  $('pickList').innerHTML = h;
+  [...$('pickList').querySelectorAll('.pkr')].forEach((r) => r.classList.toggle('sel', +r.dataset.i === psel));
+}
+const row = (i, icon, a, b, c) => `<div class="pkr" data-i="${i}">${icon}<span class="a">${a}</span><span class="b">${b}</span>${c ? `<span class="c">${c}</span>` : ''}</div>`;
+function pick(r) {
+  if (!r) return;
+  if (r.act === 'open') send({ type: 'openProject', path: r.v });
+  else if (r.act === 'clone') { send({ type: 'clone', url: r.v }); toast('Copying it to this computer…'); }
+  else if (r.act === 'new') send({ type: 'newProject', name: r.v });
+  closeModals();
+}
+$('pickIn').addEventListener('input', () => { psel = 0; drawPicker(); });
+$('pickIn').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); psel = Math.max(0, Math.min(prows.length - 1, psel + (e.key === 'ArrowDown' ? 1 : -1))); [...$('pickList').querySelectorAll('.pkr')].forEach((r) => r.classList.toggle('sel', +r.dataset.i === psel)); $('pickList').querySelector('.pkr.sel')?.scrollIntoView({ block: 'nearest' }); }
+  if (e.key === 'Enter') pick(prows[psel]);
+});
+$('pickList').addEventListener('click', (e) => { if (e.target.closest('[data-conn]')) return openConn(); const r = e.target.closest('.pkr'); if (r) pick(prows[+r.dataset.i]); });
+window.morePlaces = (list) => { S.more = list; drawSide(); if (!$('picker').hidden) drawPicker(); };
+window.repos = (r) => { S.repos = r; if (!$('picker').hidden) drawPicker(); };
+
+// --- connections -------------------------------------------------------------------------------
+const ICONS = {
+  github: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.7-.2.7-.5v-1.7c-2.7.6-3.2-1.2-3.2-1.2-.4-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.1-.2-4.3-1.1-4.3-4.7 0-1 .4-1.9 1-2.6-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.6 1a9 9 0 0 1 4.8 0c1.8-1.3 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.6 1 2.6 0 3.6-2.2 4.4-4.3 4.7.3.3.6.8.6 1.6v2.4c0 .3.2.6.7.5A9.5 9.5 0 0 0 12 2.5z"/></svg>',
+  gitlab: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 20.5L3.5 13.8 5.6 4.5l2.6 7.2h7.6l2.6-7.2 2.1 9.3z"/></svg>',
+  railway: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.5 3.5v17M15.5 3.5v17M5.5 8h13M5.5 12h13M5.5 16h13"/></svg>',
+};
+const SVC = [['Code', [['github', 'GitHub', 'Push branches, open pull requests and read issues.'], ['gitlab', 'GitLab', 'Push branches and open merge requests, on gitlab.com or your company’s GitLab.']]],
+  ['Deploy', [['railway', 'Railway', 'Deploy services and read their logs.']]]];
+function openConn() { closeModals(); $('conn').hidden = false; drawConn(); send({ type: 'gitRefresh' }); }
+function drawConn() {
+  if ($('conn').hidden) return;
+  $('connBody').innerHTML = SVC.map(([label, items]) => `<div style="margin-top:24px"><div style="font-size:11.5px;color:var(--dim);margin-bottom:10px">${label}</div><div class="grid">` +
+    items.map(([id, name, desc]) => { const who = S.conn[id];
+      return `<div class="svc${who ? ' on' : ''}"><div style="display:flex;align-items:center;gap:12px"><span class="ic">${ICONS[id]}</span><div style="min-width:0"><div class="nm">${name}</div>
+        <div class="stt"><span class="dot" style="background:currentColor"></span>${who ? 'Connected as ' + esc(who) : 'Not connected'}</div></div></div><div class="ds">${desc}</div>
+        <div>${who ? `<button class="btn" data-s="${id}" data-a="disconnect">Disconnect</button>` : `<button class="btn main" data-s="${id}" data-a="connect">Connect</button>`}</div></div>`; }).join('') + '</div></div>').join('');
+}
+$('connBody').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (!b) return; send({ type: b.dataset.a, service: b.dataset.s }); toast(b.dataset.a === 'connect' ? 'Finish signing in in the terminal below' : 'Signing out…'); });
+window.connections = (c) => {
+  const was = (S.conn.github || '') + (S.conn.gitlab_hosts || []).join();
+  S.conn = c || {}; if (was !== (S.conn.github || '') + (S.conn.gitlab_hosts || []).join()) S.repos = null;
+  drawSide(); drawConn(); if (!$('picker').hidden) { drawPicker(); if ((S.conn.github || S.conn.gitlab) && !S.repos) send({ type: 'repos' }); }
+};
+
+// --- dialogs and keys ------------------------------------------------------------------------------
+function closeModals() { ['picker', 'conn', 'quick'].forEach((id) => $(id).hidden = true); }
+document.querySelectorAll('.scrim').forEach((s) => s.addEventListener('click', (e) => { if (!e.target.closest('[data-stop]') || e.target.closest('[data-close]')) closeModals(); }));
+function confirmBox(text, actions) {
+  $('ask').innerHTML = `<div class="modal"><p>${esc(text)}</p><div class="row"><button class="btn ghost" data-cancel>Cancel</button>${actions.map((a, i) => `<button class="btn${a[2] ? ' main' : ''}" data-i="${i}">${esc(a[0])}</button>`).join('')}</div></div>`;
+  $('ask').hidden = false;
+  $('ask').onclick = (e) => { const b = e.target.closest('button'); if (!b && e.target !== $('ask')) return; $('ask').hidden = true; if (b && !b.hasAttribute('data-cancel')) actions[+b.dataset.i][1](); };
+}
+function promptBox(text, value, done) {
+  $('ask').innerHTML = `<div class="modal"><p>${esc(text)}</p><input id="askIn" value="${esc(value)}" spellcheck="false" style="width:100%;box-sizing:border-box;border:0;outline:none;background:var(--hover);box-shadow:inset 0 0 0 1px var(--line);border-radius:8px;padding:9px 12px;color:var(--fg);font-size:14px;margin-bottom:18px;caret-color:var(--accent)"><div class="row"><button class="btn ghost" data-cancel>Cancel</button><button class="btn main" data-ok>Create</button></div></div>`;
+  $('ask').hidden = false; const i = $('askIn'); i.focus(); i.select();
+  const finish = (ok) => { $('ask').hidden = true; if (ok && i.value.trim()) done(i.value.trim()); };
+  i.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
+  $('ask').onclick = (e) => { if (e.target.closest('[data-ok]')) finish(true); else if (e.target.closest('[data-cancel]') || e.target === $('ask')) finish(false); };
+}
+window.wantsToQuit = () => {
+  const unsaved = Object.values(docs).filter(dirty), working = Object.keys(S.busy).length;
+  if (!unsaved.length && !working) return send({ type: 'quitNow' });
+  const what = [unsaved.length ? `${unsaved.map((t) => t.name).join(', ')} ${unsaved.length === 1 ? 'has' : 'have'} unsaved changes.` : '', working ? `Claude is still working in ${working === 1 ? 'a session' : working + ' sessions'}.` : ''].filter(Boolean).join(' ');
+  confirmBox(what, [['Quit anyway', () => send({ type: 'quitNow' })]].concat(unsaved.length ? [['Save all and quit', () => { unsaved.forEach((t) => save(t)); setTimeout(() => send({ type: 'quitNow' }), 300); }, true]] : []));
+};
+window.focusPrompt = () => { setView('chat'); $('input').focus(); };
+document.addEventListener('keydown', (e) => {
+  const cmd = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (e.key === 'Escape') { if (!$('ask').hidden) return; if (![...document.querySelectorAll('.scrim')].every((s) => s.hidden)) return closeModals(); if (S.busy[S.sid] && document.activeElement === $('input')) return; }
+  if (!cmd) return;
+  if (k === 'o') { e.preventDefault(); return openPicker(); }
+  if (k === 'b') { e.preventDefault(); S.side = !S.side; drawSide(); return cm.refresh(); }
+  if (k === 'n') { e.preventDefault(); return newSession(); }
+  if (k === 'e') { e.preventDefault(); return setView(S.view === 'files' ? 'chat' : 'files'); }
+  if (k === 'p') { e.preventDefault(); return openQuick(); }
+  if (k === 's' && S.view === 'files') { e.preventDefault(); return e.shiftKey ? Object.values(docs).filter(dirty).forEach((t) => save(t)) : save(); }
+  if (k === 'f' && S.view === 'files' && !e.shiftKey) { e.preventDefault(); return openFind(); }
+  if (k === 'g' && e.shiftKey) { e.preventDefault(); return togglePanel(); }
+  if (k === 'k' && e.shiftKey) { e.preventDefault(); return openConn(); }
+});
+drawMode(); drawSide(); drawHead(); drawLog(); setView('chat');
+send({ type: 'ready' });
+</script>
+</body></html>

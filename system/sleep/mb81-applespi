@@ -1,0 +1,58 @@
+#!/bin/bash
+# systemd system-sleep hook for MacBook8,1 (12-inch MacBook, Early 2015)
+# Detaches the Apple SPI keyboard/trackpad (applespi) and the pxa2xx SPI
+# controller before sleep, then re-attaches them after wake.
+# Without this, deep/s2idle resume leaves keyboard + trackpad dead.
+# For hibernate: unload brcmfmac (Broadcom Wi-Fi hangs image write on 8,1).
+# Always exits 0 -- never block sleep. Derived from channelramble/macbook81-linux
+# and JadeJitsu/macbook81-cachyos-spi-fix, adapted for Debian 13.
+
+SPI_DEV=0000:00:15.4
+DRV=/sys/bus/pci/drivers/pxa2xx_spi_pci
+LOG=/var/log/mb81-sleep.log
+
+log() { echo "$(date '+%F %T') [$1/$2] $3" >> "$LOG" 2>/dev/null; }
+spi_alive() { grep -q 'Apple SPI Keyboard' /proc/bus/input/devices 2>/dev/null; }
+
+detach_spi() {
+    /usr/sbin/modprobe -r applespi 2>/dev/null
+    [ -e "/sys/bus/pci/devices/$SPI_DEV/driver" ] && echo "$SPI_DEV" > "$DRV/unbind" 2>/dev/null
+}
+
+attach_spi() {
+    local try i
+    for try in 1 2 3; do
+        [ -e "/sys/bus/pci/devices/$SPI_DEV/driver" ] || echo "$SPI_DEV" > "$DRV/bind" 2>/dev/null
+        /usr/sbin/modprobe applespi 2>/dev/null
+        for i in $(seq 1 10); do
+            if spi_alive; then log "$1" "$2" "applespi restored (attempt $try)"; return 0; fi
+            sleep 0.3
+        done
+        log "$1" "$2" "applespi not alive after attempt $try, recycling"
+        detach_spi
+        sleep 0.5
+    done
+    log "$1" "$2" "applespi restore FAILED after 3 attempts"
+    return 1
+}
+
+hib=0
+case "$2" in hibernate|hybrid-sleep|suspend-then-hibernate) hib=1 ;; esac
+
+case "$1" in
+    pre)
+        log "$1" "$2" "detaching (hibernate=$hib)"
+        detach_spi
+        if [ "$hib" = 1 ]; then
+            /usr/sbin/modprobe -r brcmfmac_wcc brcmfmac 2>/dev/null
+        fi
+        ;;
+    post)
+        attach_spi "$1" "$2"
+        if [ "$hib" = 1 ]; then
+            /usr/sbin/modprobe brcmfmac 2>/dev/null
+        fi
+        log "$1" "$2" "restore done"
+        ;;
+esac
+exit 0

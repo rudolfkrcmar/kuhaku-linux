@@ -1,0 +1,48 @@
+/* Kūhaku login: one red line, the same line as the home screen's prompt. Type the
+   password, press Enter. No name, no clock, no buttons. With more than one person
+   on this computer, user-multi.css is appended and the names appear as a quiet list. */
+* { font-family: "Inter Variable", Inter, sans-serif; outline-color: transparent; }
+
+window, #screen, #login_window, #login_window #content_frame, #login_window #buttonbox_frame {
+  background: transparent; border: none; box-shadow: none; padding: 0;
+}
+
+/* No panel: no clock, no menus, nothing at the top. */
+#panel_window, #panel_window * { opacity: 0; background: transparent; min-height: 0; font-size: 1px; }
+
+/* No name, no "Password" label. */
+#user_combobox, #user_combobox *, #user_image, #user_image_border, #message_label {
+  opacity: 0; background: transparent; border: none; box-shadow: none;
+  min-height: 0; min-width: 0; padding: 0; margin: 0; font-size: 1px;
+}
+#user_combobox arrow { min-width: 0; min-height: 0; }
+
+/* What to type, quietly, where the home screen would say "Ask Claude". */
+#prompt_label { color: #9a9a9a; font-size: 13px; font-weight: 300; letter-spacing: .02em; padding: 0 0 0 20px; margin: 0 0 8px; }
+
+/* The line. */
+entry#prompt_entry, entry#prompt_entry:focus, entry#prompt_entry:hover {
+  background: transparent; color: #ececec; caret-color: #9a9a9a;
+  border: none; border-radius: 0; box-shadow: inset 1.5px 0 0 #f0705a;
+  font-size: 26px; font-weight: 200; letter-spacing: -.01em;
+  padding: 4px 0 4px 18px; min-height: 36px; min-width: 420px;
+}
+#prompt_entry image { opacity: 0; min-width: 0; }
+#prompt_entry placeholder, #prompt_entry text placeholder { color: #6f6f6f; }
+
+/* Enter signs in; the buttons are not shown. */
+#buttonbox_frame, #buttonbox_frame *, #login_button, #cancel_button, #login_button:hover, #login_button:focus {
+  opacity: 0; background: transparent; border: none; box-shadow: none; min-height: 0; min-width: 0;
+  padding: 0; margin: 0; font-size: 1px;
+}
+
+/* A wrong password: a few quiet words in the accent, under the line. */
+#greeter_infobar, #greeter_infobar revealer > box, #greeter_infobar label {
+  background: transparent; border: none; box-shadow: none; color: #f0705a; font-size: 13px; font-weight: 300;
+}
+
+window.popup, window.popup menu, menu, .menu, popover {
+  background: #1b1b1b; color: #ececec; border: 1px solid rgba(236,236,236,.08); border-radius: 12px; padding: 8px;
+}
+menu menuitem { padding: 8px 14px; border-radius: 8px; font-weight: 300; }
+menu menuitem:hover { background: rgba(236,236,236,.08); color: #ececec; }

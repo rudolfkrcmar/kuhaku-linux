@@ -1,0 +1,11 @@
+#!/bin/sh
+# Volume keys for Kūhaku: 5% steps that stop at 100%. Kūhaku shows the change.
+case "$1" in
+  up)
+    pactl set-sink-mute @DEFAULT_SINK@ 0
+    cur=$(pactl get-sink-volume @DEFAULT_SINK@ | grep -o '[0-9]*%' | head -1 | tr -d %)
+    if [ "${cur:-0}" -ge 95 ]; then pactl set-sink-volume @DEFAULT_SINK@ 100%
+    else pactl set-sink-volume @DEFAULT_SINK@ +5%; fi ;;
+  down) pactl set-sink-volume @DEFAULT_SINK@ -5% ;;
+  mute) pactl set-sink-mute @DEFAULT_SINK@ toggle ;;
+esac

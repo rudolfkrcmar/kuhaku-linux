@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+GenericName=Terminal
+Comment=A shell in Kūhaku's quiet design.
+Exec=kuhaku-terminal
+Icon=kuhaku-terminal
+Terminal=false
+Categories=System;TerminalEmulator;
+StartupWMClass=terminal.py

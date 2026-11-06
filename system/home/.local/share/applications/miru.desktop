@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Miru
+GenericName=Files
+Comment=Your files, quietly. Kūhaku's files and previewer.
+Exec=miru %u
+Icon=miru
+Terminal=false
+Categories=Graphics;Viewer;Utility;
+MimeType=inode/directory;image/png;image/jpeg;image/gif;image/webp;image/svg+xml;image/bmp;image/tiff;image/heic;image/heif;image/avif;application/pdf;video/mp4;video/webm;video/x-matroska;video/quicktime;audio/mpeg;audio/ogg;audio/flac;audio/x-wav;audio/mp4;text/plain;text/markdown;

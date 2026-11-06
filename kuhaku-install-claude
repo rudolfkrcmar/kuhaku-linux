@@ -1,0 +1,41 @@
+#!/bin/sh
+# Kūhaku: installs the Claude desktop app from Anthropic's apt repository and keeps
+# it current with a daily update. Run as root (kuhaku-on asks via pkexec).
+set -e
+KEY=/usr/share/keyrings/claude-desktop-archive-keyring.asc
+LIST=/etc/apt/sources.list.d/claude-desktop.list
+if [ ! -s "$KEY" ]; then
+  curl -fsSLo "$KEY" https://downloads.claude.ai/claude-desktop/key.asc
+  gpg --show-keys --with-colons "$KEY" | grep -q 31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE
+fi
+[ -f "$LIST" ] || echo "deb [arch=amd64,arm64 signed-by=$KEY] https://downloads.claude.ai/claude-desktop/apt/stable stable main" > "$LIST"
+if ! dpkg -s claude-desktop >/dev/null 2>&1; then
+  apt-get update -o Dir::Etc::sourcelist="$LIST" -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0 >/dev/null
+  DEBIAN_FRONTEND=noninteractive apt-get install -y claude-desktop
+fi
+
+cat > /etc/systemd/system/kuhaku-claude-update.service <<'X'
+[Unit]
+Description=Kūhaku: update the Claude desktop app
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=DEBIAN_FRONTEND=noninteractive
+ExecStart=/bin/sh -c 'apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/claude-desktop.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0 && apt-get install -y --only-upgrade claude-desktop'
+X
+cat > /etc/systemd/system/kuhaku-claude-update.timer <<'X'
+[Unit]
+Description=Kūhaku: update the Claude desktop app daily
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1d
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+X
+systemctl daemon-reload
+systemctl enable --now kuhaku-claude-update.timer

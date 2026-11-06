@@ -1,0 +1,8 @@
+#!/bin/sh
+# Kūhaku: the startup screen's type (Inter ExtraLight, as on the home screen).
+PREREQ="plymouth"
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0;; esac
+. /usr/share/initramfs-tools/hook-functions
+mkdir -p "${DESTDIR}/usr/share/fonts/kuhaku"
+cp /usr/share/fonts/opentype/inter/Inter-ExtraLight.otf "${DESTDIR}/usr/share/fonts/kuhaku/"

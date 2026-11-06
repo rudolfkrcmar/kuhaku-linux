@@ -1,0 +1,9 @@
+[Unit]
+Description=Kūhaku: update the Claude desktop app
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=DEBIAN_FRONTEND=noninteractive
+ExecStart=/bin/sh -c 'apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/claude-desktop.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0 && apt-get install -y --only-upgrade claude-desktop'

@@ -1,0 +1,19 @@
+#!/bin/bash
+# Turns Kūhaku off and restores the normal Linux Mint desktop.
+rm -f "$HOME/.config/autostart/kuhaku.desktop"
+pkill -f "kuhaku-session" ; pkill -f "share/kuhaku/kuhaku.py"
+# Any key Kūhaku bound (volume, brightness, capture) goes back to XFCE's default.
+xfconf-query -c xfce4-keyboard-shortcuts -lv | awk '/share\/kuhaku\// {print $1}' | while read -r prop; do
+  xfconf-query -c xfce4-keyboard-shortcuts -p "$prop" -r 2>/dev/null
+done
+for key in XF86AudioRaiseVolume XF86AudioLowerVolume XF86AudioMute XF86MonBrightnessUp XF86MonBrightnessDown; do
+  xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/$key" -r 2>/dev/null
+done
+for prop in handle-brightness-keys general-notification; do
+  xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -s true 2>/dev/null
+done
+# The normal XFCE session starts its panel, desktop and file manager again.
+xfconf-query -c xfce4-session -p /sessions/Failsafe/Count -s 5 2>/dev/null
+setsid -f xfdesktop >/dev/null 2>&1
+setsid -f xfce4-panel >/dev/null 2>&1
+echo "Kūhaku is off. Your normal desktop is back. Run kuhaku-on to switch it on again."

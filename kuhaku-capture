@@ -1,0 +1,4 @@
+#!/bin/sh
+# Mac-style capture keys for Kūhaku: hands the request to the running Kūhaku.
+#   full | area | full-clip | area-clip | record
+exec timeout 2 sh -c "echo capture $1 > '$HOME/.local/state/kuhaku/kuhaku.fifo'"

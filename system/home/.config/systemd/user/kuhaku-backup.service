@@ -1,0 +1,8 @@
+[Unit]
+Description=Kūhaku backup to GitHub
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/share/kuhaku/kuhaku-backup
+Nice=10

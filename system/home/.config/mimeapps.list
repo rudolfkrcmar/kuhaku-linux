@@ -1,0 +1,32 @@
+[Default Applications]
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
+x-scheme-handler/claude=com.anthropic.Claude.desktop
+x-scheme-handler/https=mado.desktop
+x-scheme-handler/http=mado.desktop
+text/html=mado.desktop
+image/png=miru.desktop
+image/jpeg=miru.desktop
+image/gif=miru.desktop
+image/webp=miru.desktop
+image/svg+xml=miru.desktop
+image/bmp=miru.desktop
+image/tiff=miru.desktop
+image/heic=miru.desktop
+image/heif=miru.desktop
+image/avif=miru.desktop
+application/pdf=miru.desktop
+video/mp4=miru.desktop
+video/webm=miru.desktop
+video/x-matroska=miru.desktop
+video/quicktime=miru.desktop
+audio/mpeg=miru.desktop
+audio/ogg=miru.desktop
+audio/flac=miru.desktop
+audio/x-wav=miru.desktop
+audio/mp4=miru.desktop
+inode/directory=miru.desktop
+application/xhtml+xml=mado.desktop
+x-scheme-handler/mailto=tegami.desktop
+x-scheme-handler/slack=slack.desktop
+
+[Added Associations]

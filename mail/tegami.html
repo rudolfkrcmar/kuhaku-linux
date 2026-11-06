@@ -1,0 +1,1957 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tegami</title>
+<style>
+  /* Tegami v2 (Claude Design, 11 Oct 2026): one calm column. Today is a short brief and the letters to read in order;
+     folders wait in a drawer behind the top-left button. Two looks: Kūhaku (lines, no boxes) and Modern (soft cards). */
+  :root { --font:'Inter Variable','Inter',system-ui,sans-serif; --mono:'JetBrains Mono','JetBrains Mono NL',monospace;
+          --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.05); --line:rgba(17,17,17,.09); --accent:#e0301e;
+          --sheet:#f7f4f1; --surface:#ffffff; --glow:transparent;
+          --r:0px; --r2:0px; --rp:0px; --bd:1px solid transparent; --btn-bg:transparent; --btn-fg:var(--fg); --btn-ul:inset 0 -1.5px 0 var(--accent);
+          --send-fg:var(--accent); --b2-bg:var(--faint); --b2-bd:1px solid transparent; --pill-pad:0 0 0 9px; --ask-sh:inset 2px 0 0 var(--accent); }
+  body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.05); --line:rgba(236,236,236,.09); --accent:#f0705a;
+               --sheet:#121212; --surface:#1b1b1b; }
+  body.modern { --font:'Geist','Inter Variable','Inter',system-ui,sans-serif; --bg:#f4f2ef; --muted:#6b6b6b; --faint:rgba(17,17,17,.06); --line:rgba(17,17,17,.12);
+                --sheet:#ffffff; --surface:#ffffff; --glow:rgba(224,48,30,.14);
+                --r:14px; --r2:8px; --rp:999px; --bd:1px solid var(--line); --btn-bg:var(--accent); --btn-fg:#fff; --btn-ul:none; --send-fg:#fff;
+                --b2-bg:var(--sheet); --b2-bd:1px solid var(--line); --pill-pad:2px 9px; --ask-sh:0 24px 60px -24px var(--glow), 0 0 0 4px var(--faint); }
+  body.modern.night { --bg:#0c0c0d; --fg:#ededed; --muted:#8f8f8f; --faint:rgba(255,255,255,.05); --line:rgba(255,255,255,.1); --accent:#f0705a;
+                      --sheet:#141415; --surface:#141415; --glow:rgba(240,112,90,.16); }
+  html, body { margin:0; height:100%; overflow:hidden; }
+  body { font-family:var(--font); font-weight:300; color:var(--fg); -webkit-font-smoothing:antialiased; display:flex; flex-direction:column;
+         background:radial-gradient(ellipse 70% 45% at 50% -5%, var(--glow), transparent 70%), var(--bg); }
+  button, input, textarea, select { font:inherit; }
+  button { color:inherit; }
+  input::placeholder, textarea::placeholder { color:var(--muted); opacity:.8; }
+  a { color:inherit; text-decoration-color:var(--accent); text-underline-offset:3px; }
+  a:hover { color:var(--accent); }
+  [hidden] { display:none !important; }
+  .mono { font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .grow { flex:1; }
+
+  /* The bar */
+  .bar { height:56px; flex-shrink:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:0 20px; position:relative; z-index:5; }
+  .bar .l, .bar .r { display:flex; align-items:center; }
+  .bar .l { gap:14px; }
+  .bar .r { justify-content:flex-end; gap:4px; }
+  .ib { width:34px; height:34px; border:0; background:none; cursor:pointer; color:var(--muted); display:flex; align-items:center; justify-content:center;
+        border-radius:var(--r2); padding:0; flex-shrink:0; }
+  .ib:hover { color:var(--fg); background:var(--faint); }
+  .bar .ib:hover { background:none; }
+  .ib.write { color:var(--fg); }
+  .ib.write:hover { color:var(--accent); }
+  .ib.on { color:var(--accent); }
+  .name { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:400; }
+  .name i { width:2px; height:18px; background:var(--accent); }
+  .name i.pulse { animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.15 } }
+  .state { font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .seg { display:flex; gap:2px; padding:3px; border:var(--bd); border-radius:var(--rp); background:var(--sheet); }
+  .seg button { display:flex; align-items:center; gap:8px; border:0; cursor:pointer; padding:6px 16px; border-radius:var(--rp); font-size:13px; font-weight:400;
+                background:transparent; color:var(--muted); }
+  .seg.small button { padding:5px 12px; font-size:12.5px; font-weight:300; }
+  .seg button:hover { color:var(--fg); }
+  .seg button.on { color:var(--fg); box-shadow:inset 0 -1.5px 0 var(--accent); }
+  body.modern .seg button.on { background:var(--fg); color:var(--bg); box-shadow:none; }
+  .seg button i, .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; display:inline-block; }
+  .calmb { height:34px; min-width:34px; padding:0 8px; box-sizing:border-box; border:0; background:none; cursor:pointer; display:flex; align-items:center;
+           justify-content:center; gap:8px; position:relative; font-size:12.5px; color:var(--muted); }
+  .calmb:hover, .calmb.on { color:var(--fg); }
+  .calmb .lbl { display:none; white-space:nowrap; }
+  .calmb:hover .lbl { display:inline; }
+  .calmb b { position:absolute; top:2px; right:0; min-width:16px; height:16px; padding:0 4px; box-sizing:border-box; border-radius:var(--rp); background:var(--accent);
+             color:#fff; font-family:var(--mono); font-size:10px; font-weight:400; display:inline-flex; align-items:center; justify-content:center; }
+
+  /* Drawer and column */
+  .body { flex:1; min-height:0; display:flex; padding-bottom:12px; box-sizing:border-box; }
+  .drawer { width:0; flex-shrink:0; overflow:hidden; transition:width .28s cubic-bezier(.2,.8,.2,1); }
+  .drawer > div { width:236px; height:100%; padding:22px 0 0 32px; box-sizing:border-box; overflow:auto; scrollbar-width:none;
+                  transform:translateX(-24px); opacity:0; transition:transform .28s cubic-bezier(.2,.8,.2,1), opacity .2s; }
+  body.dopen .drawer { width:236px; }
+  body.dopen .drawer > div { transform:none; opacity:1; }
+  .dh { display:flex; align-items:center; gap:10px; padding:14px 16px 6px 0; cursor:pointer; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .dh:hover { color:var(--fg); }
+  .dh > i { width:2px; height:12px; flex-shrink:0; }
+  .dh span { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dh small { font-family:var(--mono); font-size:10.5px; letter-spacing:0; color:var(--muted); }
+  .dh em { width:10px; text-align:center; opacity:.6; font-style:normal; }
+  .dh .err { color:var(--accent); text-transform:none; letter-spacing:0; }
+  .dl { display:flex; align-items:baseline; gap:8px; padding:6px 16px 6px 12px; font-size:14px; color:var(--muted); cursor:pointer; position:relative; text-decoration:none; }
+  .dl:hover, .dl.on { color:var(--fg); }
+  .dl.on::before { content:''; position:absolute; left:0; top:8px; bottom:8px; width:2px; background:var(--c, var(--accent)); }
+  .dl span { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dl small { font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .dl.add { margin-top:18px; padding-left:0; font-size:13px; }
+  .main { flex:1; min-width:0; overflow:auto; scrollbar-width:none; }
+  .col { max-width:920px; margin:0 auto; padding:30px 32px 80px; box-sizing:border-box; }
+
+  /* Shared bits */
+  h1 { margin:16px 0 14px; font-size:28px; font-weight:200; letter-spacing:-.01em; line-height:1.25; text-wrap:balance; }
+  .back { border:0; background:none; padding:0; cursor:pointer; font-size:13px; color:var(--muted); }
+  .back:hover { color:var(--fg); }
+  .pill { display:inline-flex; align-items:center; flex-shrink:0; padding:var(--pill-pad); border-radius:var(--rp); font-size:11px; font-weight:500;
+          letter-spacing:.01em; line-height:1.5; color:var(--c); box-shadow:inset 2px 0 0 var(--c); }
+  body.modern .pill { background:var(--c); color:#111; box-shadow:none; }
+  .btn { border:0; background:var(--btn-bg); color:var(--btn-fg); box-shadow:var(--btn-ul); cursor:pointer; padding:8px 16px; border-radius:var(--r2); font-size:13px; }
+  .btn2 { border:var(--b2-bd); background:var(--b2-bg); color:var(--fg); cursor:pointer; padding:6px 12px; border-radius:var(--r2); font-size:12.5px;
+          display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+  .btn2:hover { color:var(--accent); }
+  .btn2.quiet { color:var(--muted); }
+  .btn2.quiet:hover { color:var(--fg); }
+  .link { border:0; background:none; cursor:pointer; padding:0; font-size:13px; color:var(--muted); }
+  .link:hover { color:var(--fg); }
+  .link.u { color:var(--fg); border-bottom:1px solid var(--accent); }
+  .empty { padding:80px 30px; text-align:center; color:var(--muted); font-size:14px; line-height:1.7; }
+
+  /* Today */
+  .home { max-width:860px; margin:0 auto; padding:28px 32px 0; min-height:100%; box-sizing:border-box; display:flex; flex-direction:column; }
+  .meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .meta .glow { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); }
+  .meta .glow.pulse { animation:pulse 1.4s ease-in-out infinite; }
+  .home h1 { margin:12px 0 0; font-size:32px; line-height:1.15; letter-spacing:-.02em; }
+  .home .lead { margin:10px 0 0; font-size:16px; line-height:1.6; opacity:.85; text-wrap:pretty; }
+  .qhead { display:flex; align-items:center; gap:14px; margin:24px 0 10px; }
+  .bars { display:flex; gap:3px; }
+  .bars i { width:18px; height:3px; border-radius:2px; background:var(--line); }
+  .bars i.on { background:var(--accent); }
+  .q { display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:4px 14px; align-items:baseline; padding:16px 16px 16px 14px; border-radius:var(--r); cursor:pointer; margin-bottom:2px; }
+  .q:hover, .q.sel { background:var(--faint); }
+  .q .n { font-family:var(--mono); font-size:12px; color:var(--muted); }
+  .q .n.first { color:var(--accent); }
+  .q .who { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:400; min-width:0; }
+  .q .who span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .q .why { font-size:14px; line-height:1.5; color:var(--muted); margin-top:4px; text-wrap:pretty; }
+  .q.done { opacity:.55; }
+  .q.done .who span { text-decoration:line-through; text-decoration-color:var(--muted); }
+  .q .side { display:flex; align-items:center; gap:12px; }
+  .q .due { font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap; }
+  .q .due.now, .q.done .due { color:var(--accent); }
+  .raise { width:26px; height:26px; border:1px solid var(--line); border-radius:50%; background:transparent; cursor:pointer; color:var(--muted);
+           display:flex; align-items:center; justify-content:center; padding:0; }
+  .raise:hover { border-color:var(--accent); color:var(--accent); }
+  .raise.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .tick { width:26px; height:26px; border:1px solid var(--line); border-radius:50%; background:transparent; cursor:pointer; color:var(--muted);
+          display:flex; align-items:center; justify-content:center; padding:0; }
+  .tick:hover { border-color:var(--accent); }
+  .q.done .tick { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .ready { display:inline-flex; align-items:center; gap:8px; margin-top:10px; border:var(--bd); background:var(--sheet); border-radius:var(--rp); padding:5px 12px;
+           cursor:pointer; font-size:12.5px; color:var(--fg); }
+  body:not(.modern) .ready { padding:5px 0; background:none; }
+  .ready:hover { border-color:var(--accent); color:var(--accent); }
+  .ready i { width:5px; height:5px; border-radius:50%; background:var(--accent); }
+  .aside { margin:22px 0 0 14px; border:0; background:none; padding:0; cursor:pointer; text-align:left; font-size:13.5px; line-height:1.6; color:var(--muted); }
+  .aside:hover { color:var(--fg); }
+  .log { display:flex; flex-direction:column; gap:22px; margin-top:40px; }
+  .log .asked { font-size:14px; color:var(--muted); margin-bottom:8px; }
+  .log .ans { display:flex; gap:14px; }
+  .log .ans > i { width:2px; background:var(--accent); flex-shrink:0; }
+  .log .txt { font-size:15.5px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .log .txt.wait { color:var(--muted); }
+  .log pre { margin:12px 0 0; padding:12px 14px; background:var(--faint); border-radius:var(--r); font:inherit; font-size:14.5px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .log ul { margin:12px 0 0; padding:0; list-style:none; font-size:13.5px; color:var(--muted); }
+  .log li { padding:3px 0; }
+  .log li b { color:var(--fg); font-weight:400; }
+  .log .go { display:flex; gap:18px; margin-top:12px; align-items:center; }
+  .askbox { position:sticky; bottom:0; padding:4px 0 14px; background:var(--bg); margin-top:auto; }
+  .askbox::before { content:''; position:absolute; left:0; right:0; top:-24px; height:24px; background:linear-gradient(transparent, var(--bg)); pointer-events:none; }
+  .sugg { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .sugg button { border:var(--bd); background:none; border-radius:var(--rp); padding:4px 11px; font-size:12px; color:var(--muted); cursor:pointer; }
+  body:not(.modern) .sugg button { padding:4px 0; margin-right:14px; }
+  .sugg button:hover { color:var(--fg); border-color:var(--fg); }
+  .ask { border:var(--bd); border-radius:var(--r); background:var(--sheet); box-shadow:var(--ask-sh); }
+  .ask .row { display:flex; gap:12px; align-items:flex-start; padding:12px 16px 2px; }
+  .ask textarea { flex:1; border:0; outline:none; resize:none; background:none; color:var(--fg); font-size:16px; font-weight:300; line-height:1.5; height:24px; max-height:160px;
+                  padding:3px 0; caret-color:var(--accent); overflow:hidden; }
+  .ask .go { width:34px; height:34px; flex-shrink:0; border:0; border-radius:var(--rp); background:var(--btn-bg); color:var(--send-fg); cursor:pointer;
+             display:flex; align-items:center; justify-content:center; padding:0; }
+  .ask .opts { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:0 10px 6px; }
+  .prov { border:0; border-radius:var(--r2); padding:4px 9px; cursor:pointer; font-family:var(--mono); font-size:11px; background:transparent; color:var(--muted); }
+  .prov:hover { color:var(--fg); }
+  .prov.on { background:var(--faint); color:var(--fg); }
+  .sw { display:flex; align-items:center; gap:8px; border:0; background:none; cursor:pointer; font-size:12px; color:var(--muted); padding:4px 6px; }
+  .sw:hover { color:var(--fg); }
+  .sw i { width:24px; height:14px; border-radius:var(--rp); background:var(--line); position:relative; display:inline-block; }
+  body:not(.modern) .sw i { border-radius:7px; }
+  .sw i::after { content:''; position:absolute; top:2px; left:2px; width:10px; height:10px; border-radius:50%; background:var(--bg); transition:left .15s; }
+  .sw.on i { background:var(--accent); }
+  .sw.on i::after { left:12px; }
+
+  /* Calm down */
+  .calm { margin-top:16px; border:var(--bd); border-radius:var(--r); background:var(--sheet); box-shadow:0 24px 60px -30px var(--glow); }
+  body:not(.modern) .calm { box-shadow:inset 2px 0 0 var(--accent); background:var(--faint); }
+  .calm .hd { padding:16px 18px 6px; }
+  .calm .hd b { display:block; font-size:16px; font-weight:400; }
+  .calm .hd p { font-size:13px; color:var(--muted); margin:3px 0 0; }
+  .cr { display:flex; align-items:center; gap:14px; padding:10px 18px; cursor:pointer; }
+  .cr:hover, .cr.peek { background:var(--faint); }
+  .box { width:18px; height:18px; flex-shrink:0; border-radius:5px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:#fff; }
+  body:not(.modern) .box { border-radius:0; }
+  .box.on { background:var(--accent); border-color:var(--accent); }
+  .box svg { visibility:hidden; }
+  .box.on svg { visibility:visible; }
+  .cr .t { flex:1; min-width:0; }
+  .cr .w { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:400; }
+  .cr .w span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cr .y { font-size:13px; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cr .k { font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .cr em { width:12px; font-size:12px; color:var(--muted); text-align:center; font-style:normal; }
+  .peekb { margin:0 18px 8px 50px; padding:12px 14px; background:var(--faint); border-radius:var(--r); }
+  .peekb .s { display:flex; gap:12px; align-items:baseline; font-size:13px; color:var(--muted); margin-bottom:6px; }
+  .peekb .s b { color:var(--fg); font-weight:400; }
+  .peekb .x { font-size:14px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; max-height:140px; overflow:auto; }
+  .peekb .go { display:flex; gap:16px; margin-top:10px; }
+  .calm .ft { display:flex; align-items:center; gap:14px; padding:12px 18px 16px; }
+
+  /* Folder */
+  .fhead { display:flex; align-items:baseline; gap:20px; margin:18px 0; }
+  .fhead h1 { margin:0; }
+  .fhead input { flex:1; border:0; outline:none; background:none; font-size:14px; font-weight:300; color:var(--fg); caret-color:var(--accent); text-align:right; }
+  .grp { display:flex; align-items:center; gap:12px; padding:22px 14px 6px; }
+  .grp small { font-size:10.5px; opacity:.7; }
+  .grp i { flex:1; height:1px; background:var(--line); }
+  .it { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 16px; padding:14px; border-radius:var(--r); cursor:pointer; }
+  .it:hover, .it.sel { background:var(--faint); }
+  .it .w { display:flex; align-items:center; gap:10px; font-size:14.5px; min-width:0; }
+  .it.unseen .w { font-weight:500; }
+  .it .w > i { width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+  .it .w span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .it .d { font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap; }
+  .it .p { grid-column:1 / -1; font-size:13.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .it .p b { color:var(--fg); font-weight:300; }
+
+  /* Letter */
+  .acts { display:flex; align-items:center; gap:2px; position:sticky; top:0; z-index:4; background:var(--bg); margin:-30px -12px 0; padding:22px 12px 8px; }
+  .acts .lnav { display:inline-flex; align-items:center; gap:0; margin-left:6px; }
+  .acts .lnav .ib:disabled { opacity:.3; cursor:default; background:none; }
+  .acts .done { display:inline-flex; align-items:center; gap:6px; border:0; background:none; cursor:pointer; padding:6px 10px; font-size:13px; color:var(--fg); box-shadow:inset 0 -1.5px 0 var(--accent); margin-right:6px; }
+  body.modern .acts .done { background:var(--accent); color:#fff; box-shadow:none; border-radius:var(--r2); }
+  .acts .done.prio { color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); border-radius:var(--r2); margin-left:4px; }
+  .acts .done.prio:hover { background:var(--accent); color:#fff; }
+  .acts .done.prio.on { background:var(--accent); color:#fff; }
+  .acts .done.quiet { color:var(--muted); box-shadow:none; background:none; }
+  .acts .done.quiet:hover { color:var(--fg); }
+  .notebox { margin:14px 0 6px; padding:14px 16px; background:var(--faint); border-radius:var(--r); }
+  .notebox small { display:block; color:var(--muted); font-size:12.5px; margin-bottom:8px; }
+  .notebox textarea { width:100%; box-sizing:border-box; min-height:64px; border:0; background:none; color:var(--fg); font:inherit; font-size:14.5px; line-height:1.55;
+                      outline:none; resize:vertical; caret-color:var(--accent); padding:0; }
+  .notebox .go { display:flex; gap:16px; align-items:center; margin-top:8px; }
+  .toast.act { pointer-events:auto; display:flex; gap:16px; align-items:center; }
+  .toast button { border:0; background:none; color:inherit; cursor:pointer; padding:0; font-size:13px; box-shadow:inset 0 -1px 0 var(--accent); }
+  .lmeta { display:flex; gap:12px; align-items:center; flex-wrap:wrap; font-size:14px; color:var(--muted); margin-bottom:26px; }
+  .lmeta b { color:var(--fg); font-weight:400; }
+  .lmeta .when { font-family:var(--mono); font-size:11px; }
+  .note { display:flex; gap:14px; align-items:flex-start; margin:0 0 28px; padding:16px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .note > span { color:var(--muted); display:flex; padding-top:1px; }
+  .note p { margin:6px 0 0; font-size:15.5px; line-height:1.55; text-wrap:pretty; }
+  .text b { font-weight:500; }
+  .text { font-size:15.5px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+  iframe.html { display:block; width:100%; border:0; background:#fff; min-height:200px; border-radius:10px; }
+  .night iframe.html { background:#f3f1ee; }
+  .files { margin-top:26px; display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { display:inline-flex; align-items:center; gap:8px; background:var(--faint); border-radius:var(--r2); padding:5px 10px; font-size:12.5px; }
+  .chip small { font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .chip.file { padding:0; gap:0; }
+  .chip.file .fo { border:0; background:none; cursor:pointer; color:var(--fg); font-size:12.5px; padding:6px 10px; display:inline-flex; gap:8px; align-items:baseline; }
+  .chip.file .fo:hover { color:var(--accent); }
+  .chip.file .fs { border:0; border-left:1px solid var(--line); background:none; cursor:pointer; color:var(--muted); font-size:12px; padding:6px 10px; }
+  .chip.file .fs:hover { color:var(--fg); }
+  .chip button { border:0; background:none; cursor:pointer; color:var(--muted); font-size:15px; padding:0 0 0 2px; line-height:1; }
+  .chip button:hover { color:var(--fg); }
+  .quietrow { display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; font-size:13px; color:var(--muted); margin:0 0 22px; }
+  .quietrow button { border:0; background:none; padding:0 0 2px; cursor:pointer; color:var(--muted); font-size:13px; }
+  .quietrow button:hover { color:var(--fg); }
+  .quietrow button.on { color:var(--fg); box-shadow:inset 0 -1.5px 0 var(--accent); }
+  .ctas { display:flex; gap:8px; margin-top:36px; }
+  .ctas .btn2 { padding:8px 14px; font-size:13px; }
+
+  /* Composer */
+  #compHere:has(.comp) { padding-bottom:45vh; }   /* room to bring the reply box to the top of the screen */
+  .comp { margin-top:36px; background:var(--surface); border:var(--bd); border-radius:var(--r); }
+  .comp.new { margin-top:20px; }
+  .comp .hd { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:16px 20px 0; }
+  .comp .hd .lb { font-size:13px; color:var(--muted); }
+  .comp input.f { border:0; outline:none; background:none; color:var(--fg); font-weight:300; caret-color:var(--accent); font-size:13.5px; }
+  .comp .rows { display:flex; flex-direction:column; padding:12px 20px 0; }
+  .comp .rows > div, .comp .xrow { display:flex; gap:12px; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--line); }
+  .comp .xrow { border:0; padding:8px 20px 0; }
+  .comp .rows .lb, .comp .xrow .lb { width:58px; font-size:13px; color:var(--muted); flex-shrink:0; }
+  .comp .rows input.f, .comp .xrow input.f { flex:1; font-size:14px; }
+  .comp textarea { display:block; width:100%; box-sizing:border-box; border:0; outline:none; background:none; color:var(--fg); font-weight:300; caret-color:var(--accent);
+                   resize:vertical; font-size:16px; line-height:1.65; min-height:200px; padding:14px 20px 10px; transition:opacity .2s; }
+  .comp textarea.busy { opacity:.4; }
+  .af { position:relative; flex:1; display:flex; }
+  .af input { flex:1; }
+  .chips { flex-wrap:wrap; gap:6px; align-items:center; cursor:text; }
+  .chips input { min-width:140px; }
+  .addr { display:inline-flex; align-items:center; gap:4px; padding:2px 4px 2px 10px; border-radius:999px; background:var(--faint); border:1px solid var(--line); font-size:13px; line-height:1.5; }
+  .addr button { border:0; background:none; cursor:pointer; color:var(--muted); font-size:14px; padding:0 4px; line-height:1; }
+  .addr button:hover { color:var(--accent); }
+  .whisper { position:absolute; left:0; top:calc(100% + 4px); z-index:9; min-width:320px; background:var(--surface); border:1px solid var(--line);
+             border-radius:var(--r2); box-shadow:0 18px 50px rgba(0,0,0,.16); padding:4px 0; }
+  .whisper button { display:flex; gap:10px; align-items:baseline; width:100%; border:0; background:none; text-align:left; padding:7px 12px; cursor:pointer; color:var(--fg); font-size:13.5px; }
+  .whisper button.on, .whisper button:hover { background:var(--faint); }
+  .whisper small { color:var(--muted); font-size:12px; }
+  .trbar { display:flex; align-items:center; gap:10px; margin:0 0 14px; padding:8px 12px; background:var(--faint); border-radius:var(--r); }
+  .trbar .mono { display:inline-flex; gap:8px; align-items:center; }
+  .gn { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:0 20px 12px; }
+  .gn .mono { margin-right:4px; }
+  .gn button { border:1px solid var(--line); background:none; border-radius:var(--r2); padding:4px 10px; cursor:pointer; font-size:12.5px; color:var(--fg);
+               display:inline-flex; align-items:baseline; gap:6px; }
+  .gn button:hover { border-color:var(--accent); }
+  .gn s { color:var(--muted); text-decoration-color:var(--accent); }
+  .gn b { font-weight:400; }
+  .gn small { color:var(--muted); font-size:11px; }
+  .gn .all { color:var(--accent); }
+  .sugbox { margin:14px 20px 0; padding:12px 14px; background:var(--faint); border-radius:var(--r); box-shadow:inset 2px 0 0 var(--accent); }
+  .sugbox .sh { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .sugbox .sh .mono { display:inline-flex; align-items:center; gap:8px; }
+  .sugbox .st { font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; max-height:260px; overflow:auto; }
+  .sugbox .st.wait { color:var(--muted); }
+  .sugbox .sn { margin-top:8px; font-size:12.5px; color:var(--muted); }
+  .comp .cnote { padding:0 20px 12px; font-size:12.5px; color:var(--muted); }
+  .comp .cfiles { display:flex; flex-wrap:wrap; gap:6px; padding:0 20px 14px; }
+  .comp .ailine { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 14px 10px 20px; border-top:1px solid var(--line); }
+  .comp .ailine > span { color:var(--muted); display:flex; }
+  .comp .ailine input { flex:1; min-width:200px; border:0; outline:none; background:none; color:var(--fg); font-weight:300; caret-color:var(--accent); font-size:14px; padding:6px 0; }
+  /* Polish: one control. The left part does it; the right part chooses how. */
+  .split { position:relative; display:inline-flex; align-items:stretch; border:1px solid var(--line); border-radius:var(--r2); background:var(--surface); }
+  .split button { border:0; background:none; cursor:pointer; font-size:12.5px; padding:6px 12px; color:var(--fg); display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+  .split .go:hover { color:var(--accent); }
+  .split .pick { border-left:1px solid var(--line); color:var(--muted); padding:6px 10px; }
+  .split .pick:hover { color:var(--fg); background:var(--faint); }
+  .split .pick i { font-style:normal; font-size:10px; opacity:.7; }
+  .split .modes { position:absolute; right:0; bottom:calc(100% + 6px); z-index:8; width:300px; background:var(--surface); border:1px solid var(--line);
+                  border-radius:var(--r2); box-shadow:0 18px 50px rgba(0,0,0,.16); padding:6px 0; display:flex; flex-direction:column; }
+  .split .modes button { display:block; text-align:left; padding:8px 14px; white-space:normal; }
+  .split .modes button:hover { background:var(--faint); }
+  .split .modes button.on b { color:var(--accent); }
+  .split .modes.later { bottom:auto; top:calc(100% + 6px); width:260px; }
+  .split .modes.later.inmenu { position:static; box-shadow:none; border:0; }
+  .split .modes button small { font-family:var(--mono); font-size:11px; }
+  .split .modes .pick { display:flex; gap:8px; padding:8px 14px 6px; border-top:1px solid var(--line); margin-top:4px; }
+  .split .modes .pick input { flex:1; min-width:0; border:1px solid var(--line); background:var(--bg); color:var(--fg); font:inherit; font-size:12.5px; padding:4px 6px; }
+  .acts .lsplit { margin-right:6px; }
+  .acts > * { flex-shrink:0; white-space:nowrap; }
+  .acts .dsplit { margin:0 6px; }
+  .acts .dsplit .go { font-size:13px; color:var(--fg); }
+  .acts .dsplit .pick { padding:6px 9px; }
+  .acts .lsplit .go { font-size:13px; }
+  .split .modes b { display:block; font-weight:400; font-size:13.5px; }
+  .split .modes small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+  .comp .foot { display:flex; align-items:center; gap:6px; padding:12px 14px 12px 14px; border-top:1px solid var(--line); }
+  .comp .foot .send { margin-left:8px; }
+  .send { border:0; background:var(--fg); color:var(--bg); cursor:pointer; padding:9px 20px; border-radius:var(--r2); font-size:13px; font-weight:400; }
+  .comp .foot small { color:var(--muted); font-size:12px; margin-left:4px; }
+  .comp .foot .link { padding:6px 8px; font-size:12.5px; }
+  .from { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; color:var(--muted); }
+  .from button { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line); background:none; border-radius:var(--rp); padding:4px 12px; cursor:pointer; font-size:13px; color:var(--fg); }
+  .from button.on { border-color:var(--accent); }
+
+  /* Settings and setup */
+  .narrow { max-width:600px; margin:0 auto; padding:40px 32px 80px; }
+  .narrow h1 { margin:0 0 28px; }
+  .sec { margin:32px 0 8px; }
+  .sec:first-of-type { margin-top:0; }
+  .card { border:var(--bd); border-radius:var(--r); background:var(--sheet); overflow:hidden; }
+  body:not(.modern) .card { border-top:1px solid var(--line); }
+  .crow { display:flex; align-items:center; gap:16px; padding:14px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .crow:last-child { border-bottom:0; }
+  .crow.click { cursor:pointer; }
+  .crow .tt { flex:1; min-width:160px; }
+  .crow .tt b { display:block; font-size:15px; font-weight:400; }
+  .crow .tt small { display:block; font-size:13px; color:var(--muted); margin-top:2px; line-height:1.45; }
+  .crow input.v { flex:1; border:0; outline:none; background:none; font-size:15px; font-weight:300; color:var(--fg); caret-color:var(--accent); }
+  .crow textarea.v { flex:1; min-height:60px; border:0; outline:none; resize:vertical; background:none; color:var(--fg); font-size:14.5px; line-height:1.55; font-weight:300; caret-color:var(--accent); }
+  .crow .k { width:100px; font-size:15px; font-weight:400; flex-shrink:0; }
+  .tog { width:40px; height:24px; flex-shrink:0; border-radius:12px; background:var(--line); position:relative; transition:background .15s; }
+  .tog::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:left .15s; }
+  .tog.on { background:var(--accent); }
+  .tog.on::after { left:19px; }
+  .mbox { display:flex; align-items:center; gap:14px; padding:12px 16px; }
+  .mbox .c { width:22px; height:22px; flex-shrink:0; border-radius:50%; border:2px solid var(--sheet); box-shadow:0 0 0 1px var(--line); cursor:pointer; padding:0; }
+  .mbox input { width:140px; border:0; outline:none; background:none; font-size:15px; font-weight:400; color:var(--fg); caret-color:var(--accent); }
+  .mbox .e { flex:1; min-width:0; font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right; }
+  .mbox .e .err { color:var(--accent); }
+  .swatches { display:flex; gap:10px; align-items:center; padding:0 16px 14px 52px; flex-wrap:wrap; }
+  .swatches button.s { width:20px; height:20px; border-radius:50%; padding:0; cursor:pointer; border:2px solid var(--sheet); }
+  .swatches .link { margin-left:auto; }
+  .langs { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .crow select { border:1px solid var(--line); background:var(--bg); color:var(--fg); font:inherit; font-size:13px; padding:4px 8px; border-radius:var(--r2); }
+  .addm { display:flex; align-items:center; gap:14px; width:100%; border:0; background:none; padding:12px 16px; cursor:pointer; font-size:14px; color:var(--muted); text-align:left; }
+  .addm:hover { color:var(--fg); background:var(--faint); }
+  .addm span { width:22px; height:22px; border-radius:50%; border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .voice { margin:0; padding:0 16px 16px; font:inherit; font-size:14px; line-height:1.65; white-space:pre-wrap; color:var(--fg); }
+  .setup { max-width:560px; margin:0 auto; padding:56px 32px; }
+  .setup h1 { margin:0 0 10px; }
+  .setup > p { color:var(--muted); font-size:14.5px; line-height:1.6; margin:0 0 26px; }
+  .svcs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+  .svcs button { border:var(--bd); border-radius:var(--r); background:var(--sheet); cursor:pointer; padding:24px 10px; font-size:14px; color:var(--fg); }
+  body:not(.modern) .svcs button { background:var(--faint); }
+  .svcs button:hover { border-color:var(--accent); color:var(--accent); }
+  .steps { margin:0 0 22px; padding-left:20px; font-size:14.5px; line-height:1.7; }
+  .steps li { margin-bottom:8px; padding-left:6px; }
+  .fields { display:flex; flex-direction:column; gap:4px; }
+  .fields input { border:0; border-bottom:1px solid var(--line); outline:none; background:none; font-size:18px; font-weight:200; color:var(--fg); caret-color:var(--accent); padding:12px 0; }
+  .setup .go { margin-top:26px; display:flex; gap:18px; align-items:center; }
+  .setup .hint { font-size:13px; color:var(--muted); line-height:1.6; margin-top:20px; }
+  .setup .err { color:var(--accent); font-size:13.5px; margin-top:16px; min-height:1em; }
+
+  /* Find, on Today */
+  .hsearch { display:flex; align-items:center; gap:16px; margin:12px 0 4px; padding:6px 0; border-bottom:1px solid var(--line); }
+  .hsearch input { flex:1; border:0; outline:none; background:none; color:var(--fg); font-size:17px; font-weight:200; caret-color:var(--accent); }
+  .hsearch .x { border:0; background:none; cursor:pointer; color:var(--muted); font-size:18px; padding:0 4px; }
+  .hsearch .x:hover { color:var(--fg); }
+  .tag { font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .tag.imp { color:var(--accent); }
+  /* Attachment viewer */
+  .viewer { position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.55); display:flex; flex-direction:column; align-items:center; padding:28px 0 0; }
+  .viewer .vbar { width:min(980px, 92vw); box-sizing:border-box; display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--surface); border-radius:var(--r2) var(--r2) 0 0;
+                  border-bottom:1px solid var(--line); }
+  .viewer .vbar b { font-weight:400; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .viewer .vbody { width:min(980px, 92vw); flex:1; overflow:auto; background:var(--bg); padding:18px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .viewer .vbody.pages { background:#5a5a5a; }
+  .viewer .vbody img { max-width:100%; box-shadow:0 4px 18px rgba(0,0,0,.25); background:#fff; }
+  .viewer .vbody pre { align-self:stretch; margin:0; font-family:var(--mono); font-size:13px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--fg); }
+  .viewer .vmsg { color:var(--muted); font-size:14px; padding:40px 20px; text-align:center; }
+  .viewer .vbody.pages .vmsg { color:#eee; }
+  /* Invitations */
+  .inv { display:grid; grid-template-columns:120px minmax(0,1fr) auto; gap:14px; align-items:center; padding:14px; border-radius:var(--r); cursor:pointer; }
+  .inv:hover { background:var(--faint); }
+  .inv .iw b { display:block; font-weight:400; font-size:14px; }
+  .inv .iw span { font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .inv .ti { font-size:15px; }
+  .inv.unseen .ti { font-weight:500; }
+  .inv .io { font-size:13px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .icard { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:16px; align-items:center; margin:0 0 24px; padding:14px 16px; background:var(--faint); border-radius:var(--r); box-shadow:inset 2px 0 0 var(--accent); }
+  .icard .iw b { display:block; font-weight:400; font-size:15px; }
+  .icard .iw span { font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .icard .io { font-size:13.5px; color:var(--muted); }
+  /* Right-click menu */
+  .menu { position:fixed; z-index:20; min-width:230px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r2);
+          box-shadow:0 18px 50px rgba(0,0,0,.18); padding:6px 0; font-size:13.5px; }
+  .menu button { display:block; width:100%; border:0; background:none; text-align:left; padding:8px 16px; cursor:pointer; color:var(--fg); }
+  .menu button:hover { background:var(--faint); color:var(--accent); }
+  .menu hr { border:0; border-top:1px solid var(--line); margin:6px 0; }
+  .menu .why { padding:8px 14px 10px; width:300px; }
+  .menu .why small { display:block; color:var(--muted); font-size:12px; line-height:1.45; margin-bottom:8px; }
+  .menu .why textarea { width:100%; box-sizing:border-box; min-height:70px; border:1px solid var(--line); background:var(--bg); color:var(--fg);
+                        font:inherit; font-size:13.5px; line-height:1.5; padding:8px 10px; outline:none; resize:vertical; caret-color:var(--accent); }
+  .menu .why .go { display:flex; gap:14px; align-items:center; margin-top:8px; }
+  .menu .why .go button { width:auto; padding:6px 12px; }
+  .cnt { font-family:var(--mono); font-size:10.5px; color:var(--muted); font-weight:300; white-space:nowrap; }
+  .q .pin { font-family:var(--mono); font-size:10px; color:var(--accent); letter-spacing:.06em; text-transform:uppercase; }
+  .conv { margin:6px 0 18px; }
+  .tm { border-bottom:1px solid var(--line); }
+  .tm .th { display:flex; align-items:center; gap:12px; padding:10px 4px; cursor:pointer; min-width:0; }
+  .tm .th:hover { background:var(--faint); }
+  .tm .th b { font-weight:400; font-size:14px; white-space:nowrap; }
+  .tm .th .when { font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap; }
+  .tm .th .sn { font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
+  .tm .th em, .lmeta .fm { font-style:normal; color:var(--muted); width:14px; text-align:center; }
+  .tm .th .ib { width:28px; height:28px; }
+  .tm .tb { padding:4px 4px 16px; font-size:15px; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .lmeta.fold { cursor:pointer; }
+  .lacts { display:flex; gap:8px; align-items:center; margin:22px 0 6px; padding-top:14px; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .tm .lacts { margin:0 4px 14px; padding-top:10px; }
+  .la { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line); background:var(--surface); color:var(--fg); cursor:pointer;
+        padding:7px 14px; border-radius:var(--r2); font-size:13px; }
+  .la:hover { border-color:var(--accent); color:var(--accent); }
+  .la.prime { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+  .la.prime:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .conv .c { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 16px; padding:10px 14px; border-radius:var(--r); cursor:pointer; }
+  .conv .c:hover { background:var(--faint); }
+  .conv .c b { font-weight:400; font-size:14px; }
+  .conv .c span { font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .conv .c p { grid-column:1 / -1; margin:0; font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .it .app { display:flex; gap:10px; align-items:center; }
+  .it .clear { border:0; background:none; cursor:pointer; padding:0; font-size:12.5px; color:var(--muted); opacity:0; }
+  .it:hover .clear { opacity:1; }
+  .it .clear:hover { color:var(--accent); }
+  .donenote { grid-column:1 / -1; font-size:13px; color:var(--fg); opacity:.8; }
+  .donenote::before { content:'Your note: '; color:var(--muted); }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--fg); color:var(--bg); font-size:13px; padding:9px 16px;
+           border-radius:var(--r2); z-index:10; opacity:0; transition:opacity .25s; pointer-events:none; }
+  .toast.show { opacity:1; }
+</style></head>
+<body>
+<div class="bar">
+  <div class="l">
+    <button class="ib" id="bDrawer" title="Mailboxes and folders"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M9.5 5v14"/></svg></button>
+    <span class="name"><i id="barLine"></i>Tegami</span>
+    <span class="state" id="state"></span>
+  </div>
+  <div class="seg" id="focus" hidden></div>
+  <div class="r">
+    <button class="ib" id="bFind" title="Find letters (Cmd+F)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg></button>
+    <button class="ib" id="bRefresh" title="Get mail now (Cmd+R)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M19 5v4h-4"/></svg></button>
+    <button class="calmb" id="bCalm" title="Calm down: mark letters that don't need you as read"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 10c3-3 6-3 9 0s6 3 9 0M3 16c3-3 6-3 9 0s6 3 9 0"/></svg><span class="lbl" id="calmLbl">Calm down</span><b id="calmN" hidden></b></button>
+    <button class="ib" id="bSettings" title="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+    <button class="ib write" id="bWrite" title="New letter (Cmd+N)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 19l2.5-.5L18 8l-2-2L5.5 16.5z"/><path d="M14 8l2 2" stroke="var(--accent)"/></svg></button>
+  </div>
+</div>
+<div class="body">
+  <div class="drawer"><div id="drawer"></div></div>
+  <div class="main" id="main"></div>
+</div>
+<input type="file" id="fileIn" multiple hidden>
+<div class="toast" id="toast"></div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const send = (m) => window.webkit.messageHandlers.mail.postMessage(JSON.stringify(m));
+  const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+                  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)) };
+  if (new URLSearchParams(location.search).get('theme') === 'night') document.body.classList.add('night');
+  if (store.get('tegamiLook', 'kuhaku') === 'modern') document.body.classList.add('modern');
+  if (store.get('tegamiDrawer', false)) document.body.classList.add('dopen');
+
+  const IC = {
+    pen: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 19l2.5-.5L18 8l-2-2L5.5 16.5z"/><path d="M14 8l2 2"/></svg>',
+    up2: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V6M6 11l6-6 6 6"/></svg>',
+    clock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>',
+    spark: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 4v16M4 12h16M6.3 17.7L17.7 6.3M6.3 6.3l11.4 11.4"/></svg>',
+    tick: (w = 13, s = 1.6) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${s}"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,
+    reply: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 7l-5 5 5 5M5 12h9a5 5 0 0 1 5 5"/></svg>',
+    replyAll: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 7l-5 5 5 5M7 7l-5 5 5 5M7 12h7a5 5 0 0 1 5 5"/></svg>',
+    fwd: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M14 7l5 5-5 5M19 12h-9a5 5 0 0 0-5 5"/></svg>',
+    done: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="8"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg>',
+    spam: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="8"/><path d="M6.5 17.5l11-11"/></svg>',
+    trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>',
+    again: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 12a7 7 0 1 1-2.1-5M19 4v4h-4"/></svg>',
+    clip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 12.5l5.5-5.5a2.5 2.5 0 0 1 3.5 3.5L10 17.5a4 4 0 0 1-5.5-5.5L11 5.5"/></svg>',
+    up: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+  };
+  const SWATCHES = ['oklch(0.72 0.11 250)', 'oklch(0.75 0.12 155)', 'oklch(0.78 0.12 75)', 'oklch(0.68 0.16 30)', 'oklch(0.7 0.14 330)', 'oklch(0.72 0.12 200)', 'oklch(0.7 0.02 260)'];
+  const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+  const FOLDERS = [['inbox', 'Inbox'], ['invitations', 'Invitations'], ['notifications', 'Notifications'], ['later', 'Later'], ['done', 'Done'], ['drafts', 'Drafts'], ['sent', 'Sent'], ['outbox', 'Outbox'], ['spam', 'Spam']];
+  const groupOf = new Map();       // a row's key → the letters of its conversation, for ticks and the right-click menu
+  const KIND = { purchases: 'Purchase', updates: 'Update', newsletters: 'Newsletter', cold: 'Offer', important: 'Letter' };
+  const SECS = [['reply', 'Waiting for your answer'], ['todo', 'To do'], ['read', 'Worth reading'], ['important', 'Letters'], ['purchases', 'Purchases'],
+                ['updates', 'Updates'], ['newsletters', 'Newsletters'], ['cold', 'Offers'], ['other', 'Other']];
+  const ATT = { reply: 'Waiting for your answer', todo: 'To do', read: 'Worth reading' };
+  const joinAnd = (a) => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+
+  // What Tegami knows ---------------------------------------------------------------------------
+  let accts = [], counts = {}, status = { online: true, waiting: 0 }, errors = {}, brief = null, providers = [], imagesMode = 'false';
+  let today = [], calm = [], items = [], cur = null, log = [];
+  let focus = store.get('tegamiFocus', 'all'), act = store.get('tegamiAct', false);
+  let view = { name: 'home' }, from = 'home', sel = -1;
+  let calmOpen = false, calmOff = new Set(), calmPeek = null;
+  const doneHere = new Map();      // letters done while Tegami is open: gone from Today at once, before the backend says so
+  let order = [];                  // the order Today first showed its letters in
+  let comp = null;                 // the letter being written
+  let ui = { open: store.get('tegamiOpen', {}), colorOpen: null, voice: false, sure: null, token: 0 };
+
+  function toast(t, undo) {
+    const el = $('toast'); el.textContent = t; el.classList.toggle('act', !!undo);
+    if (undo) { const b = document.createElement('button'); b.textContent = 'Undo'; b.onclick = () => { el.classList.remove('show', 'act'); undo(); }; el.appendChild(b); }
+    el.classList.add('show'); clearTimeout(el._h); el._h = setTimeout(() => el.classList.remove('show', 'act'), undo ? 5000 : 2400);
+  }
+  window.toast = toast;
+  const day = (ts) => {
+    const d = new Date(ts * 1000), now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+  };
+  const full = (ts) => new Date(ts * 1000).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const dueText = (d) => {
+    if (!d) return '';
+    const t = new Date(d + 'T12:00'); if (isNaN(t)) return '';
+    const days = Math.round((t - new Date().setHours(12, 0, 0, 0)) / 864e5);
+    return days < 0 ? 'Overdue' : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : t.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+  const acct = (id) => accts.find((a) => a.id === id) || {};
+  const label = (id) => acct(id).label || acct(id).name || acct(id).email || '';
+  const color = (id) => acct(id).color || SWATCHES[Math.max(0, accts.findIndex((a) => a.id === id)) % SWATCHES.length];
+  const pill = (id) => accts.length > 1 && focus === 'all' && id ? `<span class="pill" style="--c:${color(id)}">${esc(label(id))}</span>` : '';
+  const inFocus = (m) => focus === 'all' || m.acct === focus;
+  const provName = () => { const p = providers.find((x) => x.on) || {}; return p.short || p.label || 'Claude'; };
+  const isNew = () => view.name === 'new';
+
+  // From the backend ----------------------------------------------------------------------------
+  window.accounts = (a) => {
+    accts = a;
+    if (focus !== 'all' && !accts.some((x) => x.id === focus)) focus = 'all';
+    drawBar(); drawDrawer();
+    if (!a.length) return go({ name: 'add' });
+    send({ type: 'brief' }); send({ type: 'providers' }); send({ type: 'contacts' }); send({ type: 'languages' }); send({ type: 'status' }); refreshLists();
+    if (view.name === 'settings') draw(); else if (view.name === 'add' && a.length && !view.adding) go({ name: 'home' });
+  };
+  function refreshLists() {
+    send({ type: 'list', acct: 'all', folder: 'today', q: '' });
+    send({ type: 'calm' });
+    if (view.name === 'folder') askFolder();
+  }
+  function askFolder() { send({ type: 'list', acct: view.acct, folder: view.folder, q: (view.q || '').trim() }); }
+  window.listed = (d) => {
+    if (d.counts) { counts = d.counts; drawDrawer(); }
+    if (d.folder === 'today') {
+      today = d.items;
+      today.forEach((m) => { if (!order.includes(m.key)) order.push(m.key); });
+      if (view.name === 'home') { draw(); if (restoreTo != null) { $('main').scrollTop = restoreTo; restoreTo = null; } }
+      return;
+    }
+    if (view.name !== 'folder' || d.folder !== view.folder || d.acct !== view.acct) return;
+    items = d.items; drawFolderList();
+    if (restoreTo != null) { $('main').scrollTop = restoreTo; restoreTo = null; }
+  };
+  window.calmList = (list) => { calm = list; drawBar(); if (view.name === 'home') draw(); };
+  window.providersAre = (list) => { providers = list; if (view.name === 'home' || view.name === 'settings') draw(); };
+  window.imagesAllIs = (mode) => { imagesMode = mode === true ? 'true' : mode === false ? 'false' : mode; if (view.name === 'settings') draw(); };
+  window.fromMail = ({ kind, data }) => {
+    if (kind === 'status') { status = data; drawBar(); drawDrawer(); }
+    if (kind === 'account') { errors[data.id] = data.error; drawDrawer(); if (view.name === 'settings') draw(); }
+    if (kind === 'assistant') { brief = data; drawBar(); if (view.name === 'home' || view.name === 'settings') draw(); }
+    if (kind === 'changed') refreshLists();
+    if (kind === 'sent') { toast('Sent'); send({ type: 'status' }); }
+  };
+
+  // The bar and the drawer --------------------------------------------------------------------
+  function drawBar() {
+    const busy = !!(status.busy || (brief && brief.busy));
+    $('barLine').classList.toggle('pulse', busy);
+    $('state').textContent = [status.online === false ? 'Offline' : '', status.waiting ? `${status.waiting} waiting to send` : '',
+      brief && brief.busy ? `${provName()} is reading new letters` : ''].filter(Boolean).join(' · ');
+    const f = $('focus');
+    f.hidden = accts.length < 2;
+    f.innerHTML = [{ id: 'all', label: 'All' }, ...accts.map((a) => ({ id: a.id, label: label(a.id), c: color(a.id) }))].map((o) =>
+      `<button data-focus="${o.id}" class="${focus === o.id ? 'on' : ''}">${o.c ? `<i style="background:${o.c}"></i>` : ''}${esc(o.label)}</button>`).join('');
+    const n = calm.filter(inFocus).length;
+    $('calmN').hidden = !n; $('calmN').textContent = n;
+    $('calmLbl').textContent = n ? 'Calm down' : 'All calm';
+    $('bCalm').classList.toggle('on', calmOpen && view.name === 'home');
+  }
+  $('focus').onclick = (e) => {
+    const b = e.target.closest('[data-focus]'); if (!b) return;
+    focus = b.dataset.focus; store.set('tegamiFocus', focus);
+    drawBar(); drawDrawer();
+    if (view.name === 'folder' || view.name === 'letter') go({ name: 'home' }); else draw();
+  };
+  function drawDrawer() {
+    const boxes = [{ id: 'all', label: 'All mailboxes' }, ...accts.map((a) => ({ id: a.id, label: label(a.id), c: color(a.id) }))]
+      .filter((b) => accts.length > 1 ? (focus === 'all' || b.id === focus || b.id === 'all') : b.id !== 'all');
+    const by = counts.byAcct || {};
+    let h = '';
+    boxes.forEach((b, i) => {
+      const unread = b.id === 'all' ? (counts.inbox || 0) : ((by[b.id] || {}).inbox || 0);
+      const here = view.name === 'folder' && view.acct === b.id;
+      const open = ui.open[b.id] ?? (here || i === 0);
+      h += `<div class="dh" data-fold="${b.id}" style="${b.c ? 'color:' + b.c : ''}"><i style="background:${b.c || 'var(--fg)'}"></i><span>${esc(b.label)}${errors[b.id] ? ` <span class="err">· ${esc(errors[b.id])}</span>` : ''}</span>` +
+           `<small>${open ? '' : unread || ''}</small><em>${open ? '–' : '+'}</em></div>`;
+      if (!open) return;
+      const own = b.id === 'all' ? [] : ((counts.folders || {})[b.id] || []).map((f) => ['f:' + f, f]);
+      [...FOLDERS, ...own].forEach(([f, name]) => {
+        if ((f === 'notifications' || f === 'invitations') && b.id !== 'all' && accts.length > 1) return;
+        const n = f === 'inbox' ? unread : f === 'notifications' ? counts.notifications : f === 'invitations' ? counts.invitations : f === 'spam' ? (b.id === 'all' ? counts.spam : (by[b.id] || {}).spam) : f === 'outbox' ? status.waiting : 0;
+        h += `<a class="dl${here && view.folder === f ? ' on' : ''}" style="--c:${b.c || 'var(--accent)'}" data-acct="${b.id}" data-folder="${esc(f)}"><span>${esc(name)}</span><small>${n || ''}</small></a>`;
+      });
+    });
+    h += '<a class="dl add" data-add="1"><span>Add a mailbox</span></a>';
+    $('drawer').innerHTML = h;
+  }
+  $('drawer').onclick = (e) => {
+    const f = e.target.closest('[data-fold]');
+    if (f) { const id = f.dataset.fold, here = view.name === 'folder' && view.acct === id;
+             const open = ui.open[id] ?? (here || f === $('drawer').querySelector('[data-fold]'));
+             ui.open[id] = !open; store.set('tegamiOpen', ui.open); return drawDrawer(); }
+    const a = e.target.closest('a'); if (!a) return;
+    if (a.dataset.add) return go({ name: 'add', adding: true });
+    go({ name: 'folder', acct: a.dataset.acct, folder: a.dataset.folder, q: '' });
+  };
+  function toggleDrawer(on) {
+    document.body.classList.toggle('dopen', on ?? !document.body.classList.contains('dopen'));
+    store.set('tegamiDrawer', document.body.classList.contains('dopen'));
+  }
+  $('bDrawer').onclick = () => toggleDrawer();
+
+  // Moving between views ----------------------------------------------------------------------
+  function go(v) {
+    if (v.name !== 'letter') cur = null;
+    if (v.name !== 'letter' && v.name !== 'new') { if (comp) { saveDraft(true); if (comp.saved) toast('Saved in Drafts'); } comp = null; }
+    const keep = v.scroll != null;          // coming back from a letter: same list, same place
+    view = v; sel = keep && v.sel != null ? v.sel : -1;
+    if (v.name === 'folder') { if (!keep) items = []; askFolder(); }
+    if (v.name === 'settings') send({ type: 'imagesAll?' });
+    draw(); drawBar(); drawDrawer();
+    $('main').scrollTop = keep ? v.scroll : 0;
+    restoreTo = keep ? v.scroll : null;
+    delete v.scroll;
+  }
+  function draw() {
+    const a = document.activeElement, id = a && a.id && $('main').contains(a) ? a.id : '';
+    const pos = id && 'selectionStart' in a ? [a.selectionStart, a.selectionEnd] : null;
+    paint();
+    const b = id && $(id);
+    if (b && b !== document.activeElement) { b.focus(); if (pos) try { b.setSelectionRange(...pos); } catch (e) {} }
+  }
+  function paint() {
+    const v = view.name;
+    if (v === 'home') return drawHome();
+    if (v === 'folder') return drawFolder();
+    if (v === 'letter') return drawLetter();
+    if (v === 'new') return drawNew();
+    if (v === 'settings') return drawSettings();
+    if (v === 'add') return drawAdd();
+    if (v === 'gmail') return drawGmail();
+    if (v === 'other') return drawOther();
+  }
+
+  // Today -------------------------------------------------------------------------------------
+  function queue() {
+    // The backend's order (the owner's moves first). Done letters leave Today and wait in Done.
+    return today.filter(inFocus).filter((m) => !doneHere.has(m.key));
+  }
+  function drawHome() {
+    if (!accts.length) return go({ name: 'add' });
+    const b = brief || {}, on = b.enabled !== false;
+    const q = on ? queue() : [];
+    const need = q, doneL = [...doneHere.values()].filter((d) => d.m && inFocus(d.m)).map((d) => d.m);
+    const where = focus === 'all' || accts.length < 2 ? '' : ` in ${label(focus)}`;
+    let title, lead;
+    if (!on) { title = 'The assistant is not reading new letters.'; lead = 'Your letters are in the folders behind the menu, top left.'; }
+    else if (b.busy && !q.length) { title = 'Reading your new letters…'; lead = ''; }
+    else if (need.length) {
+      title = `${WORDS[need.length] || need.length} letter${need.length > 1 ? 's' : ''} need${need.length > 1 ? '' : 's'} you today${where}.`;
+      const say = (m) => { const d = dueText(m.due); return esc(m.who) + (d === 'Overdue' ? ', overdue' : d === 'Today' ? ', today' : d ? `, by ${d}` : ''); };
+      const [f, ...rest] = need;
+      lead = `Start with ${say(f)}.` + (rest.length ? ` Then ${joinAnd(rest.slice(0, 4).map(say))}${rest.length > 4 ? ` and ${rest.length - 4} more` : ''}.` : '');
+    } else {
+      title = `Nothing needs you today${where}.`;
+      lead = doneL.length ? `You dealt with ${WORDS[doneL.length] ? WORDS[doneL.length].toLowerCase() : doneL.length} letter${doneL.length > 1 ? 's' : ''} today. A clean space.` : 'Everything is answered.';
+    }
+    const date = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const meta = [date, b.busy ? `${provName()} is reading new letters` : on && b.read ? `${provName()} read ${b.read} letter${b.read === 1 ? '' : 's'} since yesterday` : '',
+      b.waiting && !b.busy && on ? `${b.waiting} still to read` : ''].filter(Boolean).join(' · ');
+    const first = need[0] && need[0].key;
+    const fq = hs.open ? hs.q.trim().toLowerCase() : '';
+    const shown = fq && hs.scope === 'important' ? q.filter((m) => [m.who, m.subject, m.summary, m.addr].join(' ').toLowerCase().includes(fq)) : q;
+    const rows = shown.map((m, i) => {
+      groupOf.set(m.key, { keys: m.keys || [m.key], pri: m.pri || 0, done: false, today: true });
+      const d = null, due = dueText(m.due) || (m.urgent ? 'Today' : '');
+      return `<div class="q" data-open="${esc(m.key)}"><span class="n${m.key === first ? ' first' : ''}">${String(i + 1).padStart(2, '0')}</span>
+        <div style="min-width:0"><div class="who"><span>${esc(m.who)}</span>${m.count > 1 ? `<span class="cnt">${m.count} letters</span>` : ''}${pill(m.acct)}${m.pri > 0 && !d ? '<span class="pin">Top</span>' : ''}</div>
+          <div class="why">${esc(m.summary || m.subject)}</div>
+          ${!d && m.drafted ? `<button class="ready" data-draft="${esc(m.key)}" title="Opens the letter with the reply written in your voice; you check and send"><i></i>Reply ready · open it</button>` : ''}</div>
+        <div class="side"><span class="due${!d && (due === 'Overdue' || due === 'Today' || m.urgent) ? ' now' : ''}">${esc(due)}</span>
+          <button class="raise${m.pri > 0 ? ' on' : ''}" data-raise="${esc(m.key)}" title="${m.pri > 0 ? 'Raised: click to put it back in the assistant\'s order' : 'More important: to the top (the assistant learns from it)'}">${IC.up2}</button>
+          <button class="tick" data-tick="${esc(m.key)}" title="Done">${IC.tick()}</button></div></div>`;
+    }).join('');
+    // Set aside: who wrote what the assistant let be.
+    const quiet = calm.filter(inFocus);
+    let aside = '';
+    if (on && quiet.length) {
+      const names = [...new Set(quiet.map((m) => m.who))];
+      aside = `Set aside: ${esc(joinAnd(names.length > 5 ? [...names.slice(0, 4), `${names.length - 4} more`] : names))}. Nothing there needs you.`;
+    }
+    if (b.error && on) aside += (aside ? ' ' : '') + `Last time the assistant could not finish: ${esc(b.error)}`;
+    const sugg = suggestions(need);
+    $('main').innerHTML = `<div class="home">
+      <div class="meta mono"><span class="glow${b.busy ? ' pulse' : ''}"></span><span>${esc(meta)}</span></div>
+      ${calmOpen && quiet.length ? calmCard(quiet) : ''}
+      ${hs.open ? findBar() : ''}
+      <h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ''}
+      ${!on ? '<p style="margin-top:22px"><button class="btn" data-assistant="1">Let the assistant read new letters</button></p>' : ''}
+      ${hs.open && hs.scope === 'all' ? findAll() : q.length ? `<div class="qhead mono"><span>${fq ? `${shown.length} of ${q.length} match` : 'Read in this order'}</span><span class="grow"></span>
+        <button class="link mono" data-donelist="1" style="font-size:11px">${doneL.length ? `${doneL.length} done · ` : ''}Done →</button></div><div>${rows || `<div class="empty" style="padding:30px 0">Nothing on Today matches. <button class="link u" data-scope="all">Look in All inbox</button></div>`}</div>` : ''}
+      ${!hs.open && counts.invitations ? `<button class="aside" data-invites="1">${counts.invitations} invitation${counts.invitations > 1 ? 's wait' : ' waits'} for your answer.</button>` : ''}
+      ${!hs.open && on && counts.notifications ? `<button class="aside" data-notifs="1">${counts.notifications} unread notification${counts.notifications > 1 ? 's' : ''} from apps ${counts.notifications > 1 ? "wait" : "waits"} in Notifications.</button>` : ''}
+      ${aside && !hs.open ? `<button class="aside" data-inbox="1">${aside}</button>` : ''}
+      ${on && !q.length && !hs.open ? '<button class="aside" data-donelist="1" style="margin-top:10px">See what is done</button>' : ''}
+      <div class="log" id="log">${log.map(logHtml).join('')}</div>
+      <div style="flex:1;min-height:40px"></div>
+      <div class="askbox">
+        ${!log.length && sugg.length ? `<div class="sugg">${sugg.map((s) => `<button data-sugg="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : ''}
+        <div class="ask"><div class="row"><textarea id="cin" placeholder="Ask ${esc(provName())}, or tell it what to do with your mail" spellcheck="false" rows="1"></textarea>
+          <button class="go" id="cGo" title="Ask">${IC.up}</button></div>
+          <div class="opts">${providers.length > 1 ? providers.map((p) => `<button class="prov${p.on ? ' on' : ''}" data-prov="${esc(p.id)}" title="${esc(p.title)}">${esc(p.label)}</button>`).join('') : ''}
+            <span class="grow"></span>
+            <button class="sw${act ? ' on' : ''}" id="actSw" title="${act ? 'The assistant archives, marks and files routine mail by itself, and tells you what it did' : 'The assistant only proposes; you confirm every action'}"><i></i>${act ? 'Acts on its own' : 'Asks before acting'}</button></div></div>
+      </div></div>`;
+    if (hs.open) {
+      const hq = $('hq');
+      hq.addEventListener('input', () => { hs.q = hq.value; if (hs.scope === 'all') { clearTimeout(hq._t); hq._t = setTimeout(askFind, 180); } else draw(); });
+      hq.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
+        if (e.key === 'Enter') { const r = document.querySelector('.home .q[data-open], .home .it[data-open]'); if (r) r.click(); }
+        if (e.key === 'Tab') { e.preventDefault(); hs.scope = hs.scope === 'important' ? 'all' : 'important'; store.set('tegamiFindScope', hs.scope); askFind(); draw(); }
+      });
+    }
+    const cin = $('cin'), keep = homeDraft;
+    cin.value = keep; grow(cin);
+    cin.addEventListener('input', () => { homeDraft = cin.value; grow(cin); });
+    cin.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { cin.blur(); return; }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askAI(cin.value); }
+    });
+    $('cGo').onclick = () => askAI(cin.value);
+  }
+  let homeDraft = '';
+  // Find on Today: in important letters (what the assistant or you said matters) or the whole inbox.
+  const hs = { open: false, q: '', scope: store.get('tegamiFindScope', 'important'), items: [], busy: false };
+  function openFind() {
+    hs.open = true;
+    if (view.name !== 'home') go({ name: 'home' }); else draw();
+    if (hs.scope === 'all') askFind();
+    const i = $('hq'); if (i) { i.focus(); i.select(); }
+  }
+  function closeFind() { hs.open = false; hs.q = ''; hs.items = []; draw(); }
+  function askFind() { if (hs.scope !== 'all') return draw(); hs.busy = true; send({ type: 'search', q: hs.q, scope: 'all', acct: focus }); }
+  window.searched = (d) => { if (d.q !== hs.q.trim() || hs.scope !== 'all') return; hs.items = d.items; hs.busy = false; if (view.name === 'home') draw(); };
+  // The bar sits above Today: Today's open letters narrow down as you type; All inbox shows every letter, done ones too.
+  function findBar() {
+    return `<div class="hsearch"><input id="hq" value="${esc(hs.q)}" placeholder="${hs.scope === 'all' ? 'Find in the whole inbox' : 'Find on Today'}" spellcheck="false" autocomplete="off">
+        <div class="seg small"><button data-scope="important" class="${hs.scope === 'important' ? 'on' : ''}" title="The letters on Today; done ones are left out">Important</button>
+          <button data-scope="all" class="${hs.scope === 'all' ? 'on' : ''}" title="Every letter in the inbox, done ones too (Tab switches)">All inbox</button></div>
+        <button class="x" data-closefind="1" title="Close (Esc)">×</button></div>`;
+  }
+  function findAll() {
+    const by = new Map();
+    hs.items.forEach((m) => { const t = m.thread || m.key; if (!by.has(t)) by.set(t, []); by.get(t).push(m); });
+    const rows = [...by.values()].map((g) => {
+      const m = g[0], keys = g.map((x) => x.key), imp = g.some((x) => x.attention), dn = g.every((x) => x.done);
+      groupOf.set(m.key, { keys, pri: m.pri || 0, done: dn, today: today.some((t) => keys.includes(t.key)), found: true });
+      return `<div class="it${m.seen ? '' : ' unseen'}" data-open="${esc(m.key)}"><div class="w">${m.seen ? '' : '<i></i>'}<span>${esc([...new Set(g.map((x) => x.who))].slice(0, 3).join(' · '))}</span>
+        ${g.length > 1 ? `<span class="cnt">${g.length}</span>` : ''}${pill(m.acct)}${imp ? '<span class="tag imp">On Today</span>' : dn ? '<span class="tag">Done</span>' : ''}</div>
+        <span class="d">${day(m.date)}</span><div class="p"><b>${esc(m.subject)}</b> · ${esc(m.snippet)}</div></div>`;
+    }).join('');
+    return `<div class="qhead mono"><span>${hs.q.trim() ? `${by.size} found in the inbox` : 'The whole inbox, newest first'}</span></div>
+      <div>${rows || `<div class="empty" style="padding:30px 0">${hs.busy ? 'Looking…' : 'Nothing found in the inbox.'}</div>`}</div>`;
+  }
+  const slot = (k) => { const i = queue().findIndex((m) => m.key === k); return i < 0 ? undefined : i; };
+  const grow = (t) => { t.style.height = 'auto'; t.style.height = Math.min(160, Math.max(24, t.scrollHeight - 6)) + 'px'; };
+  function suggestions(need) {
+    const rep = need.filter((m) => m.attention === 'reply').map((m) => m.who.split(/\s/)[0]);
+    const out = [];
+    if (rep.length) out.push(`Draft replies for ${joinAnd(rep.slice(0, 2))}`);
+    if (need[0]) out.push(`What does ${need[0].who.split(/\s/)[0]} want?`);
+    if (calm.some((m) => m.cat === 'newsletters')) out.push('Archive the newsletters');
+    if (!out.length) out.push('What came in this week?', 'Who is waiting for me?');
+    return out.slice(0, 3);
+  }
+  function calmCard(list) {
+    const pick = list.filter((m) => !calmOff.has(m.key));
+    return `<div class="calm"><div class="hd"><b>${WORDS[list.length] || list.length} unread letter${list.length > 1 ? 's' : ''} can be marked as read</b>
+      <p>None of these need you. Click a letter to preview it; untick anything you want to keep as new.</p></div>
+      ${list.slice(0, ui.calmAll ? list.length : 8).map((m) => { const on = !calmOff.has(m.key), pk = calmPeek === m.key;
+        return `<div class="cr${pk ? ' peek' : ''}" data-peek="${esc(m.key)}" title="Preview"><span class="box${on ? ' on' : ''}" data-keep="${esc(m.key)}" title="Include">${IC.tick(11, 2.4)}</span>
+          <div class="t"><div class="w"><span>${esc(m.who)}</span>${pill(m.acct)}</div><div class="y">${esc(m.subject)}</div></div>
+          <span class="k">${esc(KIND[m.cat] || 'Letter')}</span><em>${pk ? '–' : '+'}</em></div>` +
+          (pk ? `<div class="peekb"><div class="s"><b>${esc(m.subject)}</b><span class="grow"></span><span class="mono" style="letter-spacing:0;text-transform:none">${full(m.date)}</span></div>
+            <div class="x">${esc(m.snippet)}</div>
+            <div class="go"><button class="link u" data-open="${esc(m.key)}">Open letter</button><button class="link" data-keep="${esc(m.key)}">${on ? 'Keep as new' : 'Include again'}</button></div></div>` : ''); }).join('')}
+      ${list.length > 8 && !ui.calmAll ? `<div class="cr" data-calmall="1" style="color:var(--muted);font-size:13px;justify-content:center">and ${list.length - 8} more like these · show them</div>` : ''}
+      <div class="ft"><button class="btn" id="calmGo">${pick.length ? `Mark ${pick.length} as read` : 'Nothing selected'}</button><button class="link" id="calmNo">Not now</button></div></div>`;
+  }
+  function toggleCalm() {
+    const n = calm.filter(inFocus).length;
+    if (!n) return toast('Nothing unread that can wait');
+    calmOpen = view.name === 'home' ? !calmOpen : true; calmPeek = null;
+    if (view.name !== 'home') go({ name: 'home' }); else draw();
+    drawBar();
+  }
+  $('bCalm').onclick = toggleCalm;
+
+  // The ask line: one conversation about the mail. The assistant proposes; with "Acts on its own" it does routine things itself.
+  const VERB = { archive: 'Archive', trash: 'Delete', read: 'Mark read', done: 'Mark done', move: 'Move' };
+  function askAI(text) {
+    text = (text || '').trim(); if (!text) return;
+    homeDraft = '';
+    log.push({ q: text, by: provName(), a: 'Reading your mail…', wait: true });
+    if (view.name !== 'home') go({ name: 'home' }); else draw();
+    $('barLine').classList.add('pulse');
+    send({ type: 'claude', text, key: cur ? cur.key : '', shown: queue().slice(0, 40).concat(calm.slice(0, 40)) });
+    setTimeout(() => { const l = $('log'); if (l && l.lastElementChild) l.lastElementChild.scrollIntoView({ block: 'nearest' }); }, 30);
+  }
+  window.claudeSaid = ({ text, draft, sorted, actions }) => {
+    const m = [...log].reverse().find((x) => x.wait);
+    if (!m) return;
+    Object.assign(m, { a: text, wait: false, draft, actions: actions && actions.length ? actions : null });
+    if (m.actions && act) { send({ type: 'act', actions: m.actions }); m.didActs = true; }
+    drawBar();
+    if (view.name === 'home') draw();
+    if (sorted) toast(`Sorted ${sorted} letter${sorted === 1 ? '' : 's'}`);
+  };
+  function logHtml(m, i) {
+    let extra = '';
+    if (m.draft) extra += `<pre>${esc(m.draft.body)}</pre><div class="go"><button class="link u" data-logdraft="${i}">Write this letter</button></div>`;
+    if (m.actions) extra += '<ul>' + m.actions.map((x) => `<li><b>${VERB[x.do]}${x.do === 'move' ? ' to ' + esc(x.folder) : ''}</b> · ${esc(x.label)}</li>`).join('') + '</ul>' +
+      (m.didActs ? '<div class="go"><span class="asked" style="margin:0">Done.</span></div>' : m.declined ? '<div class="go"><span class="asked" style="margin:0">Left as it is.</span></div>' :
+        `<div class="go"><button class="link u" data-logdo="${i}">Do ${m.actions.length === 1 ? 'it' : 'these ' + m.actions.length}</button><button class="link" data-logno="${i}">Not now</button></div>`);
+    return `<div><div class="asked">${esc(m.q)}</div><div class="ans"><i></i><div style="flex:1"><div class="mono" style="font-size:10.5px;margin-bottom:6px">${esc(m.by)}</div>
+      <div class="txt${m.wait ? ' wait' : ''}">${esc(m.a)}</div>${extra}</div></div></div>`;
+  }
+
+  // A folder ----------------------------------------------------------------------------------
+  function folderTitle(v = view) {
+    const view = v;
+    const name = view.folder.startsWith('f:') ? view.folder.slice(2) : (FOLDERS.find((f) => f[0] === view.folder) || [, ''])[1];
+    return view.acct === 'all' || accts.length < 2 ? name : `${label(view.acct)} ${name.toLowerCase()}`;
+  }
+  function drawFolder() {
+    $('main').innerHTML = `<div class="col" style="max-width:920px;padding-top:36px">
+      <button class="back" data-home="1">← Today</button>
+      <div class="fhead"><h1>${esc(folderTitle())}</h1><input id="q" placeholder="Find" spellcheck="false" value="${esc(view.q || '')}"></div>
+      <div id="rows"></div></div>`;
+    $('q').addEventListener('input', () => { view.q = $('q').value; clearTimeout($('q')._t); $('q')._t = setTimeout(askFolder, 200); });
+    $('q').addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('q').blur(); } if (e.key === 'ArrowDown') { $('q').blur(); move(1); } });
+    drawFolderList();
+  }
+  // Invitations: what waits for your answer first, then what is coming, then the rest.
+  const evWhen = (v) => {
+    const s = new Date(v.start * 1000), e = new Date(v.end * 1000);
+    const d = s.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    if (v.allday) return [d, 'All day'];
+    const t = (x) => x.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return [d, `${t(s)}–${t(e)}`];
+  };
+  const placeHtml = (p) => !p ? '' : /^https?:\/\//.test(p) ? `<a href="${esc(p)}">${esc(p.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40))}</a>` : esc(p);
+  function rsvpHtml(v) {
+    if (v.status === 'CANCELLED') return '<span class="tag imp">Cancelled</span>';
+    const on = { ACCEPTED: 'yes', TENTATIVE: 'maybe', DECLINED: 'no' }[v.status] || '';
+    return `<span class="seg small rsvp">${[['yes', 'Yes'], ['maybe', 'Maybe'], ['no', 'No']].map(([k, l]) =>
+      `<button data-rsvp="${k}" data-ikey="${esc(v.key)}" class="${on === k ? 'on' : ''}">${l}</button>`).join('')}</span>`;
+  }
+  function inviteRow(v) {
+    const [d, t] = evWhen(v);
+    return `<div class="inv${v.seen ? '' : ' unseen'}" data-open="${esc(v.key)}"><div class="iw"><b>${esc(d)}</b><span>${esc(t)}</span></div>
+      <div class="it2"><div class="ti">${esc(v.title)}${v.repeats ? ' <span class="tag">Repeats</span>' : ''}</div>
+        <div class="io">${esc(v.organizerName || v.who || v.organizer)}${v.place ? ' · ' + placeHtml(v.place) : ''}</div>
+        ${v.answers && v.answers.length ? `<div class="io">${v.answers.map((x) => esc(x.who)).join(', ')} answered</div>` : ''}</div>
+      <div class="ir">${v.start * 1000 < Date.now() ? '' : rsvpHtml(v)}</div></div>`;
+  }
+  function drawInvitations(host) {
+    const now = Date.now() / 1000, up = items.filter((v) => v.end > now), past = items.filter((v) => v.end <= now).reverse().slice(0, 20);
+    const groups = [['Waiting for your answer', up.filter((v) => v.status === 'NEEDS-ACTION')], ['Coming up', up.filter((v) => v.status === 'ACCEPTED' || v.status === 'TENTATIVE')],
+      ['Declined or cancelled', up.filter((v) => v.status === 'DECLINED' || v.status === 'CANCELLED')], ['Past', past]];
+    const h = groups.filter(([, g]) => g.length).map(([n, g]) => `<div class="grp mono"><span>${n}</span><small>${g.length}</small><i></i></div>${g.map(inviteRow).join('')}`).join('');
+    host.innerHTML = h || '<div class="empty">No invitations. Meeting invitations that come by mail show up here, by date.</div>';
+  }
+  function drawFolderList() {
+    const host = $('rows'); if (!host) return;
+    if (view.folder === 'invitations') return drawInvitations(host);
+    let list = items.filter((m) => view.acct === 'all' ? inFocus(m) : m.acct === view.acct);
+    // Notifications: one row per app, the ones the assistant flagged first.
+    if (view.folder === 'notifications') {
+      const by = new Map();
+      list.forEach((m) => { if (!by.has(m.app)) by.set(m.app, []); by.get(m.app).push(m); });
+      list = [...by.values()].map((g) => ({ ...g[0], keys: g.map((x) => x.key), count: g.length, seen: g.every((x) => x.seen), who: g[0].appLabel,
+        flagged: g.some((x) => x.attention), snippet: (g.find((x) => x.attention) || g[0]).summary || g[0].snippet }));
+    } else
+    // One row per conversation: its newest letter, with how many there are.
+    if (view.folder !== 'sent' && view.folder !== 'outbox') {
+      const by = new Map();
+      list.forEach((m) => { const t = m.thread || m.key; if (!by.has(t)) by.set(t, []); by.get(t).push(m); });
+      list = [...by.values()].map((g) => ({ ...g[0], keys: g.map((x) => x.key), count: g.length, seen: g.every((x) => x.seen),
+        who: [...new Set(g.map((x) => x.who))].slice(0, 3).join(' · ') }));
+    }
+    list.forEach((m) => groupOf.set(m.key, { keys: m.keys || [m.key], done: view.folder === 'done', pri: 0 }));
+    const groups = view.folder === 'done' ? [['', list]] : view.folder === 'notifications' ?
+        [['Worth a look', list.filter((m) => m.flagged)], ['Just so you know', list.filter((m) => !m.flagged)]] : view.folder === 'inbox' ? SECS.map(([k, name]) => [name, list.filter((m) => (m.attention || (m.cat in KIND ? m.cat : 'other')) === k)])
+      : view.folder === 'sent' ? [['Today', list.filter((m) => new Date(m.date * 1000).toDateString() === new Date().toDateString())],
+                                   ['Earlier', list.filter((m) => new Date(m.date * 1000).toDateString() !== new Date().toDateString())]]
+      : [['', list]];
+    let h = '', n = 0;
+    groups.forEach(([name, its]) => {
+      if (!its.length) return;
+      if (name) h += `<div class="grp mono"><span>${esc(name)}</span><small>${its.length}</small><i></i></div>`;
+      its.forEach((m) => {
+        const dn = view.folder === 'done';
+        h += `<div class="it${m.seen ? '' : ' unseen'}${n === sel ? ' sel' : ''}" data-open="${esc(m.key)}" data-n="${n}"><div class="w">${m.seen ? '' : '<i></i>'}<span>${esc(m.who)}</span>${m.count > 1 ? `<span class="cnt">${m.count}</span>` : ''}${view.acct === 'all' ? pill(m.acct) : ''}</div>
+          <span class="d app">${view.folder === 'later' && m.later ? `Back ${whenText(m.later * 1000)}` : ''}${view.folder === 'notifications' ? `<button class="clear" data-clear="${esc(m.key)}" title="Done: clears ${m.count > 1 ? 'all ' + m.count : 'it'}">Done</button>` : ''}${view.folder === 'later' ? '' : dn ? 'Done ' + day(m.doneAt) : day(m.date)}</span><div class="p"><b>${esc(m.subject)}</b>${dn && m.note ? '' : ' · ' + esc(m.snippet)}</div>${dn && m.note ? `<div class="donenote">${esc(m.note)}</div>` : ''}</div>`;
+        n++;
+      });
+    });
+    const empty = { later: 'Nothing waiting for later. Press Later on a letter to send it out of sight until it is time.', drafts: 'No drafts. What you start writing is kept here until you send it.', outbox: 'Nothing waiting to be sent.', spam: 'No spam.', done: 'Nothing marked done in the last two weeks.', notifications: 'No notifications from apps. A clean space.' }[view.folder] || (view.folder.startsWith('f:') && !view.q ? 'Fetching this folder…' : 'No letters here.');
+    host.innerHTML = h || `<div class="empty">${empty}</div>`;
+  }
+  function move(d) {
+    const nodes = [...document.querySelectorAll('[data-n]')]; if (!nodes.length) return;
+    sel = Math.max(0, Math.min(nodes.length - 1, sel + d));
+    nodes.forEach((x, i) => x.classList.toggle('sel', i === sel));
+    nodes[sel].scrollIntoView({ block: 'nearest' });
+  }
+
+  // A letter ----------------------------------------------------------------------------------
+  function openLetter(key, draft) {
+    // Remember where in the list the letter was opened, so going back lands on the same spot.
+    from = view.name === 'folder' ? { ...view, scroll: $('main').scrollTop, sel } : view.name === 'letter' ? from : { name: 'home', scroll: $('main').scrollTop };
+    pendingDraft = !!draft;
+    send({ type: 'read', key });
+    const m = today.find((x) => x.key === key) || items.find((x) => x.key === key);
+    if (m) m.seen = 1;
+  }
+  let pendingDraft = false, restoreTo = null;
+  window.opened = (m) => {
+    if (!m) return toast('This letter is gone');
+    if (comp) saveDraft(true);
+    view = { name: 'letter' }; cur = m; comp = null; ui.mainMin = false; ui.unfold = {};
+    const a = m.ai, out = m.key.startsWith('outbox/');
+    if (!out && m.draft) {
+      const t = m.draft.target && m.draft.target !== m.key ? (thr[m.draft.target] || null) : m;
+      restoreDraft(m.draft, t || m);
+      if (m.draft.target && m.draft.target !== m.key && !thr[m.draft.target]) send({ type: 'peek', key: m.draft.target });
+      setTimeout(() => toast('Your draft is back'), 50);
+    } else
+    // Your reply starts empty; the assistant's suggestion waits beside it until you take it.
+    if (!out && a && a.suggestion && !a.done && (pendingDraft || a.attention === 'reply')) { startComp(replyMode(m)); comp.sugg = { body: a.suggestion.body, note: a.suggestion.note || '', ver: 1 }; }
+    pendingDraft = false; ui.trOriginal = false;
+    maybeTranslate(m);
+    drawLetter(); drawBar(); drawDrawer();
+    $('main').scrollTop = 0;
+    send({ type: 'calm' });
+  };
+  function drawLetter() {
+    const m = cur; if (!m) return go({ name: 'home' });
+    const out = m.key.startsWith('outbox/'), sent = m.folder === 'sent', a = m.ai;
+    const html = m.html && m.html.trim();
+    const pics = m.showImages || m.picturesNow;
+    const doneNow = doneHere.has(m.key) || (a && a.done);
+    const backLabel = from.name === 'folder' ? '← ' + folderTitle(from) : '← Today';
+    const ib = (act_, icon, title, extra = '') => `<button class="ib" data-act="${act_}" title="${title}" ${extra}>${icon}</button>`;
+    $('main').innerHTML = `<div class="col">
+      <div class="acts"><button class="back" data-back="1">${esc(backLabel)}</button>${(() => { const [keys, i] = listPos(m); return keys.length > 1 || i < 0 ? `
+        <span class="lnav"><button class="ib" data-step="-1" title="Previous letter (K or ←)" ${i <= 0 ? 'disabled' : ''}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <span class="mono" style="font-size:10.5px">${i < 0 ? '' : `${i + 1} / ${keys.length}`}</span>
+        <button class="ib" data-step="1" title="Next letter (J or →)" ${i >= keys.length - 1 && i >= 0 ? 'disabled' : ''}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 6l6 6-6 6"/></svg></button></span>` : ''; })()}<span class="grow"></span>
+        ${a ? (doneNow ? '<button class="done quiet" data-act="undone" title="Bring it back to Today">Not done</button>'
+                       : `<span class="split dsplit"><button class="go" data-act="done" title="Done: it leaves Today and waits in Done">${IC.tick(12, 1.8)} Done</button><button class="pick" data-act="donenote" title="Done with a note: tell the assistant what happened or what to learn">${IC.pen}</button></span>`) : ''}
+        ${!out && m.folder === 'inbox' ? `<span class="split lsplit"><button class="go" data-act="later" title="Out of sight until tomorrow morning; then back on Today">${IC.clock} Later</button><button class="pick" data-act="latermenu" title="Choose when">▾</button>${ui.laterMenu ? laterMenu() : ''}</span>` : ''}
+        ${!out && m.folder === 'inbox' ? (() => { const t = today.find((x) => (x.keys || [x.key]).includes(m.key)), up = t && t.pri > 0;
+          return `<button class="done prio${up ? ' on' : ''}" data-act="${t ? 'raise' : 'important'}" title="${up ? 'Raised: click to put it back in the assistant\'s order' : t ? 'More important: to the top of Today' : 'Important: put it on Today, at the top'}">${IC.up2} ${up ? 'Raised' : 'Higher'}</button>`; })() : ''}
+        ${m.folder === 'inbox' ? ib('spam', IC.spam, 'Spam') : m.folder === 'spam' ? ib('notspam', IC.spam, 'Not spam') : ''}
+        ${ib('trash', IC.trash, out ? 'Do not send' : 'Delete')}</div>
+      <div id="noteHere"></div>
+      <h1>${esc(m.subject || '(no subject)')}</h1>
+      ${convCards(m, 'before')}
+      <div class="lmeta fold" data-mainfold="1" title="To ${esc(m.to)}${m.cc ? ' · Cc ' + esc(m.cc) : ''}${'\n'}Click to ${ui.mainMin ? 'open' : 'fold'} this letter"><b>${esc(sent || out ? 'To ' + m.to : m.from)}</b><span>${esc(sent || out ? '' : m.fromAddr !== m.from ? m.fromAddr : '')}</span>${pill(m.acct)}
+        <span class="grow"></span><span class="when">${full(m.date)}</span><em class="fm">${ui.mainMin ? '+' : '–'}</em></div>
+      ${ui.mainMin ? `<div style="color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:-14px 0 20px">${esc((m.text || '').replace(/\s+/g, ' ').trim())}</div>` : `
+      ${m.invite && m.invite.method !== 'REPLY' ? `<div class="icard"><div class="iw"><b>${esc(evWhen(m.invite)[0])}</b><span>${esc(evWhen(m.invite)[1])}</span></div>
+        <div><div style="font-size:15px">${esc(m.invite.title)}</div><div class="io">${esc(m.invite.organizerName || m.invite.organizer)}${m.invite.place ? ' · ' + placeHtml(m.invite.place) : ''}</div></div>
+        <div>${m.invite.end * 1000 < Date.now() ? '<span class="tag">Past</span>' : rsvpHtml({ ...m.invite, key: m.key })}</div></div>` : ''}
+      ${a && a.attention !== 'none' && a.summary ? `<div class="note"><span>${IC.spark}</span><div style="flex:1"><div class="mono" style="font-size:10.5px">${esc([provName(), doneNow ? 'Done' : ATT[a.attention], dueText(a.due)].filter(Boolean).join(' · '))}</div><p>${esc(a.summary)}</p></div></div>` : ''}
+      ${translateBar(m)}
+      ${tr[m.key] && tr[m.key].body && !langs.langs.includes(tr[m.key].lang) && !ui.trOriginal ? '' : `
+      ${html && m.remoteImages && !pics ? `<div class="quietrow"><span>Pictures from the internet are not loaded, so the sender cannot see that you opened this.</span><button data-pics="once">Show pictures</button><button data-pics="always">Always for ${esc(m.fromAddr)}</button></div>` : ''}
+      ${html ? '<iframe class="html" id="frame" sandbox="allow-same-origin allow-popups"></iframe>' : `<div class="text">${renderText(m.text || '')}</div>`}`}
+      ${m.files.length ? '<div class="files">' + m.files.map((f, i) => `<span class="chip file"><button class="fo" data-file="${i}" title="Open ${esc(f.name)}">${esc(f.name)}<small>${size(f.size)}</small></button><button class="fs" data-filesave="${i}" title="Save in Downloads">Save</button></span>`).join('') + '</div>' : ''}`}
+      ${out ? '' : letterActions(m, replyMode(m), true)}
+      ${convCards(m, 'after')}
+      ${!tr[m.key] && !out ? `<div class="quietrow" style="margin:18px 0 0"><button data-trnow="1">Translate into ${esc(LANG[langs.into] || langs.into)}</button></div>` : ''}
+      ${m.folder === 'inbox' ? `<div class="quietrow" style="margin:26px 0 0"><span>Letters from ${esc(m.fromAddr)} go to</span>${['important', 'purchases', 'updates', 'newsletters', 'cold'].map((c) =>
+        `<button data-sort="${c}" class="${m.cat === c ? 'on' : ''}">${{ important: 'Letters', purchases: 'Purchases', updates: 'Updates', newsletters: 'Newsletters', cold: 'Offers' }[c]}</button>`).join('')}</div>` : ''}
+      <div id="compHere">${comp ? compHtml() : ''}</div></div>`;
+    if (comp) wireComp();
+    if (html && !ui.mainMin && $('frame')) {
+      // Mail HTML in a sealed frame: no scripts, no remote pictures or trackers unless allowed.
+      const night = document.body.classList.contains('night'), f = $('frame');
+      f.srcdoc = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: cid:${pics ? ' https: http:' : ''}; style-src 'unsafe-inline'${pics ? ' https:' : ''}; font-src data:">
+        <base target="_blank"><style>html{overflow-x:hidden}body{margin:0;padding:26px 28px;font:15px/1.6 Inter,system-ui,sans-serif;color:#111;background:${night ? '#f3f1ee' : '#fff'};overflow-wrap:anywhere}img{max-width:100%;height:auto}</style>${m.html}`;
+      // Letters built for a fixed width are scaled to the column instead of scrolling sideways.
+      const fit = () => { try {
+        const d = f.contentDocument, b = d.body; b.style.zoom = '';
+        const need = Math.max(b.scrollWidth, d.documentElement.scrollWidth), room = f.clientWidth;
+        if (need > room + 1) b.style.zoom = (room / need).toFixed(3);
+        f.style.height = (d.documentElement.scrollHeight + 6) + 'px';
+      } catch (e) {} };
+      f.onload = () => { fit(); f.contentWindow.addEventListener('load', fit); setTimeout(fit, 600); };
+    }
+  }
+  // Reply, Reply all, Forward: right under the letter they answer.
+  function letterActions(m, mode, main) {
+    const many = others(m).length > 0, sent = m.folder === 'sent' || m.sent;
+    const k = main ? '' : ` data-tkey="${esc(m.key)}"`;
+    const b = (act, icon, label, primary) => `<button class="la${primary ? ' prime' : ''}" data-${main ? 'act' : 'tact'}="${act}"${k}>${icon}${label}</button>`;
+    return `<div class="lacts">${sent ? '' : many ? b('all', IC.replyAll, 'Reply all', mode === 'all') + b('reply', IC.reply, 'Reply', mode !== 'all') : b('reply', IC.reply, 'Reply', true)}
+      ${b('fwd', IC.fwd, 'Forward')}${main && !sent ? `<span class="grow"></span>${b('write', IC.spark, 'Write a reply for me')}` : ''}</div>`;
+  }
+  // The other letters of the conversation, folded to one line; click to open one, and reply to exactly that one.
+  const thr = {};                   // key → the full letter, fetched when first opened
+  window.peeked = (x) => {
+    if (!x) return;
+    thr[x.key] = x;
+    if (pendingReply && pendingReply.key === x.key) { const r = pendingReply; pendingReply = null; return replyTo(x, r.mode); }
+    if (view.name === 'letter') drawLetter();
+  };
+  let pendingReply = null;
+  function convCards(m, part) {
+    const list = (m.thread || []).filter((x) => part === 'before' ? x.date <= m.date : x.date > m.date);
+    if (!list.length) return '';
+    const head = part === 'before' ? `<div class="mono" style="font-size:10.5px;margin:4px 0 8px">Conversation · ${m.thread.length + 1} letters · click one to open it</div>` : '';
+    return `<div class="conv">${head}${list.map((x) => {
+      const open = ui.unfold && ui.unfold[x.key], full_ = thr[x.key];
+      const body = open ? (full_ ? (full_.text || (full_.html || '').replace(/<style[\s\S]*?<\/style>|<[^>]+>/g, ' ').replace(/\s+/g, ' ')).trim() : 'Opening…') : '';
+      return `<div class="tm${open ? ' open' : ''}"><div class="th" data-tm="${esc(x.key)}"><b>${esc(x.sent ? 'You' : x.who)}</b><span class="when">${full(x.date)}</span>
+          ${open ? '' : `<span class="sn">${esc(x.snippet)}</span>`}<span class="grow"></span>
+          ${x.sent ? '' : `<button class="ib" data-treply="${esc(x.key)}" title="Reply to this letter">${IC.reply}</button>`}<em>${open ? '–' : '+'}</em></div>
+        ${open ? `<div class="tb">${renderText(body)}</div>${full_ ? letterActions(full_, replyMode(full_), false) : ''}` : ''}</div>`;
+    }).join('')}</div>`;
+  }
+  // The reply box comes to the top of the screen, just under the letter bar, so To and Subject are in view.
+  function toComp() {
+    const c = $('comp'), main = $('main'), bar = document.querySelector('.acts');
+    if (!c) return;
+    const top = c.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - (bar ? bar.offsetHeight : 0) - 16;
+    main.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }
+  function replyTo(x, mode = replyMode(x)) {
+    startComp(mode, '', '', x); redrawComp(true);
+    toComp();
+  }
+  // Attachments open right here: PDF pages, pictures, text. Miru and Save are a click away.
+  let viewer = null;
+  window.previewed = (d) => { if (!viewer || viewer.key !== d.key || viewer.index !== d.index) return; viewer = { ...viewer, ...d }; drawViewer(); };
+  function drawViewer() {
+    let el = $('viewer');
+    if (!viewer) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'viewer'; el.className = 'viewer'; document.body.appendChild(el); }
+    const v = viewer;
+    const body = v.kind === 'wait' ? '<div class="vmsg">Opening…</div>'
+      : v.kind === 'pdf' ? (v.pages.length ? v.pages.map((u, i) => `<img src="${u}" alt="Page ${i + 1}">`).join('') +
+          (v.total > v.pages.length ? `<div class="vmsg">The first ${v.pages.length} of ${v.total} pages. Open in Miru for all of it.</div>` : '') : '<div class="vmsg">This PDF could not be shown here. Try Miru.</div>')
+      : v.kind === 'image' ? `<img src="${v.src}" alt="">`
+      : v.kind === 'text' ? `<pre>${esc(v.text)}</pre>`
+      : `<div class="vmsg">Tegami cannot show this kind of file (${esc(v.type || '')}). Open it in its app, or save it.</div>`;
+    el.innerHTML = `<div class="vbar"><b>${esc(v.name)}</b>${v.kind === 'pdf' && v.total ? `<span class="mono" style="font-size:10.5px">${v.total} page${v.total > 1 ? 's' : ''}</span>` : ''}
+        <span class="grow"></span><button class="btn2" data-vopen="1">${v.kind === 'other' ? 'Open in its app' : 'Open in Miru'}</button><button class="btn2" data-vsave="1">Save</button>
+        <button class="ib" data-vclose="1" title="Close (Esc)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="vbody${v.kind === 'pdf' ? ' pages' : ''}">${body}</div>`;
+    el.onclick = (e) => {
+      if (e.target === el || e.target.closest('[data-vclose]')) { viewer = null; return drawViewer(); }
+      if (e.target.closest('[data-vopen]')) return send({ type: 'openFile', key: v.key, index: v.index });
+      if (e.target.closest('[data-vsave]')) return send({ type: 'openFile', key: v.key, index: v.index, save: true });
+    };
+  }
+  const linkify = (t) => t.replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}">${u}</a>`);
+  // Plain-text letters: addresses shown short and clean. Redirect wrappers (Google, Outlook safe links, …) are
+  // unwrapped to where they really go; the angle brackets around them go; the link text is site + path.
+  function realUrl(u) {
+    for (let i = 0; i < 3; i++) {
+      try {
+        const x = new URL(u), h = x.hostname.replace(/^www\./, '');
+        const inner = (h === 'google.com' && x.pathname === '/url') ? (x.searchParams.get('url') || x.searchParams.get('q'))
+          : /safelinks\.protection\.outlook\.com$/.test(h) ? x.searchParams.get('url')
+          : /^(l\.facebook\.com|lm\.facebook\.com|l\.instagram\.com)$/.test(h) ? x.searchParams.get('u')
+          : h === 'linkedin.com' && x.pathname.startsWith('/redir/') ? x.searchParams.get('url') : null;
+        if (!inner || !/^https?:/i.test(inner)) return u;
+        u = inner;
+      } catch (e) { return u; }
+    }
+    return u;
+  }
+  function shortUrl(u) {
+    try {
+      const x = new URL(u), host = x.hostname.replace(/^www\./, '');
+      let path = decodeURIComponent(x.pathname).replace(/\/$/, '');
+      if (path.length > 34) path = path.slice(0, 32) + '…';
+      return host + (path && path !== '/' ? path : '');
+    } catch (e) { return u.length > 50 ? u.slice(0, 48) + '…' : u; }
+  }
+  function renderText(raw) {
+    const re = /<\s*(https?:\/\/[^\s>]+)\s*>|(https?:\/\/[^\s<>"]+[^\s<>"'.,;:!?)\]])/g;
+    let out = '', last = 0, mt;
+    const plain = (t) => esc(t).replace(/\*([^*\n]{1,80}?)(\s*)\*/g, '<b>$1</b>$2');   // *bold* from plain-text mail
+    while ((mt = re.exec(raw || ''))) {
+      out += plain(raw.slice(last, mt.index));
+      const real = realUrl(mt[1] || mt[2]);
+      out += `<a href="${esc(real)}" title="${esc(real)}">${esc(shortUrl(real))}</a>`;
+      last = re.lastIndex;
+    }
+    return out + plain((raw || '').slice(last));
+  }
+  const size = (n) => n < 1048576 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+  function quote(m) {
+    return `On ${full(m.date)}, ${m.from || m.fromAddr} wrote:\n` + (m.text || '').split('\n').map((l) => '> ' + l).join('\n');
+  }
+
+  // Writing -----------------------------------------------------------------------------------
+  const POLISH = {
+    minimal: ['Grammar only', 'Fixes spelling, grammar and punctuation; your words stay'],
+    voice: ['In my voice', 'Rephrases it the way you write; same meaning'],
+    better: ['Better version', 'Clearer and better ordered, still in your voice'],
+    custom: ['As I ask', 'Does what you write in the line on the left'],
+  };
+  // mode: reply | all | fwd | suggested | new. A reply carries the letter's thread; drafts are only ever shown, never sent.
+  function startComp(mode, body = '', note = '', target = null) {
+    const m = mode === 'new' ? null : target || cur;
+    const reSub = m ? (/^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject) : '';
+    comp = { mode, ver: 1, body, note, files: [], wish: '', prev: null, busy: '', token: ++ui.token, polish: POLISH[store.get('tegamiPolish', 'minimal')] ? store.get('tegamiPolish', 'minimal') : 'minimal',
+             acct: m ? m.acct : (focus !== 'all' ? focus : (accts[0] || {}).id), to: '', cc: '', subject: '' };
+    if (m && mode !== 'new') {
+      comp.to = mode === 'fwd' ? '' : m.fromAddr;
+      comp.cc = mode === 'all' ? [m.to, m.cc].filter(Boolean).join(', ').split(',').map((x) => x.trim())
+        .filter((x) => x && !accts.some((a) => x.toLowerCase().includes(a.email.toLowerCase()))).join(', ') : '';
+      comp.subject = mode === 'fwd' ? (/^fwd?:/i.test(m.subject) ? m.subject : 'Fwd: ' + m.subject) : reSub;
+      comp.inReplyTo = mode === 'fwd' ? '' : m.msgid; comp.refs = m.refs;
+      comp.quote = quote(m);
+      if (mode === 'fwd') comp.body = '\n\n---------- Forwarded message ----------\n' +
+        `From: ${m.from && m.from !== m.fromAddr ? `${m.from} <${m.fromAddr}>` : m.fromAddr}\nDate: ${full(m.date)}\nSubject: ${m.subject || ''}\nTo: ${m.to || ''}\n` +
+        (m.cc ? `Cc: ${m.cc}\n` : '') + '\n' + (m.text || (m.html || '').replace(/<style[\s\S]*?<\/style>|<[^>]+>/g, ' ').replace(/[ \t]+/g, ' ').trim());
+      comp.target = m.key; comp.tmsg = m;
+    }
+    comp.draftId = mode === 'new' || !m ? 'n:' + Date.now() : 'r:' + m.key;
+  }
+  function compHtml() {
+    const c = comp, nw = c.mode === 'new';
+    const tm = c.tmsg && cur && c.tmsg.key !== cur.key ? c.tmsg : null;
+    const head = c.mode === 'fwd' ? 'Forward' : tm ? `Replying to ${tm.from || tm.fromAddr} · ${full(tm.date)}` : c.mode === 'all' ? 'Reply to everyone' : 'Your reply';
+    const files = c.files.length ? `<div class="cfiles">${c.files.map((f, i) => `<span class="chip">${esc(f.name)}<small>${size(f.size)}</small><button data-unfile="${i}" title="Remove">×</button></span>`).join('')}</div>` : '';
+    return `<div class="comp${nw ? ' new' : ''}" id="comp">
+      ${nw ? `<div class="rows"><div><span class="lb">To</span>${chipsHtml('to', 'Address')}</div>
+        ${c.cc || c.showCc ? `<div><span class="lb">Cc</span>${chipsHtml('cc', 'Copy to')}</div>` : ''}
+        ${c.bcc || c.showBcc ? `<div><span class="lb">Bcc</span>${chipsHtml('bcc', 'Hidden copy to')}</div>` : ''}
+        <div><span class="lb">Subject</span><input class="f" id="cSubj" value="${esc(c.subject)}"></div></div>
+        <div style="padding:0 20px;display:flex;gap:14px">${c.cc || c.showCc ? '' : '<button class="link" id="cAddCc" style="font-size:12.5px;margin-top:6px">+ Cc</button>'}${c.bcc || c.showBcc ? '' : '<button class="link" id="cAddBcc" style="font-size:12.5px;margin-top:6px">+ Bcc</button>'}</div>`
+      : `<div class="hd">${c.mode !== 'fwd' && (c.tmsg || cur) && others(c.tmsg || cur).length ? `<div class="seg small"><button data-rmode="reply" class="${c.mode === 'all' ? '' : 'on'}" title="Only ${esc((c.tmsg || cur).fromAddr)}">Reply</button><button data-rmode="all" class="${c.mode === 'all' ? 'on' : ''}" title="Also ${esc(others(c.tmsg || cur).join(', '))}">Reply all</button></div>` : ''}
+          <span class="mono" style="font-size:10.5px">${esc(head)}</span><span class="grow"></span>
+        ${c.cc || c.showCc ? '' : '<button class="link" id="cAddCc" style="font-size:12.5px" title="Send a copy to someone">+ Cc</button>'}
+        ${c.bcc || c.showBcc ? '' : '<button class="link" id="cAddBcc" style="font-size:12.5px" title="A hidden copy: the others do not see it">+ Bcc</button>'}</div>
+        <div class="xrow"><span class="lb">To</span>${chipsHtml('to', 'Address')}</div>
+        ${c.cc || c.showCc ? `<div class="xrow"><span class="lb">Cc</span>${chipsHtml('cc', 'Copy to')}</div>` : ''}
+        ${c.bcc || c.showBcc ? `<div class="xrow"><span class="lb">Bcc</span>${chipsHtml('bcc', 'Hidden copy to')}</div>` : ''}
+        ${c.mode === 'fwd' ? `<div class="xrow"><span class="lb">Subject</span><input class="f" id="cSubj" value="${esc(c.subject)}"></div>` : ''}`}
+      ${c.sugg || c.busy === 'another' ? `<div class="sugbox"><div class="sh"><span class="mono" style="font-size:10.5px">${IC.spark}Suggested by ${esc(provName())}${c.sugg && c.sugg.ver > 1 ? ' · version ' + c.sugg.ver : ''}</span><span class="grow"></span>
+          ${c.sugg && c.busy !== 'another' ? `<button class="btn2" id="sUse">${c.body.trim() ? 'Use this instead of my text' : 'Use this'}</button><button class="link" id="sHide">Hide</button>` : ''}</div>
+        <div class="st${c.busy === 'another' ? ' wait' : ''}">${c.busy === 'another' ? 'Writing a version in your voice…' : esc(c.sugg.body)}</div>
+        ${c.sugg && c.sugg.note && c.busy !== 'another' ? `<div class="sn">${esc(c.sugg.note)}</div>` : ''}</div>` : ''}
+      <textarea id="cBody" class="${c.busy === 'polish' ? 'busy' : ''}" placeholder="${nw ? 'Write, or tell the assistant below what to write' : 'Write your reply'}" spellcheck="true"></textarea>
+      <div id="gnotes">${gnotesHtml()}</div>
+      ${c.note ? `<div class="cnote">${esc(c.note)}</div>` : ''}${files}
+      <div class="ailine"><span>${IC.spark}</span><input id="cWish" value="${esc(c.wish)}" placeholder="Optional: tell ${esc(provName())} what to change, or what it should know" spellcheck="false">
+        <button class="btn2" id="cAgain" title="Writes a new version. Uses what you typed on the left, if anything.">${IC.again}${c.busy === 'another' ? 'Writing…' : c.sugg ? 'Another version' : 'Write it for me'}</button>
+        <span class="split" id="cSplit"><button class="go" id="cPolish" title="${esc(POLISH[c.polish][1])}">${IC.tick()}${c.busy === 'polish' ? 'Polishing…' : 'Polish'}</button><button class="pick" id="cMode" title="Choose how to polish">${esc(POLISH[c.polish][0])}<i>▾</i></button>
+          ${ui.polishMenu ? `<span class="modes">${Object.entries(POLISH).map(([k, [name, what]]) => `<button data-pmode="${k}" class="${c.polish === k ? 'on' : ''}"><b>${esc(name)}</b><small>${esc(what)}</small></button>`).join('')}</span>` : ''}</span></div>
+      <div class="foot"><button class="ib" id="cAttach" title="Attach files">${IC.clip}</button>
+        <small>${status.online === false ? 'Offline: it goes out when you are back online' : 'Cmd+Enter sends'}</small><span class="grow"></span>
+        ${c.prev != null ? '<button class="link" id="cUndo">Undo</button>' : ''}<button class="link" id="cDiscard">Discard</button><button class="send" id="cSend">Send</button></div></div>`;
+  }
+  // The people on a letter besides you and its sender: who "Reply all" adds.
+  function others(m) {
+    const own = accts.map((a) => a.email.toLowerCase()), me = (m.fromAddr || '').toLowerCase();
+    return [m.to, m.cc].filter(Boolean).join(',').split(',').map((x) => x.trim()).filter(Boolean)
+      .filter((x) => { const l = x.toLowerCase(); return !own.some((o) => l.includes(o)) && !l.includes(me); });
+  }
+  // Addresses as bubbles: each person one chip; type to get suggestions, Enter, Tab or a comma adds one,
+  // Backspace on an empty line takes the last one back.
+  const splitAddrs = (v) => (v || '').split(/,(?![^<]*>)/).map((x) => x.trim()).filter(Boolean);
+  const addrOf = (t) => { const m = t.match(/<([^>]+)>/); return (m ? m[1] : t).trim(); };
+  function chipLabel(t) {
+    const a = addrOf(t).toLowerCase(), named = t.match(/^"?([^"<]+?)"?\s*</);
+    const k = contacts.find((x) => x.addr === a);
+    return (named && named[1].trim()) || (k && k.name) || a;
+  }
+  const chipsId = { to: 'cTo', cc: 'cCc', bcc: 'cBcc' };
+  function chipsHtml(key, ph) {
+    const list = splitAddrs(comp[key]);
+    return `<span class="af chips" data-chips="${key}">${list.map((t, i) => `<span class="addr" title="${esc(addrOf(t))}">${esc(chipLabel(t))}<button data-unchip="${key}:${i}" title="Remove">×</button></span>`).join('')}
+      <input class="f" id="${chipsId[key]}" placeholder="${list.length ? '' : ph}" spellcheck="false" autocomplete="off"></span>`;
+  }
+  function wireChips(key) {
+    const input = $(chipsId[key]); if (!input) return;
+    const c = comp, host = input.parentNode;
+    const add = (t) => {
+      t = t.trim().replace(/[,;]$/, ''); if (!t) return;
+      const list = splitAddrs(c[key]);
+      if (!list.some((x) => addrOf(x).toLowerCase() === addrOf(t).toLowerCase())) list.push(t);
+      c[key] = list.join(', '); saveDraftSoon(); redrawComp();
+      const again = $(chipsId[key]); if (again) again.focus();
+    };
+    host.onclick = (e) => {
+      const b = e.target.closest('[data-unchip]');
+      if (b) { const [, i] = b.dataset.unchip.split(':'); const list = splitAddrs(c[key]); list.splice(+i, 1); c[key] = list.join(', '); saveDraftSoon(); redrawComp(); const n = $(chipsId[key]); if (n) n.focus(); return; }
+      input.focus();
+    };
+    whisper(input, key, (x) => add(x.name ? `${x.name} <${x.addr}>` : x.addr));
+    input.addEventListener('keydown', (e) => {
+      const v = input.value.trim();
+      if ((e.key === 'Enter' || e.key === 'Tab' || e.key === ',' || e.key === ';') && v && !e.defaultPrevented) { e.preventDefault(); return add(v); }
+      if (e.key === 'Backspace' && !input.value) { const list = splitAddrs(c[key]); if (list.length) { e.preventDefault(); list.pop(); c[key] = list.join(', '); saveDraftSoon(); redrawComp(); const n = $(chipsId[key]); if (n) n.focus(); } }
+    });
+    input.addEventListener('blur', () => setTimeout(() => { if (input.isConnected && /@/.test(input.value)) add(input.value); }, 200));
+    input.addEventListener('paste', (e) => {
+      const t = (e.clipboardData || {}).getData ? e.clipboardData.getData('text') : '';
+      if (t && /[,;\n]/.test(t)) { e.preventDefault(); const list = splitAddrs(c[key]); splitAddrs(t.replace(/[;\n]/g, ',')).forEach((x) => list.push(x)); c[key] = list.join(', '); redrawComp(); }
+    });
+  }
+  // Address suggestions: people you wrote to come first. Tab or Enter takes the highlighted one and leaves room for the next.
+  let contacts = [], langs = { langs: ['cs', 'en'], into: 'en', auto: true };
+  window.languagesAre = (d) => { langs = d; if (view.name === 'settings') draw(); };
+  const LANG = { cs: 'Czech', en: 'English', sk: 'Slovak', de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', pl: 'Polish', pt: 'Portuguese',
+                 nl: 'Dutch', sv: 'Swedish', da: 'Danish', no: 'Norwegian', fi: 'Finnish', hu: 'Hungarian', ro: 'Romanian', uk: 'Ukrainian', ru: 'Russian',
+                 ja: 'Japanese', zh: 'Chinese', ko: 'Korean', tr: 'Turkish', el: 'Greek', hr: 'Croatian', sl: 'Slovenian' };
+  // A quick guess for letters the assistant has not read: common little words of Czech and English.
+  function guessLang(t) {
+    const w = (t || '').toLowerCase().match(/[a-zá-žäöüßàâçéèêëîïôûùœ]+/g) || []; if (w.length < 12) return '';
+    if ((t.match(/[ěščřžůťďň]/gi) || []).length / Math.max(1, w.length) > 0.08) return 'cs';   // Czech letters, plenty of them
+    const cs = new Set('a je se na že to v s k do mi ti bys by pro jsem bych děkuji díky ahoj dobrý den prosím jako ale jsme bude nebo tak už mám máte bez co jak'.split(' '));
+    const en = new Set('the and to of you is for please thanks thank we are with this that be have will your on in'.split(' '));
+    const c = w.filter((x) => cs.has(x)).length / w.length, e = w.filter((x) => en.has(x)).length / w.length;
+    return c > 0.06 && c > e ? 'cs' : e > 0.06 ? 'en' : 'other';
+  }
+  const tr = {};                    // key → { lang, body } once translated
+  window.translated = (d) => {
+    tr[d.key] = d.error ? { error: d.error } : { lang: d.lang, body: d.body };
+    if (cur && cur.key === d.key && view.name === 'letter') drawLetter();
+  };
+  function translateBar(m) {
+    const t = tr[m.key];
+    if (!t) return '';
+    if (t.wait && t.quiet) return '';
+    if (t.wait) return '<div class="trbar"><span class="mono" style="font-size:10.5px">Translating…</span></div>';
+    if (t.error) return `<div class="trbar"><span>Could not translate it: ${esc(t.error)}</span></div>`;
+    if (langs.langs.includes(t.lang)) return '';
+    return `<div class="trbar"><span class="mono" style="font-size:10.5px">${IC.spark} Translated from ${esc(LANG[t.lang] || t.lang)}</span><span class="grow"></span>
+      <button class="link" data-trshow="1">${ui.trOriginal ? 'Show the translation' : 'Show the original'}</button></div>
+      ${ui.trOriginal ? '' : `<div class="text">${renderText(t.body)}</div>`}`;
+  }
+  function maybeTranslate(m) {
+    if (!m || m.key.startsWith('outbox/') || m.folder === 'sent' || tr[m.key]) return;
+    const known = m.ai && m.ai.lang;
+    const lang = known || guessLang(m.text || (m.html || '').replace(/<[^>]+>/g, ' '));
+    if (!lang || langs.langs.includes(lang) || !langs.auto) return;
+    tr[m.key] = { wait: true, quiet: !known }; send({ type: 'translate', key: m.key, into: langs.into });
+  }
+  window.contactsAre = (list) => { contacts = list; };
+  function whisper(input, field, onTake) {
+    const box = document.createElement('div'); box.className = 'whisper'; box.hidden = true;
+    input.parentNode.appendChild(box);
+    let hits = [], at = 0;
+    const token = () => { const v = input.value, i = v.lastIndexOf(',') + 1; return [v.slice(0, i), v.slice(i).trim()]; };
+    const show = () => {
+      const [, t] = token(), q = t.toLowerCase();
+      const have = (onTake && comp ? [comp.to, comp.cc, comp.bcc].join(',') : input.value).toLowerCase() + ',';
+      hits = q.length < 1 ? [] : contacts.filter((x) => (x.addr.startsWith(q) || x.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)) || x.addr.includes(q))
+        && !have.includes(x.addr + ',') && !have.includes(x.addr + '>')).slice(0, 6);
+      at = 0;
+      box.hidden = !hits.length;
+      box.innerHTML = hits.map((x, i) => `<button data-w="${i}" class="${i === at ? 'on' : ''}"><b>${esc(x.name || x.addr)}</b>${x.name ? `<small>${esc(x.addr)}</small>` : ''}</button>`).join('');
+    };
+    const take = (x) => {
+      if (onTake) { input.value = ''; box.hidden = true; hits = []; return onTake(x); }
+      const [head] = token();
+      input.value = (head ? head.replace(/\s*$/, ' ') : '') + x.addr + ', ';
+      input.dispatchEvent(new Event('input')); box.hidden = true; hits = []; input.focus();
+    };
+    input.addEventListener('input', show);
+    input.addEventListener('keydown', (e) => {
+      if (!box.hidden && hits.length && !(e.key === ',' || e.key === ';')) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault(); at = (at + (e.key === 'ArrowDown' ? 1 : hits.length - 1)) % hits.length;
+          box.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === at)); return;
+        }
+        if (e.key === 'Tab' || e.key === 'Enter') { e.preventDefault(); return take(hits[at]); }
+        if (e.key === 'Escape') { e.stopPropagation(); box.hidden = true; return; }
+      }
+      // Tab after a typed address: keep it and start the next one.
+      if (!onTake && e.key === 'Tab' && !e.shiftKey && /@[^,\s]+\.[^,\s]+$/.test(token()[1])) { e.preventDefault(); input.value = input.value.replace(/\s*$/, '') + ', '; input.dispatchEvent(new Event('input')); }
+    });
+    input.addEventListener('blur', () => setTimeout(() => { box.hidden = true; }, 150));
+    box.addEventListener('mousedown', (e) => { const b = e.target.closest('[data-w]'); if (b) { e.preventDefault(); take(hits[+b.dataset.w]); } });
+  }
+  // Grammar notes: a moment after you stop typing, the assistant lists typos and mistakes; click one to fix it.
+  function gnotesHtml() {
+    const c = comp; if (!c) return '';
+    const notes = (c.gnotes || []).filter((n) => c.body.includes(n.wrong));
+    if (!notes.length) return c.checking ? '<div class="gn"><span class="mono" style="font-size:10px">Checking…</span></div>' : '';
+    return `<div class="gn"><span class="mono" style="font-size:10px">Grammar notes</span>${notes.map((n, i) =>
+      `<button data-fix="${i}" title="${esc(n.why)}: click to fix"><s>${esc(n.wrong)}</s> → <b>${esc(n.right)}</b><small>${esc(n.why)}</small></button>`).join('')}
+      ${notes.length > 1 ? '<button class="all" data-fixall="1">Fix all</button>' : ''}</div>`;
+  }
+  function wireNotes() {
+    const c = comp, host = $('gnotes'); if (!host) return;
+    host.innerHTML = gnotesHtml();
+    const notes = (c.gnotes || []).filter((n) => c.body.includes(n.wrong));
+    const fix = (n) => { c.body = c.body.replace(n.wrong, n.right); c.gnotes = c.gnotes.filter((x) => x !== n); };
+    host.querySelectorAll('[data-fix]').forEach((b) => b.onclick = () => { c.prev = c.body; fix(notes[+b.dataset.fix]); redrawComp(); });
+    host.querySelectorAll('[data-fixall]').forEach((b) => b.onclick = () => { c.prev = c.body; notes.forEach(fix); redrawComp(); });
+  }
+  function checkSoon() {
+    const c = comp; clearTimeout(checkSoon._t);
+    checkSoon._t = setTimeout(() => {
+      if (!comp || comp !== c || c.body.trim().length < 20 || c.body === c.checked) return;
+      c.checked = c.body; c.checking = true; wireNotes();
+      send({ type: 'check', token: c.token, body: c.body });
+    }, 2500);
+  }
+  window.checked = (d) => {
+    const c = comp; if (!c || d.token !== c.token) return;
+    c.checking = false; c.gnotes = d.notes || []; wireNotes();
+  };
+  // Drafts: what you write is kept on this computer as you type and goes to the server's Drafts, so nothing is lost.
+  function saveDraft(leaving) {
+    const c = comp; if (!c || !c.draftId) return;
+    const empty = !c.body.trim() && !(c.mode === 'new' && (c.to.trim() || (c.subject || '').trim()));
+    if (empty) { if (c.saved) { send({ type: 'draftDelete', id: c.draftId }); c.saved = false; } return; }
+    send({ type: 'draftSave', id: c.draftId, acct: c.acct, replyTo: c.mode === 'new' ? '' : c.target || '', leaving: !!leaving,
+           to: c.to, cc: c.cc || '', bcc: c.bcc || '', subject: c.subject || '', body: c.body, mode: c.mode,
+           inReplyTo: c.inReplyTo || '', refs: c.refs || '', quote: c.quote || '', target: c.target || '' });
+    c.saved = true;
+  }
+  function saveDraftSoon() { clearTimeout(saveDraftSoon._t); saveDraftSoon._t = setTimeout(() => saveDraft(false), 800); }
+  function restoreDraft(d, target) {
+    startComp(d.mode && d.mode !== 'new' ? d.mode : 'reply', '', '', target);
+    Object.assign(comp, { to: d.to || '', cc: d.cc || '', bcc: d.bcc || '', subject: d.subject || comp.subject, body: d.body || '',
+      inReplyTo: d.inReplyTo || comp.inReplyTo, refs: d.refs || comp.refs, quote: d.quote || comp.quote, draftId: d.id, saved: true,
+      showCc: !!d.cc, showBcc: !!d.bcc, acct: d.acct || comp.acct, target: d.target || comp.target });
+  }
+  function wireComp() {
+    const c = comp, body = $('cBody');
+    body.value = c.body;
+    body.addEventListener('input', () => { wireNotes(); checkSoon(); });
+    wireNotes();
+    if ($('cAddCc')) $('cAddCc').onclick = () => { c.showCc = true; redrawComp(); $('cCc').focus(); };
+    // (the Cc line opens with suggestions already showing)
+    if ($('cAddBcc')) $('cAddBcc').onclick = () => { c.showBcc = true; redrawComp(); $('cBcc').focus(); };
+    ['to', 'cc', 'bcc'].forEach((k) => wireChips(k));
+    document.querySelectorAll('[data-rmode]').forEach((b) => b.onclick = () => {
+      if (b.dataset.rmode === c.mode || (b.dataset.rmode === 'reply' && c.mode !== 'all')) return;
+      const keep = { body: c.body, sugg: c.sugg, files: c.files, bcc: c.bcc, showBcc: c.showBcc, gnotes: c.gnotes };
+      startComp(b.dataset.rmode, '', '', c.tmsg); Object.assign(comp, keep); redrawComp(); saveDraftSoon();
+    });
+    const bind = (id, k) => { const el = $(id); if (el) el.addEventListener('input', () => { c[k] = el.value; if (k === 'body') refreshAgainLabel(); saveDraftSoon(); }); };
+    bind('cBody', 'body'); bind('cSubj', 'subject'); bind('cWish', 'wish');
+    body.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); sendComp(); } });
+    $('cWish').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); rewrite(); } });
+    $('cAgain').onclick = rewrite;
+    if ($('sUse')) $('sUse').onclick = () => { c.prev = c.body; c.body = c.sugg.body; c.note = c.sugg.note; c.sugg = null; redrawComp(true); };
+    if ($('sHide')) $('sHide').onclick = () => { c.sugg = null; redrawComp(); };
+    $('cPolish').onclick = polish;
+    $('cMode').onclick = (e) => { e.stopPropagation(); ui.polishMenu = !ui.polishMenu; redrawComp(); };
+    document.querySelectorAll('[data-pmode]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation(); c.polish = b.dataset.pmode; store.set('tegamiPolish', c.polish); ui.polishMenu = false; redrawComp();
+      if (c.polish === 'custom' && !c.wish.trim()) { $('cWish').focus(); toast('Write what you want changed in the line on the left, then press Polish'); }
+    });
+    $('cSend').onclick = sendComp;
+    $('cAttach').onclick = () => $('fileIn').click();
+    if ($('cUndo')) $('cUndo').onclick = () => { c.body = c.prev; c.prev = null; redrawComp(); };
+    $('cDiscard').onclick = () => { if (c.saved) send({ type: 'draftDelete', id: c.draftId }); comp = null; toast('Draft discarded'); if (isNew()) go({ name: 'home' }); else drawLetter(); };
+    document.querySelectorAll('[data-unfile]').forEach((b) => b.onclick = () => { c.files.splice(+b.dataset.unfile, 1); redrawComp(); });
+  }
+  const refreshAgainLabel = () => { const u = $('sUse'); if (u) u.textContent = comp.body.trim() ? 'Use this instead of my text' : 'Use this'; };
+  function redrawComp(focusBody) {
+    if (isNew()) return drawNew();
+    const host = $('compHere'); if (!host) return;
+    host.innerHTML = compHtml(); wireComp();
+    if (focusBody) { $('cBody').focus({ preventScroll: true }); $('cBody').setSelectionRange(0, 0); }
+  }
+  $('fileIn').onchange = (e) => {
+    const fs = [...e.target.files]; e.target.value = '';
+    if (!comp) return;
+    Promise.all(fs.map((f) => new Promise((ok) => { const r = new FileReader(); r.onload = () => ok({ name: f.name, size: f.size, type: f.type, data: String(r.result).split(',')[1] || '' }); r.readAsDataURL(f); })))
+      .then((list) => { comp.files.push(...list); redrawComp(); });
+  };
+  function rewrite() {
+    const c = comp; if (!c || c.busy) return;
+    c.busy = 'another'; redrawComp();
+    send({ type: 'rewrite', token: c.token, key: c.mode === 'new' || !cur ? '' : cur.key, to: c.to, subject: c.subject,
+           body: c.body.trim() ? c.body : c.sugg ? c.sugg.body : '', wish: c.wish });
+  }
+  function polish() {
+    const c = comp; if (!c || c.busy) return;
+    if (!c.body.trim()) return toast('Nothing to polish yet');
+    if (c.polish === 'custom' && !c.wish.trim()) { $('cWish').focus(); return toast('Write what you want changed in the line on the left'); }
+    c.busy = 'polish'; redrawComp();
+    send({ type: 'polish', token: c.token, body: c.body, mode: c.polish, wish: c.wish });
+  }
+  window.written = (d) => {
+    const c = comp; if (!c || d.token !== c.token) return;
+    const was = c.busy; c.busy = '';
+    if (d.error) { redrawComp(); return toast(`Could not write it: ${d.error}`); }
+    c.wish = '';
+    // A new version goes into the suggestion; your own text is only changed by Polish (and Undo brings it back).
+    if (d.kind === 'rewrite') c.sugg = { body: d.body, note: d.note || '', ver: (c.sugg ? c.sugg.ver : 0) + 1 };
+    else { c.prev = c.body; c.body = d.body; }
+    redrawComp();
+    if (was === 'polish') toast({ minimal: 'Checked: grammar and spelling only', voice: 'Rewritten in your voice', better: 'A better version; Undo brings yours back', custom: 'Changed as you asked; Undo brings yours back' }[c.polish] || 'Polished');
+  };
+  window.suggested = (d) => {
+    if (!cur || cur.key !== d.key || !comp) return;
+    comp.busy = '';
+    if (d.error) { redrawComp(); return toast(`Could not write it: ${d.error}`); }
+    comp.sugg = { body: d.body, note: d.note || '', ver: 1 };
+    if (cur.ai) cur.ai.suggestion = { body: d.body, note: d.note };
+    redrawComp();
+  };
+  let sentNext = null;
+  function sendComp() {
+    const c = comp; if (!c) return;
+    ['to', 'cc', 'bcc'].forEach((k) => { const i = $(chipsId[k]); if (i && /@/.test(i.value)) { c[k] = [...splitAddrs(c[k]), i.value.trim()].join(', '); i.value = ''; } });
+    if (!c.to.trim()) return toast('Who is it to?');
+    sentNext = cur && !isNew() ? neighbour(cur.key) : null;
+    clearTimeout(saveDraftSoon._t);
+    send({ type: 'draftDelete', id: c.draftId });
+    const sig = (acct(c.acct) || {}).signature;
+    const body = sig && !c.body.includes(sig.trim()) ? c.body.replace(/\s+$/, '') + '\n\n' + sig : c.body;
+    send({ type: 'send', acct: c.acct, to: c.to.trim(), cc: (c.cc || '').trim(), bcc: (c.bcc || '').trim(), subject: c.subject || (c.mode === 'new' ? '' : 'Re: ' + (cur ? cur.subject : '')),
+           body, inReplyTo: c.inReplyTo || '', refs: c.refs || '', quote: c.mode === 'fwd' ? '' : c.quote || '', files: c.files });
+    if (cur && c.inReplyTo && (today.some((m) => m.key === cur.key))) doneHere.set(cur.key, { m: today.find((m) => m.key === cur.key), how: 'replied', at: slot(cur.key) });
+  }
+  window.composeTo = (addr) => { cur = null; comp = null; startComp('new'); comp.to = addr; go({ name: 'new' }); };
+  window.queued = (d) => {
+    if (d && d.quiet) { send({ type: 'status' }); return; }
+    toast(status.online === false ? 'Saved in the Outbox. It goes out when you are online.' : 'Sending…');
+    comp = null;
+    send({ type: 'status' });
+    if (isNew()) go({ name: 'home' }); else if (cur) { const k = cur.key, next = store.get('tegamiAfter', 'next') === 'next' ? sentNext : null;
+      if (store.get('tegamiAfter', 'next') === 'stay') drawLetter(); else if (next && next !== k) { const f = from; openLetter(next); from = f; } else back(); }
+    refreshLists();
+  };
+  function drawNew() {
+    if (!comp) { startComp('new'); }
+    const c = comp;
+    $('main').innerHTML = `<div class="col"><button class="back" data-home="1">← Today</button><h1>New letter</h1>
+      ${accts.length > 1 ? `<div class="from"><span style="margin-right:4px">From</span>${accts.map((a) => `<button data-from="${a.id}" class="${c.acct === a.id ? 'on' : ''}" title="${esc(a.email)}"><span class="dot" style="background:${color(a.id)}"></span>${esc(label(a.id))}</button>`).join('')}</div>` : ''}
+      ${compHtml()}</div>`;
+    wireComp();
+    document.querySelectorAll('[data-from]').forEach((b) => b.onclick = () => { c.acct = b.dataset.from; drawNew(); });
+    if (!c.to) $('cTo').focus();
+  }
+
+  // Settings ----------------------------------------------------------------------------------
+  function drawSettings() {
+    const b = brief || {}, on = b.enabled !== false, a0 = accts[0] || {};
+    const seg = (list, cur_, attr) => `<div class="seg small">${list.map(([k, l, t]) => `<button data-${attr}="${esc(k)}" class="${cur_ === k ? 'on' : ''}"${t ? ` title="${esc(t)}"` : ''}>${esc(l)}</button>`).join('')}</div>`;
+    const chosen = providers.find((p) => p.on);
+    $('main').innerHTML = `<div class="narrow"><h1>Settings</h1>
+      <div class="mono sec">Mailboxes</div>
+      <div class="card">${accts.map((a) => `<div style="border-bottom:1px solid var(--line)"><div class="mbox">
+          <button class="c" data-pick="${a.id}" title="Change colour" style="background:${color(a.id)}"></button>
+          <input data-label="${a.id}" value="${esc(a.label || '')}" placeholder="${esc(a.email.split('@')[0])}" spellcheck="false">
+          <span class="e">${errors[a.id] ? `<span class="err">${esc(errors[a.id])}</span> · ` : ''}${esc(a.email)}</span></div>
+          ${ui.colorOpen === a.id ? `<div class="swatches">${SWATCHES.map((c) => `<button class="s" data-swatch="${c}" data-for="${a.id}" style="background:${c};box-shadow:0 0 0 ${color(a.id) === c ? '2px' : '0px'} ${c}"></button>`).join('')}
+            <button class="link" data-remove="${a.id}">${ui.sure === a.id ? 'Its letters leave this computer (they stay on the server). Click again.' : 'Remove'}</button></div>` : ''}</div>`).join('')}
+        <button class="addm" data-addm="1"><span>+</span>Add a mailbox</button></div>
+      <div class="mono sec">Assistant</div>
+      <div class="card">
+        <div class="crow"><div class="tt"><b>Who reads your mail</b><small>${esc(chosen ? chosen.title : 'Claude')}${providers.length < 2 ? ' · more in Kūhaku Settings, AI' : ''}</small></div>
+          ${providers.length > 1 ? seg(providers.map((p) => [p.id, p.label, p.title]), (chosen || {}).id, 'prov') : ''}</div>
+        <div class="crow click" data-assistant="${on ? 0 : 1}"><div class="tt"><b>Reads new letters</b><small>Sorts them, writes the summary on Today and prepares replies.</small></div><span class="tog${on ? ' on' : ''}"></span></div>
+        <div class="crow click" id="actRow"><div class="tt"><b>Acts on its own</b><small>Archives, marks and files routine mail by itself when you ask, then tells you. Off: it only proposes.</small></div><span class="tog${act ? ' on' : ''}"></span></div>
+        <div class="crow click" id="voiceRow"><div class="tt"><b>How you write</b><small>${b.voice ? `Learned from ${b.voiceN} sent letters, used for drafts.` : 'Learned once you have sent a few letters.'}</small></div>
+          ${b.voice ? `<span style="font-size:13px;color:var(--muted)">${ui.voice ? 'Hide' : 'Show'}</span>` : ''}</div>
+        ${ui.voice && b.voice ? `<pre class="voice">${esc(b.voice)}</pre>` : ''}</div>
+      <div class="mono sec">Letters</div>
+      <div class="card">
+        <div class="crow"><div class="tt"><b>Look</b></div>${seg([['kuhaku', 'Kūhaku'], ['modern', 'Modern']], document.body.classList.contains('modern') ? 'modern' : 'kuhaku', 'look')}</div>
+        <div class="crow"><div class="tt"><b>Languages you read</b><small>Letters in other languages are translated</small></div>
+          <div class="langs">${langs.langs.map((l) => `<span class="chip">${esc(LANG[l] || l)}<button data-langdel="${l}" title="Remove">×</button></span>`).join('')}
+            <select id="langAdd"><option value="">+ Add</option>${Object.entries(LANG).filter(([k]) => !langs.langs.includes(k)).map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></div></div>
+        <div class="crow"><div class="tt"><b>Translate into</b></div><select id="langInto">${Object.entries(LANG).map(([k, n]) => `<option value="${k}"${langs.into === k ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="crow click" id="trAuto"><div class="tt"><b>Translate by itself</b><small>When a letter comes in another language. Off: a Translate link under each letter.</small></div><span class="tog${langs.auto ? ' on' : ''}"></span></div>
+        <div class="crow click" id="replyAllRow"><div class="tt"><b>Reply to everyone</b><small>When others are on the letter too, a reply goes to all of them. Shift+R answers only the sender.</small></div><span class="tog${store.get('tegamiReplyAll', true) ? ' on' : ''}"></span></div>
+        <div class="crow"><div class="tt"><b>After Done or Send</b><small>What Tegami shows next</small></div>${seg(AFTER, store.get('tegamiAfter', 'next'), 'after')}</div>
+        <div class="crow"><div class="tt"><b>Pictures from the internet</b></div>${seg([['false', 'From people you know', 'Shown for people you write to and senders you allow; others on request'], ['true', 'Always'], ['never', 'Never']], imagesMode, 'pics')}</div>
+        <div class="crow" style="align-items:baseline"><span class="k">Your name</span><input class="v" id="sSender" value="${esc(a0.sender || '')}" placeholder="As people see it" spellcheck="false"></div>
+        <div class="crow" style="align-items:flex-start"><span class="k">Signature</span><textarea class="v" id="sSig" placeholder="Added under every letter you write">${esc(a0.signature || '')}</textarea></div></div>
+      <div style="margin-top:24px"><button class="btn" data-home="1">Done</button></div></div>`;
+    const m = $('main');
+    m.querySelectorAll('[data-label]').forEach((inp) => inp.addEventListener('change', () => { send({ type: 'updateAccount', id: inp.dataset.label, label: inp.value.trim() }); toast('Saved'); }));
+    const all = (k, v) => { accts.forEach((a) => send({ type: 'updateAccount', id: a.id, [k]: v })); toast('Saved'); };
+    $('sSender').addEventListener('change', () => all('sender', $('sSender').value.trim()));
+    $('sSig').addEventListener('change', () => all('signature', $('sSig').value));
+    $('actRow').onclick = () => { act = !act; store.set('tegamiAct', act); draw(); };
+    $('langAdd').onchange = () => { const v = $('langAdd').value; if (v) send({ type: 'languages', langs: [...langs.langs, v] }); };
+    $('langInto').onchange = () => send({ type: 'languages', into: $('langInto').value });
+    $('trAuto').onclick = () => send({ type: 'languages', auto: !langs.auto });
+    $('replyAllRow').onclick = () => { store.set('tegamiReplyAll', !store.get('tegamiReplyAll', true)); draw(); };
+    m.querySelectorAll('[data-langdel]').forEach((b) => b.onclick = () => send({ type: 'languages', langs: langs.langs.filter((x) => x !== b.dataset.langdel) }));
+    $('voiceRow').onclick = () => { ui.voice = !ui.voice; draw(); };
+  }
+
+  // Adding a mailbox --------------------------------------------------------------------------
+  const SERVICES = {
+    gmail: { name: 'Gmail', text: 'Your Gmail address and the 16-letter app password.', secret: 'App password', domain: 'gmail.com' },
+    seznam: { name: 'Seznam', text: 'Seznam needs only your address and password.', secret: 'Password', domain: 'seznam.cz' },
+    icloud: { name: 'iCloud', text: 'Apple asks for an app-specific password: Apple Account, Sign-In and Security, App-Specific Passwords.', secret: 'App-specific password',
+              link: ['Create one on Apple', 'https://account.apple.com/'] },
+    other: { name: 'Other', text: 'Most mail services work from the address alone.', secret: 'Password', more: true },
+  };
+  function drawAdd() {
+    $('main').innerHTML = `<div class="setup"><h1>Add a mailbox</h1>
+      <p>Your letters are downloaded to this computer, so you can read and reply offline.</p>
+      <div class="svcs">${Object.entries(SERVICES).map(([k, v]) => `<button data-svc="${k}">${v.name}</button>`).join('')}</div>
+      ${accts.length ? '<div class="go"><button class="link" data-home="1" style="font-size:14px">Cancel</button></div>' : ''}</div>`;
+  }
+  function drawGmail() {
+    $('main').innerHTML = `<div class="setup"><h1>Gmail</h1>
+      <p>Gmail lets mail apps in with an app password: a 16-letter key Google makes for Tegami alone. Your real password stays with Google, and you can withdraw the key any time.</p>
+      <ol class="steps"><li>Turn on <a href="https://myaccount.google.com/signinoptions/twosv">2-Step Verification</a> if it is not on yet (Google requires it for app passwords).</li>
+        <li><a href="https://myaccount.google.com/apppasswords">Create an app password</a>: name it Tegami, copy the 16 letters.</li></ol>
+      <button class="btn" style="font-size:14px;padding:9px 18px" data-svc="gmail-pw">I have the app password</button>
+      <p class="hint">Work Gmail: if Google says app passwords are not available, your company's admin has switched them off; ask them to allow it.</p>
+      <p class="hint" style="margin-top:28px"><button class="link" data-addm="1">Back</button></p></div>`;
+  }
+  function drawOther(err) {
+    const v = SERVICES[view.svc] || SERVICES.other;
+    $('main').innerHTML = `<div class="setup"><h1>${v.name}</h1><p>${esc(v.text)}</p>
+      <div class="fields"><input id="sEmail" placeholder="Address" spellcheck="false" autocomplete="off">
+        <input id="sPass" type="password" placeholder="${v.secret}">
+        <input id="sName" placeholder="Label, e.g. Studio or Family" spellcheck="false">
+        <div id="sAdv" hidden style="display:flex;flex-direction:column;gap:4px"><input id="sImap" placeholder="Incoming server (IMAP)" spellcheck="false"><input id="sSmtp" placeholder="Outgoing server (SMTP)" spellcheck="false"></div></div>
+      ${v.link ? `<p class="hint"><a href="${v.link[1]}">${v.link[0]}</a></p>` : ''}
+      ${v.more ? '<p class="hint"><button class="link" id="sMore">Server settings</button></p>' : ''}
+      <div class="go"><button class="btn" id="sAdd" style="font-size:14px">Add</button><button class="link" data-addm="1" style="font-size:14px">Back</button></div>
+      <div class="err" id="sErr">${esc(err || '')}</div></div>`;
+    if ($('sMore')) $('sMore').onclick = () => { $('sAdv').hidden = !$('sAdv').hidden; };
+    $('sAdd').onclick = () => {
+      let address = $('sEmail').value.trim();
+      if (!address) return ($('sErr').textContent = 'Add an address first.');
+      if (v.domain && !address.includes('@')) address += '@' + v.domain;
+      if (!$('sPass').value) return ($('sErr').textContent = 'The password is missing.');
+      $('sErr').textContent = 'Checking…';
+      send({ type: 'addAccount', service: view.svc, email: address, password: $('sPass').value.replace(/\s+/g, view.svc === 'gmail' ? '' : ' ').trim(),
+             name: (accts[0] || {}).sender || '', label: $('sName').value.trim(), imap: $('sImap').value.trim(), smtp: $('sSmtp').value.trim() });
+    };
+    $('sPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('sAdd').click(); });
+    $('sEmail').focus();
+  }
+  window.accountAdded = (d) => { if (d.ok) { toast('Mailbox added. Downloading your letters…'); go({ name: 'home' }); } else if ($('sErr')) $('sErr').textContent = d.error; };
+  window.googleSetup = () => toast('Google sign-in needs a registered app; use the app password instead.');
+  window.googleReady = () => {};
+
+  // Clicks ------------------------------------------------------------------------------------
+  $('main').addEventListener('click', (e) => {
+    const t = (s) => e.target.closest(s);
+    let b;
+    if ((b = t('[data-rsvp]'))) {
+      e.stopPropagation(); const k = b.dataset.ikey, ans = b.dataset.rsvp;
+      send({ type: 'rsvp', key: k, answer: ans });
+      const st = { yes: 'ACCEPTED', maybe: 'TENTATIVE', no: 'DECLINED' }[ans];
+      items.forEach((v) => { if (v.key === k) v.status = st; });
+      if (cur && cur.key === k && cur.invite) { cur.invite.status = st; drawLetter(); } else if (view.name === 'folder') drawFolderList();
+      return;
+    }
+    if ((b = t('[data-later]'))) {
+      e.stopPropagation(); const f = (LATER.find((x) => x[0] === b.dataset.later) || [])[2]; const d = f && f(); if (!d) return;
+      const k = ui.laterFor || (cur && cur.key); const g = groupOf.get(k) || { keys: cur && cur.key === k ? convKeys(cur) : [k] };
+      closeMenu(); ui.laterFor = null; return markLater(k, g.keys, d.getTime(), today.find((x) => x.key === k));
+    }
+    if ((b = t('[data-laterpick]'))) {
+      e.stopPropagation(); const v = $('laterAt') && $('laterAt').value; if (!v) return toast('Choose a day and time first');
+      const k = ui.laterFor || (cur && cur.key); const g = groupOf.get(k) || { keys: cur && cur.key === k ? convKeys(cur) : [k] };
+      closeMenu(); ui.laterFor = null; return markLater(k, g.keys, new Date(v).getTime(), today.find((x) => x.key === k));
+    }
+    if ((b = t('[data-home]'))) return go({ name: 'home' });
+    if ((b = t('[data-back]'))) return back();
+    if ((b = t('[data-clear]'))) {
+      e.stopPropagation();
+      const k = b.dataset.clear, keys = (groupOf.get(k) || {}).keys || [k];
+      send({ type: 'markRead', keys });
+      items = items.filter((x) => !keys.includes(x.key));
+      return markDone(k, keys, null);
+    }
+    if ((b = t('[data-scope]'))) { hs.scope = b.dataset.scope; store.set('tegamiFindScope', hs.scope); askFind(); draw(); const i = $('hq'); if (i) i.focus(); return; }
+    if ((b = t('[data-closefind]'))) return closeFind();
+    if ((b = t('[data-invites]'))) return go({ name: 'folder', acct: 'all', folder: 'invitations', q: '' });
+    if ((b = t('[data-notifs]'))) return go({ name: 'folder', acct: 'all', folder: 'notifications', q: '' });
+    if ((b = t('[data-raise]'))) {
+      e.stopPropagation(); const k = b.dataset.raise, g = groupOf.get(k) || { keys: [k], pri: 0 };
+      const how = g.pri > 0 ? 'normal' : 'up';
+      send({ type: 'pri', keys: g.keys, how });
+      const m = today.find((x) => x.key === k);
+      if (m) { m.pri = how === 'up' ? Date.now() / 1000 : 0; today.sort((a, b) => (b.pri > 0 ? b.pri : 0) - (a.pri > 0 ? a.pri : 0)); }
+      draw(); return toast(how === 'up' ? 'Moved to the top. The assistant will remember it matters.' : "Back in the assistant's order");
+    }
+    if ((b = t('[data-tick]'))) {
+      e.stopPropagation();
+      const k = b.dataset.tick, was = doneHere.get(k), m = was ? was.m : today.find((x) => x.key === k);
+      if (!m) return;
+      markDone(k, (groupOf.get(k) || {}).keys || [k], m);
+      return draw();
+    }
+    if ((b = t('[data-draft]'))) { e.stopPropagation(); return openLetter(b.dataset.draft, true); }
+    if ((b = t('[data-keep]'))) { e.stopPropagation(); const k = b.dataset.keep; calmOff.has(k) ? calmOff.delete(k) : calmOff.add(k); return draw(); }
+    if ((b = t('[data-open]')) && b.dataset.open.startsWith('draft/')) {
+      const d = (items.find((x) => x.key === b.dataset.open) || {}).draft; if (!d) return;
+      if (d.target || (items.find((x) => x.key === b.dataset.open) || {}).replyTo) return openLetter(d.target || items.find((x) => x.key === b.dataset.open).replyTo);
+      cur = null; comp = null; startComp('new');
+      Object.assign(comp, { to: d.to || '', cc: d.cc || '', bcc: d.bcc || '', subject: d.subject || '', body: d.body || '', draftId: d.id, saved: true, showCc: !!d.cc, showBcc: !!d.bcc, acct: d.acct || comp.acct });
+      return go({ name: 'new' });
+    }
+    if ((b = t('[data-open]'))) { if (t('.calm')) { calmOpen = false; drawBar(); } return openLetter(b.dataset.open); }
+    if ((b = t('[data-peek]'))) { calmPeek = calmPeek === b.dataset.peek ? null : b.dataset.peek; return draw(); }
+    if (t('[data-calmall]')) { ui.calmAll = true; return draw(); }
+    if (t('#calmGo')) {
+      const keys = calm.filter(inFocus).filter((m) => !calmOff.has(m.key)).map((m) => m.key); if (!keys.length) return;
+      send({ type: 'markRead', keys }); const gone = new Set(keys); calm = calm.filter((m) => !gone.has(m.key)); calmOpen = false; calmOff.clear(); ui.calmAll = false;
+      toast(`${keys.length} letter${keys.length > 1 ? 's' : ''} marked as read`); drawBar(); return draw();
+    }
+    if (t('#calmNo')) { calmOpen = false; drawBar(); return draw(); }
+    if ((b = t('[data-inbox]'))) return go({ name: 'folder', acct: focus, folder: 'inbox', q: '' });
+    if ((b = t('[data-donelist]'))) return go({ name: 'folder', acct: focus, folder: 'done', q: '' });
+    if ((b = t('[data-sugg]'))) return askAI(b.dataset.sugg);
+    if ((b = t('[data-prov]'))) { send({ type: 'provider', id: b.dataset.prov }); const p = providers.find((x) => x.id === b.dataset.prov);
+                                   providers.forEach((x) => x.on = x === p); draw(); return toast(`${p ? p.label : 'It'} is reading your mail now`); }
+    if (t('#actSw')) { act = !act; store.set('tegamiAct', act); return draw(); }
+    if ((b = t('[data-logdo]'))) { const m = log[+b.dataset.logdo]; send({ type: 'act', actions: m.actions }); m.didActs = true; return draw(); }
+    if ((b = t('[data-logno]'))) { log[+b.dataset.logno].declined = true; return draw(); }
+    if ((b = t('[data-logdraft]'))) {
+      const d = log[+b.dataset.logdraft].draft; cur = null; startComp('new', d.body);
+      comp.to = d.to || ''; comp.subject = d.subject || ''; return go({ name: 'new' });
+    }
+    if ((b = t('[data-assistant]'))) { send({ type: 'assistant', on: b.dataset.assistant === '1' }); return; }
+    // letter
+    if ((b = t('[data-pics]')) && cur) { if (b.dataset.pics === 'always') { send({ type: 'imagesAlways', addr: cur.fromAddr }); cur.showImages = true; } cur.picturesNow = true; return drawLetter(); }
+    if ((b = t('[data-sort]')) && cur) { send({ type: 'setcat', addr: cur.fromAddr, cat: b.dataset.sort }); cur.cat = b.dataset.sort; return drawLetter(); }
+    if ((b = t('[data-tact]')) && cur) {
+      const x = thr[b.dataset.tkey], a = b.dataset.tact; if (!x) return;
+      if (a === 'fwd') { startComp('fwd', '', '', x); redrawComp(); $('cTo').focus({ preventScroll: true }); return toComp(); }
+      return replyTo(x, a);
+    }
+    if ((b = t('[data-treply]')) && cur) {
+      e.stopPropagation(); const k = b.dataset.treply;
+      if (thr[k]) return replyTo(thr[k]);
+      pendingReply = { key: k, mode: 'reply' }; return send({ type: 'peek', key: k });
+    }
+    if ((b = t('[data-tm]')) && cur) {
+      const k = b.dataset.tm; ui.unfold = ui.unfold || {}; ui.unfold[k] = !ui.unfold[k];
+      if (ui.unfold[k] && !thr[k]) send({ type: 'peek', key: k });
+      return drawLetter();
+    }
+    if ((b = t('[data-file]')) && cur) { viewer = { key: cur.key, index: +b.dataset.file, name: cur.files[+b.dataset.file].name, kind: 'wait' }; drawViewer(); return send({ type: 'preview', key: cur.key, index: +b.dataset.file }); }
+    if ((b = t('[data-filesave]')) && cur) return send({ type: 'openFile', key: cur.key, index: +b.dataset.filesave, save: true });
+    if ((b = t('[data-step]')) && cur) return step(+b.dataset.step);
+    if ((b = t('[data-trshow]')) && cur) { ui.trOriginal = !ui.trOriginal; return drawLetter(); }
+    if ((b = t('[data-trnow]')) && cur) { tr[cur.key] = { wait: true }; send({ type: 'translate', key: cur.key, into: langs.into }); return drawLetter(); }
+    if ((b = t('[data-mainfold]')) && cur) { ui.mainMin = !ui.mainMin; return drawLetter(); }
+    if ((b = t('[data-act]')) && cur) return letterAct(b.dataset.act);
+    // settings
+    if ((b = t('[data-pick]'))) { ui.colorOpen = ui.colorOpen === b.dataset.pick ? null : b.dataset.pick; ui.sure = null; return draw(); }
+    if ((b = t('[data-swatch]'))) { send({ type: 'updateAccount', id: b.dataset.for, color: b.dataset.swatch }); acct(b.dataset.for).color = b.dataset.swatch; ui.colorOpen = null; drawBar(); drawDrawer(); return draw(); }
+    if ((b = t('[data-remove]'))) { if (ui.sure === b.dataset.remove) { send({ type: 'removeAccount', id: b.dataset.remove }); ui.sure = null; ui.colorOpen = null; } else { ui.sure = b.dataset.remove; draw(); } return; }
+    if ((b = t('[data-after]'))) { store.set('tegamiAfter', b.dataset.after); return draw(); }
+    if ((b = t('[data-look]'))) { document.body.classList.toggle('modern', b.dataset.look === 'modern'); store.set('tegamiLook', b.dataset.look); return draw(); }
+    if ((b = t('[data-pics]'))) { imagesMode = b.dataset.pics; send({ type: 'imagesAll', mode: imagesMode }); return draw(); }
+    if ((b = t('[data-addm]'))) return go({ name: 'add', adding: true });
+    if ((b = t('[data-svc]'))) { const s = b.dataset.svc; if (s === 'gmail') return go({ name: 'gmail', adding: true }); return go({ name: 'other', svc: s === 'gmail-pw' ? 'gmail' : s, adding: true }); }
+  });
+  // Replies go to everyone on the letter by default (Settings can say otherwise); the switch in the reply changes it.
+  const replyMode = (m) => m && store.get('tegamiReplyAll', true) && others(m).length ? 'all' : 'reply';
+  function letterAct(a) {
+    const m = cur;
+    if (a === 'answer') a = replyMode(m);
+    if (a === 'reply' || a === 'all' || a === 'fwd') {
+      if (comp && comp.mode !== 'fwd' && a !== 'fwd' && a === (comp.mode === 'all' ? 'all' : 'reply')) { toComp(); const b = $('cBody'); if (b) b.focus({ preventScroll: true }); return; }
+      if (comp && a !== 'fwd' && comp.mode !== 'fwd') { const keep = { body: comp.body, sugg: comp.sugg, files: comp.files, bcc: comp.bcc, showBcc: comp.showBcc };
+        startComp(a, '', '', comp.tmsg); Object.assign(comp, keep); } else startComp(a);
+      redrawComp(a !== 'fwd'); if (a === 'fwd') $('cTo').focus({ preventScroll: true });
+      toComp(); return;
+    }
+    if (a === 'write') {
+      startComp(replyMode(m)); comp.busy = 'another'; redrawComp();
+      toComp();
+      if (m.ai && m.ai.suggestion) { comp.busy = ''; comp.sugg = { body: m.ai.suggestion.body, note: m.ai.suggestion.note || '', ver: 1 }; return redrawComp(); }
+      return send({ type: 'suggest', key: m.key, again: false });
+    }
+    if (a === 'done') return markDone(m.key, convKeys(m), today.find((x) => x.key === m.key));
+    if (a === 'later') return markLater(m.key, convKeys(m), LATER[2][2]().getTime(), today.find((x) => x.key === m.key));
+    if (a === 'latermenu') { ui.laterMenu = !ui.laterMenu; return drawLetter(); }
+    if (a === 'undone') { markUndone(m.key, convKeys(m)); return drawLetter(); }
+    if (a === 'important') { markImportant(m.key, convKeys(m)); return drawLetter(); }
+    if (a === 'raise') {
+      const t = today.find((x) => (x.keys || [x.key]).includes(m.key)); if (!t) return;
+      const how = t.pri > 0 ? 'normal' : 'up';
+      send({ type: 'pri', keys: t.keys || [t.key], how }); t.pri = how === 'up' ? Date.now() / 1000 : 0;
+      toast(how === 'up' ? 'Moved to the top. The assistant will remember it matters.' : "Back in the assistant's order"); return drawLetter();
+    }
+    if (a === 'donenote') {
+      const host = $('noteHere');
+      if (host.innerHTML) { host.innerHTML = ''; return; }
+      host.innerHTML = `<div class="notebox"><small>What happened, or what should the assistant learn? It reads your notes every time it sorts new letters.</small>
+        <textarea id="lNote" placeholder="e.g. Handled on the phone. Invitations like this never need me."></textarea>
+        <div class="go"><button class="btn" id="lSave">Done</button><button class="link" id="lNo">Cancel</button></div></div>`;
+      const t = $('lNote'); t.focus();
+      const save = () => markDone(m.key, convKeys(m), today.find((x) => x.key === m.key), t.value.trim(), 'done by the owner, nothing more to do');
+      $('lSave').onclick = save; $('lNo').onclick = () => { host.innerHTML = ''; };
+      t.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } if (e.key === 'Escape') host.innerHTML = ''; });
+      return;
+    }
+    if (a === 'spam' || a === 'notspam') { send({ type: a, key: m.key }); return back(); }
+    if (a === 'trash') { send({ type: 'trash', key: m.key }); toast(m.key.startsWith('outbox/') ? 'Will not be sent' : 'Deleted'); return back(); }
+  }
+  const back = () => go(from.name === 'folder' ? from : { name: 'home', scroll: from.scroll });
+  const convKeys = (m) => [m.key, ...(m.thread || []).filter((x) => !x.sent).map((x) => x.key)];
+  // Done: the letter (its whole conversation) leaves Today for Done. Undo brings it back; a note also teaches the assistant.
+  // Later: out of sight, back on Today at the top when the time comes. Tomorrow morning unless you choose.
+  const at8 = (d) => { d.setHours(8, 0, 0, 0); return d; };
+  const LATER = [
+    ['h3', 'In 3 hours', () => new Date(Date.now() + 3 * 3600e3)],
+    ['eve', 'This evening', () => { const d = new Date(); d.setHours(18, 0, 0, 0); return d < new Date() ? null : d; }],
+    ['tom', 'Tomorrow morning', () => { const d = new Date(); d.setDate(d.getDate() + 1); return at8(d); }],
+    ['d2', 'In 2 days', () => { const d = new Date(); d.setDate(d.getDate() + 2); return at8(d); }],
+    ['wk', 'Next week', () => { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return at8(d); }],
+    ['w2', 'In 2 weeks', () => { const d = new Date(); d.setDate(d.getDate() + 14); return at8(d); }],
+    ['mo', 'Next month', () => { const d = new Date(); d.setMonth(d.getMonth() + 1); return at8(d); }],
+  ];
+  const whenText = (ts) => new Date(ts).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  function laterMenu() {
+    return `<span class="modes later">${LATER.map(([k, l, f]) => { const d = f(); return d ? `<button data-later="${k}"><b>${l}</b><small>${whenText(d)}</small></button>` : ''; }).join('')}
+      <span class="pick"><input type="datetime-local" id="laterAt"><button class="btn2" data-laterpick="1">Set</button></span></span>`;
+  }
+  function markLater(key, keys, until, item) {
+    const inLetter = view.name === 'letter' && cur && keys.includes(cur.key);
+    const next = inLetter && store.get('tegamiAfter', 'next') === 'next' ? neighbour(key) : null;
+    send({ type: 'later', keys, until: until / 1000 });
+    if (item) doneHere.set(key, { m: item, how: 'later' });
+    ui.laterMenu = false;
+    if (inLetter) { if (next && next !== key) { const f = from; openLetter(next); from = f; } else back(); } else draw();
+    toast(`Later: back on Today ${whenText(until)}`, () => { send({ type: 'later', keys, until: 0 }); doneHere.delete(key); draw(); toast('Back on Today'); });
+  }
+  // After Done or Send (Settings): the next letter, back to the list, or stay.
+  const AFTER = [['next', 'Next letter', 'Opens the next letter in the list'], ['list', 'Back to the list'], ['stay', 'Stay on the letter']];
+  // The letters of the list you came from, in its order (one per conversation).
+  function listKeys() {
+    return from.name === 'folder' ? [...new Set(items.map((m) => m.thread || m.key))].map((t) => (items.find((m) => (m.thread || m.key) === t) || {}).key)
+      : queue().map((m) => m.key);
+  }
+  function listPos(m) {
+    const keys = listKeys(), mine = [m.key, ...(m.thread || []).map((x) => x.key)];
+    return [keys, keys.findIndex((k) => mine.includes(k))];
+  }
+  function step(d) {
+    if (!cur) return;
+    const [keys, i] = listPos(cur);
+    const k = keys[i < 0 ? 0 : i + d];
+    if (!k) return toast(d > 0 ? 'That was the last one' : 'That was the first one');
+    if (comp) saveDraft(true);
+    const f = from; openLetter(k); from = f;
+  }
+  function neighbour(key) {
+    const keys = listKeys();
+    const i = keys.indexOf(key);
+    return i < 0 ? keys[0] : keys[i + 1] || keys[i - 1] || null;
+  }
+  function afterLetter(key) {
+    const how = store.get('tegamiAfter', 'next');
+    if (how === 'stay') return drawLetter();
+    const next = how === 'next' ? neighbour(key) : null;
+    if (next && next !== key) { const f = from; openLetter(next); from = f; return; }
+    back();
+  }
+  function markDone(key, keys, item, note, verdict) {
+    const inLetter = view.name === 'letter' && cur && keys.includes(cur.key);
+    const next = inLetter && store.get('tegamiAfter', 'next') === 'next' ? neighbour(key) : null;
+    send({ type: 'done', keys, done: true, ...(note != null ? { note, verdict } : {}) });
+    if (item) doneHere.set(key, { m: item, how: 'done' });
+    if (cur && cur.ai && keys.includes(cur.key)) cur.ai.done = true;
+    if (inLetter) {
+      if (store.get('tegamiAfter', 'next') === 'stay') drawLetter();
+      else if (next && next !== key) { const f = from; openLetter(next); from = f; }
+      else back();
+    } else draw();
+    toast(note ? 'Done. The assistant will remember your note.' : keys.length > 1 ? `Done: ${keys.length} letters` : 'Done', () => markUndone(key, keys));
+  }
+  // Important: the letter comes to Today at the top, and the assistant learns that letters like it matter.
+  function markImportant(key, keys) {
+    send({ type: 'important', keys });
+    hs.items.forEach((x) => { if (keys.includes(x.key)) { x.attention = 'todo'; x.done = false; } });
+    doneHere.delete(key);
+    if (cur && cur.ai && keys.includes(cur.key)) cur.ai.done = false;
+    draw(); toast('Important: it is on Today now. The assistant will learn from it.');
+  }
+  function markUndone(key, keys) {
+    send({ type: 'done', keys, done: false }); doneHere.delete(key);
+    if (cur && cur.ai && keys.includes(cur.key)) cur.ai.done = false;
+    draw(); toast('Back on Today');
+  }
+
+  // Right click: done, done with a note (which teaches the assistant), and your own order.
+  function closeMenu() { const el = document.querySelector('.menu'); if (el) el.remove(); }
+  function openMenu(x, y, key) {
+    closeMenu();
+    const g = groupOf.get(key) || { keys: [key], pri: 0 };
+    const isDone = g.done || doneHere.has(key) || (cur && cur.key === key && cur.ai && cur.ai.done);
+    const many = g.keys.length > 1 ? ` (${g.keys.length} letters)` : '';
+    const el = document.createElement('div');
+    el.className = 'menu';
+    el.innerHTML = `<button data-m="open">Open</button><hr>
+      ${isDone ? '<button data-m="undone">Not done, bring it back</button>' : `<button data-m="done">Done${many}</button><button data-m="note">Done with a note…</button>`}
+      <button data-m="later">Later: tomorrow morning</button><button data-m="laterwhen">Later…</button>
+      <hr>${g.today ? '' : '<button data-m="important">Important: put it on Today</button>'}<button data-m="up">Move to the top</button><button data-m="down">Move to the end</button>
+      ${g.pri ? '<button data-m="normal">Back to the assistant\'s order</button>' : ''}
+      <hr><button data-m="wrong">Not important (done, and teach the assistant)…</button>`;
+    document.body.appendChild(el);
+    const r = el.getBoundingClientRect();
+    el.style.left = Math.min(x, innerWidth - r.width - 8) + 'px';
+    el.style.top = Math.min(y, innerHeight - r.height - 8) + 'px';
+    el.onclick = (e) => {
+      const b = e.target.closest('[data-m]'); if (!b) return;
+      const a = b.dataset.m, item = today.find((t) => t.key === key) || items.find((t) => t.key === key);
+      if (a === 'open') { closeMenu(); return openLetter(key); }
+      if (a === 'done') { closeMenu(); return markDone(key, g.keys, g.today ? item : null); }
+      if (a === 'undone') { closeMenu(); markUndone(key, g.keys); if (view.name === 'folder') askFolder(); return; }
+      if (a === 'important') { closeMenu(); return markImportant(key, g.keys); }
+      if (a === 'later') { closeMenu(); return markLater(key, g.keys, LATER[2][2]().getTime(), item); }
+      if (a === 'laterwhen') { ui.laterFor = key; groupOf.set(key, g); el.innerHTML = `<div class="split" style="border:0">${laterMenu().replace('modes later', 'modes later inmenu')}</div>`; return; }
+      if (a === 'up' || a === 'down' || a === 'normal') {
+        closeMenu(); send({ type: 'pri', keys: g.keys, how: a });
+        return toast(a === 'up' ? 'Moved to the top' : a === 'down' ? 'Moved to the end' : "Back in the assistant's order");
+      }
+      if (a === 'note' || a === 'wrong') {
+        const wrong = a === 'wrong';
+        el.innerHTML = `<div class="why"><small>${wrong ? 'Why does it not need you? The assistant reads this every time it sorts new letters.'
+            : 'What happened, or what should the assistant learn? It reads your notes every time it sorts new letters.'}</small>
+          <textarea id="mNote" placeholder="${wrong ? 'e.g. Calendar invitations never need me; I see them in the calendar' : 'e.g. Handled on the phone. Letters from this agency are only FYI'}"></textarea>
+          <div class="go"><button class="btn" id="mSave">Done</button><button class="link" id="mNo">Cancel</button></div></div>`;
+        const t = $('mNote'); t.focus();
+        const save = () => {
+          closeMenu();
+          markDone(key, g.keys, g.today ? item : null, t.value.trim(), wrong ? 'not important: the owner did not need to see this' : 'done by the owner, nothing more to do');
+        };
+        $('mSave').onclick = save; $('mNo').onclick = closeMenu;
+        t.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } if (e.key === 'Escape') closeMenu(); });
+      }
+    };
+  }
+  document.addEventListener('contextmenu', (e) => {
+    const row = e.target.closest('[data-open]');
+    const key = row ? row.dataset.open : view.name === 'letter' && cur && !cur.key.startsWith('outbox/') && !e.target.closest('textarea, input') ? cur.key : null;
+    if (!key) return;
+    e.preventDefault();
+    if (!row && cur) groupOf.set(cur.key, { keys: convKeys(cur), pri: 0, done: !!(cur.ai && cur.ai.done), today: today.some((t) => t.key === cur.key) });
+    openMenu(e.clientX, e.clientY, key);
+  });
+  document.addEventListener('mousedown', (e) => {
+    if (!e.target.closest('.menu')) closeMenu();
+    if (ui.polishMenu && !e.target.closest('.split')) { ui.polishMenu = false; if (comp) redrawComp(); }
+    if (ui.laterMenu && !e.target.closest('.lsplit')) { ui.laterMenu = false; if (view.name === 'letter') drawLetter(); }
+  });
+
+  $('bSettings').onclick = () => view.name === 'settings' ? go({ name: 'home' }) : go({ name: 'settings' });
+  $('bWrite').onclick = () => { if (!accts.length) return go({ name: 'add' }); toggleDrawer(false); if (comp) saveDraft(true); comp = null; go({ name: 'new' }); };
+  $('bFind').onclick = () => hs.open && view.name === 'home' ? closeFind() : openFind();
+  $('bRefresh').onclick = () => { send({ type: 'refresh' }); toast('Getting mail…'); };
+  document.addEventListener('keydown', (e) => {
+    const cmd = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (cmd && k === 'n') { e.preventDefault(); return $('bWrite').click(); }
+    if (cmd && k === 'r') { e.preventDefault(); return $('bRefresh').click(); }
+    if (cmd && k === 'f') { e.preventDefault(); if (view.name === 'folder') return $('q') && $('q').focus(); return openFind(); }
+    if (cmd && k === 'k') { e.preventDefault(); if (view.name !== 'home') go({ name: 'home' }); return $('cin') && $('cin').focus(); }
+    if (cmd && (k === 'w' || k === 'q')) { e.preventDefault(); saveDraft(true); return setTimeout(() => send({ type: 'quit' }), 120); }
+    const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
+    if (k === 'escape' && viewer) { viewer = null; return drawViewer(); }
+    if (k === 'escape' && document.querySelector('.menu')) return closeMenu();
+    if (k === 'escape' && hs.open && view.name === 'home' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return closeFind();
+    if (k === 'escape') {
+      if (typing) return e.target.blur();
+      if (document.body.classList.contains('dopen')) return toggleDrawer(false);
+      if (calmOpen) { calmOpen = false; drawBar(); return draw(); }
+      if (view.name === 'letter') return back();
+      if (view.name !== 'home') return go({ name: 'home' });
+      return;
+    }
+    if (typing) return;
+    if (view.name === 'folder' && (k === 'arrowdown' || k === 'j')) { e.preventDefault(); return move(1); }
+    if (view.name === 'folder' && (k === 'arrowup' || k === 'k')) { e.preventDefault(); return move(-1); }
+    if (view.name === 'folder' && k === 'enter' && sel >= 0) { const n = document.querySelector(`[data-n="${sel}"]`); return n && n.click(); }
+    if (view.name === 'letter' && cur && k === 'r' && !cmd) { e.preventDefault(); return letterAct(e.shiftKey ? (replyMode(cur) === 'all' ? 'reply' : 'all') : 'answer'); }
+    if (view.name === 'letter' && cur && !cmd && (k === 'j' || k === 'arrowright')) { e.preventDefault(); return step(1); }
+    if (view.name === 'letter' && cur && !cmd && (k === 'k' || k === 'arrowleft')) { e.preventDefault(); return step(-1); }
+    if (view.name === 'letter' && cur && (k === 'delete' || k === 'backspace')) return letterAct('trash');
+  });
+  draw();
+</script>
+</body></html>

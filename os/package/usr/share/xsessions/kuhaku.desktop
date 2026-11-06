@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Kūhaku
+Comment=A calm home for Claude
+Exec=/usr/bin/kuhaku-start
+Type=Application
+DesktopNames=Kuhaku

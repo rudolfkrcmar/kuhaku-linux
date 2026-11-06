@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Asana
+Comment=Asana in Mado
+Exec=mado https://app.asana.com
+Icon=mado
+Terminal=false
+Categories=Office;ProjectManagement;

@@ -1,0 +1,8 @@
+# Kūhaku: no window frames. Every app's minimise, close, time and battery live in Kūhaku's bar.
+button_offset=0
+button_spacing=0
+title_vertical_offset_active=0
+title_vertical_offset_inactive=0
+full_width_title=true
+title_shadow_active=false
+title_shadow_inactive=false

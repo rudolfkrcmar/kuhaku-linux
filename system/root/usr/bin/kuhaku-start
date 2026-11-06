@@ -1,0 +1,61 @@
+#!/bin/sh
+# Kūhaku's own login session: no XFCE desktop, only the pieces Kūhaku needs.
+#   window manager (xfwm4), keys and settings (xfsettingsd), power and lid
+#   (xfce4-power-manager), lock (light-locker), notices (xfce4-notifyd),
+#   password prompts (polkit agent), gestures (touchegg), then Kūhaku itself.
+
+LIVE=""
+[ -d /run/live/medium ] && LIVE=1
+
+# Passwords for Wi‑Fi, mail and apps live in the keyring. Without a password at login
+# (the live system, automatic login) there is nothing to unlock it with, and every app
+# would raise a keyring window. So such a session gets an unlocked keyring with no
+# password, which gnome-keyring opens by itself. A normal login keyring is never touched.
+KR="$HOME/.local/share/keyrings"
+if [ ! -f "$KR/login.keyring" ] && { [ -n "$LIVE" ] || ! ls "$KR"/*.keyring >/dev/null 2>&1; }; then
+  mkdir -p "$KR" && chmod 700 "$KR"
+  printf '[keyring]\ndisplay-name=Login\nctime=0\nmtime=0\nlock-on-idle=false\nlock-after=false\n' > "$KR/login.keyring"
+  printf 'login' > "$KR/default"
+  chmod 600 "$KR/login.keyring" "$KR/default"
+  gnome-keyring-daemon --replace --components=secrets,pkcs11 -d >/dev/null 2>&1
+fi
+
+# Moved from an old computer: passwords carried along go into this keyring, once.
+if [ -f "$HOME/.kuhaku-carry/secrets.json" ]; then
+  python3 - "$HOME/.kuhaku-carry/secrets.json" <<'PY' && rm -f "$HOME/.kuhaku-carry/secrets.json"
+import json, sys, gi
+gi.require_version("Secret", "1")
+from gi.repository import Secret
+for item in json.load(open(sys.argv[1])):
+    schema = Secret.Schema.new(item["schema"], Secret.SchemaFlags.NONE,
+                               {k: Secret.SchemaAttributeType.STRING for k in item["attributes"]})
+    Secret.password_store_sync(schema, item["attributes"], Secret.COLLECTION_DEFAULT, item["label"], item["secret"], None)
+PY
+fi
+
+# First login: give this person their own copy of Kūhaku (Claude may change it).
+[ -x "$HOME/.local/share/kuhaku/kuhaku-session" ] || /usr/bin/kuhaku-setup-user
+
+# Mac keyboard: Cmd works as Ctrl.
+setxkbmap -option '' -option terminate:ctrl_alt_bksp -option ctrl:swap_lwin_lctl -option ctrl:swap_rwin_rctl
+
+dbus-update-activation-environment --systemd DISPLAY XAUTHORITY PATH 2>/dev/null
+xfsettingsd --daemon
+xfwm4 --compositor=on &
+xfce4-power-manager &
+# The lock screen only where there is a password to type (not in the live system).
+[ -z "$LIVE" ] && light-locker &
+[ -n "$LIVE" ] && xset s off -dpms
+/usr/lib/x86_64-linux-gnu/xfce4/notifyd/xfce4-notifyd &
+for agent in /usr/libexec/polkit-mate-authentication-agent-1 /usr/lib/x86_64-linux-gnu/polkit-mate/polkit-mate-authentication-agent-1; do
+  [ -x "$agent" ] && { "$agent" & break; }
+done
+command -v touchegg >/dev/null && touchegg &
+python3 "$HOME/.local/share/kuhaku/kuhaku-gestures.py" &
+
+# Started from the stick: the installer greets you (close it to just look around).
+[ -n "$LIVE" ] && (sleep 4; python3 /usr/share/kuhaku/installer/installer.py) &
+
+# Kūhaku keeps itself alive; when it ends for good, the session ends.
+export PATH="$HOME/.local/bin:$PATH"
+exec "$HOME/.local/share/kuhaku/kuhaku-session"

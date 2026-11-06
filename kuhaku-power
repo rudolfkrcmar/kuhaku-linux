@@ -1,0 +1,4 @@
+#!/bin/sh
+# The power key opens Kūhaku's menu (lock, log out, restart, shut down) instead of a system dialog.
+f="${XDG_STATE_HOME:-$HOME/.local/state}/kuhaku/kuhaku.fifo"
+[ -p "$f" ] && echo menu > "$f"

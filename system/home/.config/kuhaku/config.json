@@ -1,0 +1,18 @@
+{
+  "theme": "auto",
+  "night_from": 20,
+  "night_until": 7,
+  "permission_mode": "bypassPermissions",
+  "allowed_tools": [
+    "Bash",
+    "Read",
+    "Edit",
+    "Write",
+    "Glob",
+    "Grep",
+    "WebFetch",
+    "WebSearch"
+  ],
+  "model": null,
+  "terminal": "kuhaku-terminal"
+}

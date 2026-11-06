@@ -1,0 +1,31 @@
+# Kūhaku is a public repository: nothing personal belongs here.
+
+# Python and build leftovers
+venv/
+__pycache__/
+*.pyc
+archive/
+
+# Browser profiles (cookies, history, sign-ins)
+browser-data/
+mado-chromium/
+
+# Personal settings and data that the backup must never copy in
+system/home/.claude/
+system/home/src/
+system/home/.config/kuhaku/*
+!system/home/.config/kuhaku/config.json
+system/packages/
+system/bluetooth/DSDT
+system/bluetooth/*.cpio
+system/sound/driver/
+system/sound/guide/
+mac/
+VISION-jobs.md
+.env
+*.key
+*.pem
+
+# Builds of the Kūhaku package and install image
+os/out/
+os/image/work/

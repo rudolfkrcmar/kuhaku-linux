@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Tsukuru
+GenericName=Code Editor
+Comment=Make things, quietly, with Claude. Kūhaku's code editor.
+Exec=tsukuru %f
+Icon=tsukuru
+Terminal=false
+Categories=Development;IDE;TextEditor;
+StartupWMClass=tsukuru.py

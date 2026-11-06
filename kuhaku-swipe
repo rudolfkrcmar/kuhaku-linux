@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Three-finger swipe: from any app to Kūhaku, and from Kūhaku back to the app.
+
+Bound in ~/.config/touchegg/touchegg.conf. Kūhaku is the desktop window, so
+"show desktop" reveals it; swiping again restores the windows. When Kūhaku is
+in front without show-desktop (apps minimised), the most recent app returns.
+"""
+import subprocess
+
+
+def out(*cmd):
+    return subprocess.run(cmd, capture_output=True, text=True).stdout
+
+
+def prop(win, name):
+    return out("xprop", "-id", win, name) if win else out("xprop", "-root", name)
+
+
+showing = prop(None, "_NET_SHOWING_DESKTOP").strip().endswith("1")
+if showing:
+    subprocess.run(["wmctrl", "-k", "off"])
+else:
+    active = prop(None, "_NET_ACTIVE_WINDOW").split("#")[-1].split(",")[0].strip()
+    on_home = active in ("0x0", "") or "_NET_WM_WINDOW_TYPE_DESKTOP" in prop(active, "_NET_WM_WINDOW_TYPE")
+    if not on_home:
+        subprocess.run(["wmctrl", "-k", "on"])
+    else:
+        stack = prop(None, "_NET_CLIENT_LIST_STACKING").split("#")[-1].replace(",", " ").split()
+        for win in reversed(stack):
+            t = prop(win, "_NET_WM_WINDOW_TYPE")
+            if "DESKTOP" in t or "DOCK" in t:
+                continue
+            subprocess.run(["wmctrl", "-i", "-a", win])
+            break

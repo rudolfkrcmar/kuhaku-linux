@@ -1,0 +1,296 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Kiroku</title>
+<style>
+  :root { --bg:#f7f4f1; --fg:#111111; --muted:#6b6b6b; --faint:rgba(17,17,17,.07); --line:rgba(17,17,17,.14); --accent:#e0301e; --card:#fbf9f7; }
+  body.night { --bg:#121212; --fg:#ececec; --muted:#8f8f8f; --faint:rgba(236,236,236,.06); --line:rgba(236,236,236,.14); --accent:#f0705a; --card:#171717; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
+               font-family:'Inter Variable','Inter',system-ui,sans-serif; font-weight:300; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; }
+  [hidden] { display:none !important; }
+
+  .bar { position:fixed; top:0; left:0; right:0; height:56px; display:flex; align-items:center; gap:16px; padding:0 32px; z-index:5; background:var(--bg); box-shadow:0 1px 0 var(--faint); }
+  .bar .line { width:2px; height:20px; background:var(--accent); }
+  .bar .title { font-size:14px; font-weight:400; }
+  .bar .title i { font-style:normal; color:var(--muted); margin-left:8px; }
+  .tabs { display:flex; gap:4px; margin-left:28px; }
+  .tabs button { border:0; background:none; color:var(--muted); font-size:13px; padding:8px 12px; cursor:pointer; position:relative; }
+  .tabs button:hover, .tabs button.on { color:var(--fg); }
+  .tabs button.on::after { content:''; position:absolute; left:12px; right:12px; bottom:2px; height:1.5px; background:var(--accent); }
+  .grow { flex:1; }
+  .opt { border:0; background:none; color:var(--muted); cursor:pointer; font-size:13px; padding:0 0 2px; }
+  .opt:hover { color:var(--fg); }
+  .opt.on { color:var(--fg); border-bottom:1.5px solid var(--accent); }
+  .opts { display:flex; gap:18px; align-items:center; }
+
+  main { position:fixed; top:57px; left:0; right:0; bottom:0; overflow:auto; padding:26px 36px 60px; box-sizing:border-box; scrollbar-width:thin; }
+  .num { font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; }
+  .dim { color:var(--muted); }
+
+  .sums { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:18px; margin-bottom:26px; }
+  .sum { background:var(--card); box-shadow:0 0 0 1px var(--faint); padding:16px 20px; }
+  .label { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .sum b { display:block; font-size:28px; font-weight:200; letter-spacing:-.02em; }
+  .sum small { font-size:11.5px; color:var(--muted); }
+
+  .tools { display:flex; gap:22px; align-items:center; margin-bottom:12px; }
+  .find { display:flex; gap:12px; align-items:stretch; flex:1; max-width:420px; }
+  .find .l { width:1.5px; background:var(--accent); }
+  .find input { flex:1; border:0; outline:none; background:none; font:inherit; font-size:14px; color:var(--fg); caret-color:var(--accent); }
+  .act { border:0; background:none; cursor:pointer; color:var(--fg); padding:0 0 2px; margin-right:20px; border-bottom:1.5px solid var(--accent); font-size:12.5px; }
+  .act.q { border-bottom-color:transparent; color:var(--muted); }
+  .act.q:hover { color:var(--fg); }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; table-layout:fixed; }
+  th { text-align:left; font-weight:400; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); padding:8px 10px; cursor:pointer; white-space:nowrap; position:sticky; top:-26px; background:var(--bg); z-index:1; }
+  th.r, td.r { text-align:right; }
+  th.on { color:var(--fg); }
+  td { padding:8px 10px; box-shadow:0 1px 0 var(--faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  td.r, td.num { font-family:'JetBrains Mono',monospace; font-size:11.5px; }
+  tr.p { cursor:pointer; }
+  tr.p:hover td, tr.sel td { background:var(--faint); }
+  td .s { display:inline-block; width:5px; height:5px; border-radius:9px; margin-right:10px; vertical-align:middle; box-sizing:border-box; background:var(--line); }
+  td .s.running { background:var(--accent); animation:breathe 2.4s ease-in-out infinite; }
+  td .s.waiting { background:none; border:1px solid var(--muted); }
+  td .s.error { background:none; border:1px solid var(--accent); }
+  td .s.stopped { background:none; border:1px solid var(--line); }
+  @keyframes breathe { 0%,100% { opacity:1 } 50% { opacity:.3 } }
+  td small { color:var(--muted); font-size:11px; margin-left:8px; }
+
+  tr.more td { white-space:normal; padding:16px 10px 22px; background:var(--card); cursor:default; }
+  .detail { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr); gap:36px; }
+  .detail .q { font-size:14px; line-height:1.55; white-space:pre-wrap; max-height:180px; overflow:auto; margin-bottom:14px; }
+  .detail .a { font-size:13px; line-height:1.6; color:var(--muted); white-space:pre-wrap; max-height:260px; overflow:auto; padding-left:14px; box-shadow:inset 1.5px 0 0 var(--line); }
+  .kv { display:grid; grid-template-columns:120px minmax(0,1fr); font-size:12px; row-gap:7px; align-content:start; }
+  .kv span:nth-child(odd) { color:var(--muted); }
+  .kv span:nth-child(even) { font-family:'JetBrains Mono',monospace; font-size:11.5px; overflow-wrap:anywhere; }
+  .acts { margin-top:18px; }
+
+  .groups { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:18px; }
+  .card { background:var(--card); box-shadow:0 0 0 1px var(--faint); padding:18px 20px; min-width:0; }
+  .rowm { display:grid; grid-template-columns:minmax(0,1fr) 70px 90px 80px; gap:12px; font-size:12.5px; padding:7px 0 3px; }
+  .rowm span:not(:first-child) { text-align:right; font-family:'JetBrains Mono',monospace; font-size:11.5px; }
+  .meter { height:2px; background:var(--faint); position:relative; margin-bottom:4px; }
+  .meter i { position:absolute; left:0; top:0; bottom:0; background:var(--fg); }
+  .wide { grid-column:1 / -1; }
+  .note { font-size:11.5px; color:var(--muted); line-height:1.6; margin-top:22px; max-width:760px; }
+
+  .read { position:fixed; inset:57px 0 0 0; background:var(--bg); overflow:auto; z-index:4; padding:34px 0 80px; }
+  .read .inner { max-width:760px; margin:0 auto; padding:0 32px; }
+  .read .top { display:flex; gap:20px; align-items:baseline; margin-bottom:30px; }
+  .read .top b { font-weight:400; font-size:16px; flex:1; }
+  .msg { margin:0 0 26px; font-size:14px; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .msg.you { padding-left:16px; box-shadow:inset 1.5px 0 0 var(--accent); }
+  .msg.ai { color:var(--fg); }
+  .msg .who { display:block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+  .msg.work { font-size:11.5px; color:var(--muted); margin-top:-12px; }
+  .empty { color:var(--muted); font-size:13px; padding:40px 0; }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--fg); color:var(--bg); font-size:13px; padding:9px 16px; z-index:9; opacity:0; transition:opacity .25s; pointer-events:none; }
+  .toast.show { opacity:1; }
+</style></head>
+<body>
+<div class="bar">
+  <span class="line"></span>
+  <span class="title">Kiroku<i>記録</i></span>
+  <div class="tabs" id="tabs"><button data-view="jobs" class="on">Jobs</button><button data-view="totals">Totals</button></div>
+  <span class="grow"></span>
+  <div class="opts" id="period">
+    <button class="opt" data-p="day">Today</button><button class="opt" data-p="week">Week</button>
+    <button class="opt" data-p="month">Month</button><button class="opt on" data-p="all">All</button>
+  </div>
+  <button class="opt" id="export" title="Everything shown, as a CSV in Downloads">Export</button>
+</div>
+<main id="main"></main>
+<div class="read" id="read" hidden><div class="inner" id="readIn"></div></div>
+<div class="toast" id="toast"></div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const send = (m) => window.webkit.messageHandlers.kiroku.postMessage(JSON.stringify(m));
+  const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  if (new URLSearchParams(location.search).get('theme') === 'night') document.body.classList.add('night');
+
+  let runs = [], view = 'jobs', period = 'all', client = '', query = '', sort = 'start', desc = true, open = null, sessionOnly = null;
+
+  const dur = (s) => { if (s == null) return '–'; s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    return h ? `${h}h ${m}m` : m ? `${m}m ${String(s % 60).padStart(2, '0')}s` : `${s}s`; };
+  const tok = (n) => !n ? '–' : n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + 'k' : String(n);
+  const usd = (c) => c == null ? '–' : '$' + (c >= 100 ? c.toFixed(0) : c >= 10 ? c.toFixed(1) : c.toFixed(2));
+  const wh = (w) => w == null ? '–' : w >= 1 ? w.toFixed(1) + ' Wh' : (w * 1000).toFixed(0) + ' mWh';
+  const when = (t) => { const d = new Date(t * 1000), now = new Date();
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === now.toDateString()) return time;
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return 'Yesterday ' + time;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined }) + ' ' + time; };
+  const label = (r) => r.title || (r.question || '').replace(/\s+/g, ' ').slice(0, 140) || '(no question)';
+  const who = (r) => [r.client, r.agent && !r.agent.startsWith('acct:') ? r.agent.split(':')[1] : ''].filter(Boolean).join(' · ');
+  const OUT = { done: 'Done', error: 'Error', stopped: 'Stopped', running: 'Working', waiting: 'In line' };
+  function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._h); el._h = setTimeout(() => el.classList.remove('show'), 2600); }
+  window.toast = toast;
+
+  function since() {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    if (period === 'week') d.setDate(d.getDate() - 6);
+    if (period === 'month') d.setDate(d.getDate() - 29);
+    return period === 'all' ? 0 : d.getTime() / 1000;
+  }
+  function shown() {
+    const from = since(), q = query.toLowerCase();
+    let out = runs.filter((r) => r.start >= from && (!client || r.client === client) && (!sessionOnly || r.session_id === sessionOnly) &&
+      (!q || (label(r) + ' ' + r.question + ' ' + r.answer + ' ' + r.model_name + ' ' + who(r)).toLowerCase().includes(q)));
+    const key = { start: (r) => r.start, seconds: (r) => r.seconds ?? -1, tokens: (r) => r.total_tokens, cost: (r) => r.cost ?? -1, wh: (r) => r.wh ?? -1,
+                  model: (r) => r.model_name || '', client: (r) => who(r), job: (r) => label(r).toLowerCase() }[sort];
+    out.sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * (desc ? -1 : 1); });
+    return out;
+  }
+  function totals(list) {
+    const t = { jobs: list.length, seconds: 0, tokens: 0, out: 0, cost: 0, wh: 0, whKnown: 0 };
+    for (const r of list) { t.seconds += r.seconds || 0; t.tokens += r.total_tokens || 0; t.out += (r.tokens || {}).out || 0; t.cost += r.cost || 0;
+      if (r.wh != null) { t.wh += r.wh; t.whKnown++; } }
+    return t;
+  }
+  function sumsHtml(list) {
+    const t = totals(list);
+    return `<div class="sums">
+      <div class="sum"><div class="label">Jobs</div><b>${t.jobs}</b><small>${list.filter((r) => r.outcome === 'error').length} with errors</small></div>
+      <div class="sum"><div class="label">Time</div><b>${dur(t.seconds)}</b><small>working, not waiting</small></div>
+      <div class="sum"><div class="label">Tokens</div><b>${tok(t.tokens)}</b><small>${tok(t.out)} written</small></div>
+      <div class="sum"><div class="label">Cost</div><b>${usd(t.cost)}</b><small>at API prices; your plan covers it</small></div>
+      <div class="sum"><div class="label">Energy</div><b>${t.whKnown ? wh(t.wh) : '–'}</b><small>${t.whKnown ? `this laptop, ${t.whKnown} jobs measured` : 'counted from now on'}</small></div>
+    </div>`;
+  }
+
+  function drawJobs() {
+    const list = shown(), clients = [...new Set(runs.map((r) => r.client))];
+    const th = (k, t, r) => `<th data-sort="${k}" class="${r ? 'r ' : ''}${sort === k ? 'on' : ''}">${t}${sort === k ? (desc ? ' ↓' : ' ↑') : ''}</th>`;
+    const rows = list.map((r) => {
+      const sel = open === r.start;
+      const row = `<tr class="p${sel ? ' sel' : ''}" data-start="${r.start}">
+        <td class="num dim">${when(r.start)}</td>
+        <td><i class="s ${r.outcome}" title="${OUT[r.outcome] || ''}"></i>${esc(label(r))}${r.thread > 1 ? `<small title="Runs in this conversation">${r.thread}</small>` : ''}</td>
+        <td class="dim">${esc(who(r))}</td>
+        <td>${esc(r.model_name || '–')}</td>
+        <td class="r">${dur(r.seconds)}</td>
+        <td class="r" title="${esc(tokTitle(r))}">${tok(r.total_tokens)}</td>
+        <td class="r">${usd(r.cost)}</td>
+        <td class="r" title="${r.wh_from === 'estimate' ? 'Estimated from processor time' : r.wh_from === 'battery' ? 'Measured on battery' : ''}">${wh(r.wh)}</td></tr>`;
+      return sel ? row + `<tr class="more"><td colspan="8">${detail(r)}</td></tr>` : row;
+    }).join('');
+    $('main').innerHTML = sumsHtml(list) + `
+      <div class="tools">
+        <div class="find"><span class="l"></span><input id="q" placeholder="Find a job" value="${esc(query)}" spellcheck="false"></div>
+        <div class="opts">${['', ...clients].map((c) => `<button class="opt${client === c ? ' on' : ''}" data-client="${esc(c)}">${esc(c || 'Everyone')}</button>`).join('')}</div>
+        ${sessionOnly ? `<button class="opt on" id="allThreads">One conversation · show all</button>` : ''}
+      </div>
+      <table><colgroup><col style="width:130px"><col><col style="width:130px"><col style="width:100px"><col style="width:84px"><col style="width:84px"><col style="width:76px"><col style="width:84px"></colgroup>
+      <tr>${th('start', 'When')}${th('job', 'Job')}${th('client', 'By')}${th('model', 'Model')}${th('seconds', 'Time', 1)}${th('tokens', 'Tokens', 1)}${th('cost', 'Cost', 1)}${th('wh', 'Energy', 1)}</tr>
+      ${rows || '<tr><td colspan="8" class="empty">Nothing here yet.</td></tr>'}</table>`;
+    const q = $('q'); q.addEventListener('input', () => { query = q.value; const at = q.selectionStart; draw(); const n = $('q'); n.focus(); n.setSelectionRange(at, at); });
+  }
+  function tokTitle(r) {
+    const t = r.tokens || {};
+    return `Read new ${(t.in || 0).toLocaleString()} · read again (cache) ${(t.cache_read || 0).toLocaleString()} · kept for later (cache) ${(t.cache_write || 0).toLocaleString()} · written ${(t.out || 0).toLocaleString()}`;
+  }
+  function detail(r) {
+    const t = r.tokens || {}, kv = [
+      ['Started', new Date(r.start * 1000).toLocaleString('en-GB')],
+      ['Outcome', OUT[r.outcome] || r.outcome || '–'],
+      ['By', who(r) + (r.account ? ' · account ' + r.account : '')],
+      ['Model', [r.model, ...(r.helpers || []).map((h) => '+ ' + h)].filter(Boolean).join(' ') || '–'],
+      ['Time', dur(r.seconds) + (r.api_ms ? ` · ${dur(r.api_ms / 1000)} thinking at Anthropic` : '')],
+      ['Steps', r.turns ?? '–'],
+      ['Tokens read', `${(t.in || 0).toLocaleString()} new · ${(t.cache_read || 0).toLocaleString()} from cache`],
+      ['Tokens kept', (t.cache_write || 0).toLocaleString() + ' into cache'],
+      ['Tokens written', (t.out || 0).toLocaleString()],
+      ['Cost', r.cost == null ? '–' : '$' + r.cost.toFixed(4) + ' at API prices'],
+      ['Energy', r.wh == null ? '–' : wh(r.wh) + (r.wh_from === 'battery' ? ', measured on battery' : ', estimated')],
+      ['This computer', r.cpu == null && r.memory_mb == null ? '–' : [r.cpu != null ? `${r.cpu.toFixed(1)} s processor` : '', r.memory_mb ? `${r.memory_mb} MB memory at most` : ''].filter(Boolean).join(' · ')],
+      ['Conversation', r.session_id ? r.session_id.slice(0, 8) + (r.thread > 1 ? ` · ${r.thread} runs` : '') : '–'],
+    ];
+    const live = r.outcome === 'running' || r.outcome === 'waiting';
+    return `<div class="detail"><div>
+        <div class="q">${esc(r.question)}</div>
+        ${r.answer ? `<div class="a">${esc(r.answer.slice(0, 3000))}</div>` : ''}
+        <div class="acts">
+          ${r.session_id && !live ? `<button class="act" data-continue="${r.start}">Continue in a tab</button>` : ''}
+          ${r.session_id ? `<button class="act q" data-read="${r.start}">Read the conversation</button>` : ''}
+          ${r.thread > 1 && !sessionOnly ? `<button class="act q" data-thread="${esc(r.session_id)}">Show its ${r.thread} runs</button>` : ''}
+        </div></div>
+      <div class="kv">${kv.map(([k, v]) => `<span>${k}</span><span>${esc(v)}</span>`).join('')}</div></div>`;
+  }
+
+  function group(list, keyFn, title, n) {
+    const m = new Map();
+    for (const r of list) { const k = keyFn(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); }
+    let rows = [...m.entries()].map(([k, l]) => [k, totals(l)]);
+    if (n) rows = rows.slice(0, n); else rows.sort((a, b) => b[1].cost - a[1].cost);
+    const max = Math.max(...rows.map(([, t]) => t.cost), 0.0001);
+    return `<div class="label">${title}</div>
+      <div class="rowm dim"><span></span><span>Jobs</span><span>Time</span><span>Cost</span></div>` +
+      rows.map(([k, t]) => `<div class="rowm"><span>${esc(k || '–')}</span><span>${t.jobs}</span><span>${dur(t.seconds)}</span><span>${usd(t.cost)}</span></div>
+        <div class="meter"><i style="width:${(t.cost / max * 100).toFixed(1)}%"></i></div>`).join('');
+  }
+  function drawTotals() {
+    const list = shown().sort((a, b) => b.start - a.start);
+    const day = (r) => new Date(r.start * 1000).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    $('main').innerHTML = sumsHtml(list) + `<div class="groups">
+      <div class="card">${group(list, (r) => r.model_name, 'By model')}</div>
+      <div class="card">${group(list, who, 'By who did it')}</div>
+      <div class="card wide">${group(list, day, 'By day', 31)}</div></div>
+      <p class="note">Time is how long a job worked. Tokens: what the model read (most of it again from its cache, which is cheap) and what it wrote.
+      Cost is what the same work would cost through Anthropic's API; with a Claude plan it is covered by the plan's limits instead.
+      Energy is this laptop's share: measured from the battery while unplugged, otherwise estimated from processor time.
+      Anthropic does not tell how much energy its servers used.</p>`;
+  }
+  function draw() { view === 'jobs' ? drawJobs() : drawTotals(); }
+
+  window.setRuns = ({ runs: r }) => {
+    runs = r;
+    if (!$('read').hidden) return;
+    const q = document.activeElement?.id === 'q' ? $('q').selectionStart : null, y = $('main').scrollTop;
+    draw(); $('main').scrollTop = y;
+    if (q != null) { $('q').focus(); $('q').setSelectionRange(q, q); }
+  };
+  window.showThread = ({ session_id, items }) => {
+    const mine = runs.filter((r) => r.session_id === session_id).sort((a, b) => a.start - b.start);
+    // An old conversation whose transcript Claude Code has since cleared: its questions and answers from the record.
+    if (!items) items = mine.flatMap((r) => [{ who: 'you', text: r.question }, ...(r.answer ? [{ who: 'ai', text: r.answer, model: r.model_name }] : [])]);
+    const first = mine[0];
+    $('readIn').innerHTML = `<div class="top"><b>${esc(first ? label(first) : 'Conversation')}</b>
+        ${first && !mine.some((r) => r.outcome === 'running' || r.outcome === 'waiting') ? `<button class="act" data-continue="${first.start}">Continue in a tab</button>` : ''}
+        <button class="act q" id="back">Back</button></div>` +
+      (items.length ? items.map((m) => m.who === 'work' ? `<div class="msg work">${m.steps} step${m.steps > 1 ? 's' : ''} of work</div>` :
+        `<div class="msg ${m.who}"><span class="who">${m.who === 'you' ? 'You' : esc(m.model || 'Answer')}</span>${esc(m.text)}</div>`).join('')
+        : '<div class="empty">Nothing was kept of this conversation.</div>');
+    $('read').hidden = false; $('read').scrollTop = 0;
+  };
+  const closeRead = () => { $('read').hidden = true; draw(); };
+
+  document.addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-view]'); if (tab) { view = tab.dataset.view; document.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('on', b === tab)); $('read').hidden = true; return draw(); }
+    const p = e.target.closest('[data-p]'); if (p) { period = p.dataset.p; document.querySelectorAll('[data-p]').forEach((b) => b.classList.toggle('on', b === p)); return draw(); }
+    if (e.target.closest('#export')) return send({ type: 'export', starts: shown().map((r) => r.start) });
+    if (e.target.closest('#back')) return closeRead();
+    if (e.target.closest('#allThreads')) { sessionOnly = null; return draw(); }
+    const c = e.target.closest('[data-client]'); if (c) { client = c.dataset.client; return draw(); }
+    const s = e.target.closest('[data-sort]'); if (s) { if (sort === s.dataset.sort) desc = !desc; else { sort = s.dataset.sort; desc = true; } return draw(); }
+    const cont = e.target.closest('[data-continue]');
+    if (cont) { const r = runs.find((x) => x.start === +cont.dataset.continue); if (r) send({ type: 'continue', session_id: r.session_id, agent: r.agent || '', account: r.account || '' }); return; }
+    const rd = e.target.closest('[data-read]');
+    if (rd) { const r = runs.find((x) => x.start === +rd.dataset.read); if (r) send({ type: 'thread', session_id: r.session_id }); return; }
+    const th = e.target.closest('[data-thread]'); if (th) { sessionOnly = th.dataset.thread; return draw(); }
+    if (e.target.closest('tr.more')) return;
+    const row = e.target.closest('tr.p'); if (row) { open = open === +row.dataset.start ? null : +row.dataset.start; draw(); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (!$('read').hidden) return closeRead();
+      if (open != null) { open = null; return draw(); }
+      if (sessionOnly) { sessionOnly = null; return draw(); }
+      if (query) { query = ''; return draw(); }
+      send({ type: 'close' });
+    }
+    if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); send({ type: 'refresh' }); }
+    if (e.ctrlKey && e.key === 'f') { e.preventDefault(); $('q')?.focus(); }
+  });
+</script>
+</body></html>

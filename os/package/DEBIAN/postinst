@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+A=/usr/share/kuhaku/app
+if [ "$1" = configure ]; then
+  # Boot screen
+  mkdir -p /usr/share/plymouth/themes/kuhaku
+  cp "$A"/boot/* /usr/share/plymouth/themes/kuhaku/
+  update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth \
+    /usr/share/plymouth/themes/kuhaku/kuhaku.plymouth 200 || true
+  update-alternatives --set default.plymouth /usr/share/plymouth/themes/kuhaku/kuhaku.plymouth || true
+  # Debian's start files take the theme named here (the alternative alone is not enough).
+  mkdir -p /etc/plymouth
+  printf '[Daemon]\nTheme=kuhaku\nShowDelay=0\n' > /etc/plymouth/plymouthd.conf
+  # Login screen: background, greeter look, single-weight login fonts
+  mkdir -p /usr/local/share/kuhaku-login /var/lib/lightdm/.config/gtk-3.0 /usr/share/themes/Kuhaku/gtk-3.0 /usr/local/share/fonts/kuhaku
+  cp "$A"/login/kuhaku-background.png /usr/local/share/kuhaku-login/
+  cp "$A"/login/lightdm-gtk-greeter.conf /etc/lightdm/lightdm-gtk-greeter.conf
+  cp "$A"/login/user-gtk.css /var/lib/lightdm/.config/gtk-3.0/gtk.css
+  cp -r "$A"/login/Kuhaku/. /usr/share/themes/Kuhaku/
+  cp "$A"/login/KuhakuName.ttf "$A"/login/KuhakuText.ttf /usr/local/share/fonts/kuhaku/
+  [ -f "$A"/login/fonts.conf ] && cp "$A"/login/fonts.conf /etc/fonts/conf.d/90-kuhaku-login.conf
+  chown -R lightdm:lightdm /var/lib/lightdm/.config 2>/dev/null || true
+  fc-cache -f >/dev/null 2>&1 || true
+  # MacBook keyboard and trackpad at boot (harmless elsewhere)
+  cp "$A"/system/root/etc/modprobe.d/kuhaku-applespi.conf /etc/modprobe.d/ 2>/dev/null || true
+  update-initramfs -u >/dev/null 2>&1 || true
+  # The Claude desktop app comes from Anthropic on this computer, never inside Kūhaku's image.
+  systemctl enable kuhaku-claude-desktop.service >/dev/null 2>&1 || true
+fi
+exit 0

@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Kūhaku
+Description=Kūhaku: a red line and blank space
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/kuhaku
+ScriptFile=/usr/share/plymouth/themes/kuhaku/kuhaku.script

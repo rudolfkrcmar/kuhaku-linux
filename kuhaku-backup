@@ -1,0 +1,100 @@
+#!/bin/bash
+# Kūhaku backup: gathers the Kūhaku settings kept elsewhere into the Kūhaku folder
+# (system/ holds the copies), commits them and pushes. Personal things (mail
+# accounts, Claude notes, browser data, package lists) are never copied here, and
+# your home folder and user name are written as $HOME and USER, because this
+# folder may be a public repository.
+set -e
+K="$HOME/.local/share/kuhaku"
+S="$K/system"
+cd "$K"
+mkdir -p "$S"
+copy() { # copy SOURCE into system/DEST if it exists
+  [ -e "$1" ] || return 0
+  mkdir -p "$S/$(dirname "$2")"
+  rsync -a --delete "$1" "$S/$2"
+}
+copy "$HOME/.config/autostart/" home/.config/autostart/
+copy "$HOME/.config/kuhaku/config.json" home/.config/kuhaku/config.json
+copy "$HOME/.config/touchegg/touchegg.conf" home/.config/touchegg/touchegg.conf
+copy "$HOME/.config/fontconfig/fonts.conf" home/.config/fontconfig/fonts.conf
+copy "$HOME/.config/systemd/user/" home/.config/systemd/user/
+copy "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml" home/.config/xfce4/xfce4-keyboard-shortcuts.xml
+copy "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-notifyd.xml" home/.config/xfce4/xfce4-notifyd.xml
+copy "$HOME/.local/share/themes/Kuhaku/" home/.local/share/themes/Kuhaku/
+copy "$HOME/.config/mimeapps.list" home/.config/mimeapps.list
+for f in mado miru tsukuru tegami kansei kuhaku-terminal kuhaku-on kuhaku-revert; do
+  [ -e "$HOME/.local/bin/$f" ] && { mkdir -p "$S/home/.local/bin"; cp -P "$HOME/.local/bin/$f" "$S/home/.local/bin/$f"; }
+done
+for f in mado miru tsukuru kuhaku-terminal tegami kansei; do copy "$HOME/.local/share/applications/$f.desktop" "home/.local/share/applications/$f.desktop"; done
+for a in mado miru tsukuru kuhaku-terminal tegami kansei; do
+  for d in "$HOME"/.local/share/icons/hicolor/*/apps; do
+    [ -e "$d/$a.png" ] && copy "$d/$a.png" "home/.local/share/icons/hicolor/$(basename "$(dirname "$d")")/apps/$a.png"
+    [ -e "$d/$a.svg" ] && copy "$d/$a.svg" "home/.local/share/icons/hicolor/$(basename "$(dirname "$d")")/apps/$a.svg"
+  done
+done
+copy "$HOME/.config/pipewire/" home/.config/pipewire/
+copy "$HOME/.config/wireplumber/" home/.config/wireplumber/
+copy "$HOME/.config/gtk-3.0/" home/.config/gtk-3.0/
+for f in /etc/lightdm/lightdm-gtk-greeter.conf /etc/lightdm/lightdm.conf.d/90-kuhaku-greeter.conf \
+         /etc/modprobe.d/kuhaku-applespi.conf /etc/systemd/system/kuhaku-claude-update.service \
+         /etc/systemd/system/kuhaku-claude-update.timer /etc/default/grub.d/90-kuhaku.cfg \
+         /etc/apt/apt.conf.d/52kuhaku-unattended /etc/apt/apt.conf.d/20auto-upgrades /etc/default/grub.d/91-kuhaku-acpi.cfg; do
+  copy "$f" "root$f"
+done
+# Newer system pieces: login, boot screen, panel, sleep, the session start.
+for f in /etc/lightdm/lightdm.conf.d/ /etc/default/grub.d/ /etc/plymouth/plymouthd.conf /etc/systemd/logind.conf.d/ \
+         /etc/systemd/sleep.conf.d/ /usr/bin/kuhaku-start /usr/local/sbin/kuhaku-greeter /usr/local/share/kuhaku-greeter/ \
+         /usr/share/plymouth/themes/kuhaku/ /usr/share/xsessions/kuhaku.desktop; do
+  copy "$f" "root$f"
+done
+
+# No home folder or user name in the copies.
+me="$(id -un)"
+grep -rlIF -e "$HOME" -e "=$me" "$S/home" "$S/root" 2>/dev/null | while read -r f; do
+  sed -i -e "s#$HOME#\$HOME#g" -e "s#=$me\$#=USER#" "$f"
+done
+
+# Bring in what was pushed from elsewhere (the Mac), then push. If both sides changed
+# the same lines, nothing is pushed and nothing is lost: the local commit stays as it was.
+sync() {
+  local b
+  b="$(git symbolic-ref --short HEAD)"
+  if git pull -q --rebase origin "$b"; then
+    git push -q origin HEAD
+  else
+    git rebase --abort 2>/dev/null || true
+    return 1
+  fi
+}
+
+git add -A
+git -c user.name="$(git config user.name || id -un)" -c user.email="$(git config user.email || echo "$(id -un)@localhost")" commit -q -m "Kūhaku backup $(date '+%Y-%m-%d %H:%M')" || true
+if gh auth status >/dev/null 2>&1; then
+  if ! git remote get-url origin >/dev/null 2>&1; then
+    gh repo create kuhaku --private --source=. --remote=origin \
+      --description "Kūhaku (空白): a calm, Claude-centred desktop. Private backup." --push
+    echo "Backed up to GitHub."
+  elif sync; then
+    echo "Backed up to GitHub."
+  else
+    echo "Saved locally. Could not join it with GitHub (offline, or the same lines changed here and elsewhere)."
+  fi
+else
+  echo "Saved locally. Connect GitHub (gh auth login) to back up online."
+fi
+
+# Every project in ~/Projects that is a git repository: saved and pushed to its own private repository.
+for d in "$HOME"/Projects/*/; do
+  [ -d "$d/.git" ] || continue
+  ( cd "$d"
+    git add -A
+    git commit -q -m "Backup $(date '+%Y-%m-%d %H:%M')" >/dev/null 2>&1 || true
+    if gh auth status >/dev/null 2>&1; then
+      if git remote get-url origin >/dev/null 2>&1; then
+        sync >/dev/null 2>&1 || echo "Could not push $(basename "$d")"
+      else
+        gh repo create "$(basename "$d")" --private --source=. --remote=origin --push >/dev/null 2>&1 || echo "Could not create $(basename "$d")"
+      fi
+    fi )
+done

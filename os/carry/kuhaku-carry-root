@@ -1,0 +1,54 @@
+#!/bin/bash
+# Root half of kuhaku-carry: Wi‑Fi networks, then one encrypted archive on the stick's
+# KUHAKU-CARRY partition (made in the stick's free space after the Kūhaku image).
+#   kuhaku-carry-root ABOUT.json      (password on stdin)
+set -euo pipefail
+ABOUT="$1"; IFS= read -r PASS
+H=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['home'])" "$ABOUT")
+U=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['user'])" "$ABOUT")
+C="$H/.kuhaku-carry"
+
+# The stick: the USB disk that holds the Kūhaku image.
+DEV=""
+for d in /sys/block/sd*; do
+  n=/dev/$(basename "$d")
+  [ "$(cat "$d/removable")" = 1 ] || continue
+  udevadm info -q property -n "$n" | grep -q ID_BUS=usb || continue
+  blkid -p "${n}1" 2>/dev/null | grep -qi 'LABEL="Kuhaku"' && DEV=$n
+done
+[ -n "$DEV" ] || { echo "Plug in the Kūhaku stick first."; exit 1; }
+
+# Wi‑Fi networks this computer knows.
+mkdir -p "$C/system/NetworkManager"
+cp -a /etc/NetworkManager/system-connections/. "$C/system/NetworkManager/" 2>/dev/null || true
+chown -R "$U:$U" "$C"
+
+# The carry partition: reuse it, or make it in the free space after the image.
+P=$(blkid -L KUHAKU-CARRY 2>/dev/null || true)
+if [ -z "$P" ]; then
+  for m in $(lsblk -nrpo MOUNTPOINT "$DEV" | grep -v '^$'); do umount "$m" || true; done
+  echo ',,L' | sfdisk --append --no-reread "$DEV" >/dev/null 2>&1 || echo ',,L' | sfdisk --append --force "$DEV" >/dev/null
+  partprobe "$DEV" 2>/dev/null || true; udevadm settle; sleep 1
+  P=$(lsblk -nrpo NAME,TYPE "$DEV" | awk '$2=="part"{p=$1} END{print p}')
+  mkfs.ext4 -q -F -L KUHAKU-CARRY "$P"
+fi
+M=$(mktemp -d); mount "$P" "$M"
+mapfile -t KEEP < <(python3 -c "import json,sys; [print(k) for k in json.load(open(sys.argv[1]))['keep']]" "$ABOUT")
+mapfile -t SKIP < <(python3 -c "import json,sys; [print(k) for k in json.load(open(sys.argv[1]))['skip']]" "$ABOUT")
+EXC=(); for e in "${SKIP[@]}"; do EXC+=(--exclude "$e"); done
+mkdir -p -m 700 /root/.kuhaku-gpg
+exec 3< <(printf '%s' "$PASS")
+tar -C "$H" -cf - --warning=no-file-changed "${EXC[@]}" "${KEEP[@]}" |
+  gpg --batch --yes --quiet --homedir /root/.kuhaku-gpg --pinentry-mode loopback --passphrase-fd 3 \
+      --symmetric --cipher-algo AES256 --compress-algo zlib -o "$M/carry.tar.gpg" 2>/dev/null || true
+mkdir -p -m 700 /root/.kuhaku-gpg
+exec 3< <(printf '%s' "$PASS")
+printf kuhaku | gpg --batch --yes --quiet --homedir /root/.kuhaku-gpg --pinentry-mode loopback --passphrase-fd 3 \
+  --symmetric --cipher-algo AES256 -o "$M/check.gpg"
+python3 -c "import json,sys; a=json.load(open(sys.argv[1])); json.dump({'user':a['user'],'name':a['name']}, open(sys.argv[2],'w'))" "$ABOUT" "$M/about.json"
+# Only the encrypted archive leaves this computer: no plain copies stay behind.
+rm -rf "$C/system/NetworkManager" "$C/secrets.json"
+SIZE=$(du -m "$M/carry.tar.gpg" | cut -f1)
+sync; umount "$M"; rmdir "$M"
+[ "$SIZE" -gt 10 ] || { echo "The archive came out empty."; exit 1; }
+echo "OK ${SIZE} MB"

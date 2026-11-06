@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Tegami
+GenericName=Mail
+Comment=Letters, quietly, even offline. Kūhaku's mail.
+Exec=tegami
+Icon=tegami
+Terminal=false
+Categories=Network;Email;
+MimeType=x-scheme-handler/mailto;
+StartupWMClass=tegami.py

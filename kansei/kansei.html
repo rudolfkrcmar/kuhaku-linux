@@ -1,0 +1,400 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Kansei</title>
+<style>
+  :root { --bg:#f7f4f1; --fg:#111111; --muted:#6b6b6b; --faint:rgba(17,17,17,.07); --line:rgba(17,17,17,.14); --accent:#e0301e; --card:#fbf9f7; --ok:#3f7d4f; }
+  body.night { --bg:#121212; --fg:#ececec; --muted:#8f8f8f; --faint:rgba(236,236,236,.06); --line:rgba(236,236,236,.14); --accent:#f0705a; --card:#171717; --ok:#8fc39b; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
+               font-family:'Inter Variable','Inter',system-ui,sans-serif; font-weight:300; -webkit-font-smoothing:antialiased; }
+  .mono, .num { font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; }
+  button { font:inherit; }
+  [hidden] { display:none !important; }
+
+  .bar { position:fixed; top:0; left:0; right:0; height:56px; display:flex; align-items:center; gap:16px; padding:0 22px 0 32px; z-index:5; background:var(--bg); box-shadow:0 1px 0 var(--faint); }
+  .bar .line { width:2px; height:20px; background:var(--accent); animation:pulse 2.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.35 } }
+  .bar .title { font-size:14px; font-weight:400; }
+  .bar .title i { font-style:normal; color:var(--muted); margin-left:8px; }
+  .bar .meta { font-size:12px; color:var(--muted); }
+  .tabs { display:flex; gap:4px; margin-left:28px; }
+  .tabs button { border:0; background:none; color:var(--muted); font-size:13px; padding:8px 12px; cursor:pointer; position:relative; }
+  .tabs button:hover { color:var(--fg); }
+  .tabs button.on { color:var(--fg); }
+  .tabs button.on::after { content:''; position:absolute; left:12px; right:12px; bottom:2px; height:1.5px; background:var(--accent); }
+  .grow { flex:1; }
+  .bar .x { border:0; background:none; color:var(--muted); width:32px; height:32px; cursor:pointer; display:grid; place-items:center; }
+  .bar .x:hover { color:var(--fg); background:var(--faint); }
+
+  main { position:fixed; top:57px; left:0; right:0; bottom:0; overflow:auto; padding:28px 36px 60px; box-sizing:border-box; scrollbar-width:thin; }
+  .grid { display:grid; gap:18px; }
+  .g4 { grid-template-columns:repeat(4, minmax(0,1fr)); }
+  .g2 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .g3 { grid-template-columns:2fr 1fr 1.4fr; }
+  .card { background:var(--card); box-shadow:0 0 0 1px var(--faint); padding:18px 20px; min-width:0; position:relative; }
+  .label { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:12px; }
+  .label b { font-weight:400; letter-spacing:0; text-transform:none; font-size:12px; color:var(--fg); }
+
+  /* gauges */
+  .gauge { display:flex; gap:18px; align-items:center; }
+  .gauge svg { flex-shrink:0; }
+  .gauge .ring { fill:none; stroke:var(--line); stroke-width:3; }
+  .gauge .val { fill:none; stroke:var(--fg); stroke-width:3; stroke-linecap:butt; transition:stroke-dashoffset .6s cubic-bezier(.2,.7,.2,1), stroke .3s; }
+  .gauge .val.hot { stroke:var(--accent); }
+  .gauge .tick { stroke:var(--line); stroke-width:1; }
+  .gauge .big { font-size:30px; font-weight:200; letter-spacing:-.02em; fill:var(--fg); font-family:'Inter Variable','Inter',sans-serif; }
+  .gauge .unit { font-size:11px; fill:var(--muted); }
+  .facts { font-size:12px; line-height:1.75; color:var(--muted); min-width:0; }
+  .facts b { color:var(--fg); font-weight:400; font-family:'JetBrains Mono',monospace; font-size:11.5px; }
+
+  canvas { width:100%; display:block; }
+  .legend { display:flex; gap:16px; font-size:11px; color:var(--muted); margin-top:8px; }
+  .legend i { display:inline-block; width:10px; height:2px; vertical-align:middle; margin-right:6px; background:var(--fg); }
+  .legend i.a { background:var(--accent); }
+
+  .cores { display:grid; grid-template-columns:repeat(auto-fill, minmax(70px,1fr)); gap:12px; }
+  .core { font-size:11px; color:var(--muted); }
+  .core .b { height:46px; background:var(--faint); position:relative; margin:6px 0 4px; }
+  .core .b i { position:absolute; left:0; right:0; bottom:0; background:var(--fg); transition:height .5s; }
+  .core .b i.hot { background:var(--accent); }
+  .temps div { display:flex; justify-content:space-between; font-size:12px; padding:5px 0; box-shadow:0 1px 0 var(--faint); }
+  .temps div span:first-child { color:var(--muted); }
+  .meter { height:3px; background:var(--faint); margin-top:6px; position:relative; }
+  .meter i { position:absolute; left:0; top:0; bottom:0; background:var(--fg); }
+  .meter i.hot { background:var(--accent); }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { text-align:left; font-weight:400; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); padding:8px 10px; cursor:pointer; white-space:nowrap; position:sticky; top:-28px; background:var(--bg); }
+  th.r, td.r { text-align:right; }
+  th.on { color:var(--fg); }
+  td { padding:7px 10px; box-shadow:0 1px 0 var(--faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:420px; }
+  td.num, td.r { font-family:'JetBrains Mono',monospace; font-size:11.5px; }
+  tr.p { cursor:pointer; }
+  tr.p:hover td { background:var(--faint); }
+  tr.sel td { background:var(--faint); }
+  tr.more td { white-space:normal; color:var(--muted); font-size:11.5px; padding:10px 10px 14px; }
+  td .hot { color:var(--accent); }
+  .dim { color:var(--muted); }
+  .act { border:0; background:none; cursor:pointer; color:var(--fg); padding:0 0 2px; margin-right:18px; border-bottom:1.5px solid var(--accent); font-size:12.5px; }
+  .act.q { border-bottom-color:transparent; color:var(--muted); }
+  .act.q:hover { color:var(--accent); }
+  .tools { display:flex; gap:20px; align-items:center; margin-bottom:14px; }
+  .find { display:flex; gap:12px; align-items:stretch; flex:1; max-width:420px; }
+  .find .l { width:1.5px; background:var(--accent); }
+  .find input { flex:1; border:0; outline:none; background:none; font:inherit; font-size:14px; color:var(--fg); caret-color:var(--accent); }
+  .opt { border:0; background:none; color:var(--muted); cursor:pointer; font-size:13px; padding:0 0 2px; }
+  .opt.on { color:var(--fg); border-bottom:1.5px solid var(--accent); }
+  .sum { font-size:12px; color:var(--muted); margin-left:auto; }
+
+  .checks { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  .check { display:flex; gap:14px; align-items:flex-start; }
+  .check .s { width:8px; height:8px; border-radius:9px; margin-top:6px; flex-shrink:0; background:var(--ok); }
+  .check .s.warn { background:#d39a2c; }
+  .check .s.bad { background:var(--accent); }
+  .check .s.info { background:var(--muted); }
+  .check b { font-weight:400; font-size:14px; display:block; }
+  .check span { font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .bars div.row { display:grid; grid-template-columns:minmax(0,1fr) 160px; gap:12px; font-size:12.5px; padding:6px 0; }
+  .bars .bt { height:3px; background:var(--faint); grid-column:1 / -1; margin-top:-2px; position:relative; }
+  .bars .bt i { position:absolute; left:0; top:0; bottom:0; background:var(--fg); }
+  .wait { color:var(--muted); font-size:13px; }
+  .kv { display:grid; grid-template-columns:150px minmax(0,1fr); font-size:12.5px; row-gap:8px; }
+  .kv span:nth-child(odd) { color:var(--muted); }
+  .kv span:nth-child(even) { font-family:'JetBrains Mono',monospace; font-size:12px; overflow-wrap:anywhere; }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--fg); color:var(--bg); font-size:13px; padding:9px 16px; z-index:9; opacity:0; transition:opacity .25s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .section { margin-top:18px; }
+
+  /* Minimise and close live in Kūhaku's bar at the top of the screen; one of each is enough. */
+  #bMin, #bClose, #minimize, #quit { display:none !important; }
+</style></head>
+<body>
+<div class="bar">
+  <span class="line"></span>
+  <span class="title">Kansei<i>管制</i></span>
+  <span class="meta num" id="meta"></span>
+  <div class="tabs" id="tabs">
+    <button data-tab="overview" class="on">Overview</button><button data-tab="processes">Programs</button><button data-tab="network">Network</button>
+    <button data-tab="disk">Disk</button><button data-tab="system">System</button><button data-tab="security">Security</button>
+  </div>
+  <span class="grow"></span>
+  <span class="meta num" id="clock"></span>
+  <button class="x" id="bMin" title="Minimise"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 12h14"/></svg></button>
+  <button class="x" id="bClose" title="Close (Esc)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+<main id="main"></main>
+<div class="toast" id="toast"></div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const send = (m) => window.webkit.messageHandlers.kansei.postMessage(JSON.stringify(m));
+  const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  if (new URLSearchParams(location.search).get('theme') === 'night') document.body.classList.add('night');
+  const css = (v) => getComputedStyle(document.body).getPropertyValue(v).trim();
+
+  const B = (n) => { if (n == null) return '–'; const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0; while (n >= 1024 && i < 4) { n /= 1024; i++; } return (n >= 100 || i === 0 ? n.toFixed(0) : n.toFixed(1)) + ' ' + u[i]; };
+  const R = (n) => B(n) + '/s';
+  const dur = (s) => { s = Math.floor(s); const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`; };
+  function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._h); el._h = setTimeout(() => el.classList.remove('show'), 2600); }
+  window.toast = toast;
+
+  // History: two minutes, one point a second.
+  const N = 120, hist = { cpu: [], mem: [], rx: [], tx: [], rd: [], wr: [], cores: [] };
+  const push = (k, v) => { hist[k].push(v); if (hist[k].length > N) hist[k].shift(); };
+  let S = null, P = [], sys = null, net = null, sec = null, du = null, tab = 'overview';
+  let sortBy = 'cpu', group = true, filter = '', openPid = null;
+
+  function gauge(pct, big, unit, hot) {
+    const r = 46, c = 2 * Math.PI * r * 0.75, off = c * (1 - Math.min(100, Math.max(0, pct)) / 100);
+    let ticks = '';
+    for (let i = 0; i <= 10; i++) { const a = (135 + i * 27) * Math.PI / 180;
+      ticks += `<line class="tick" x1="${60 + 52 * Math.cos(a)}" y1="${60 + 52 * Math.sin(a)}" x2="${60 + 56 * Math.cos(a)}" y2="${60 + 56 * Math.sin(a)}"/>`; }
+    return `<svg width="120" height="120" viewBox="0 0 120 120">${ticks}
+      <circle class="ring" cx="60" cy="60" r="${r}" stroke-dasharray="${c} 999" transform="rotate(135 60 60)"/>
+      <circle class="val${hot ? ' hot' : ''}" cx="60" cy="60" r="${r}" stroke-dasharray="${c} 999" stroke-dashoffset="${off}" transform="rotate(135 60 60)"/>
+      <text class="big" x="60" y="66" text-anchor="middle">${big}</text><text class="unit" x="60" y="86" text-anchor="middle">${unit}</text></svg>`;
+  }
+
+  function graph(id, series, opts = {}) {
+    const cv = $(id); if (!cv) return;
+    const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = opts.h || 120;
+    if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px'; }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    const max = opts.max || Math.max(1, ...series.flatMap((s) => s.data)) * 1.15;
+    g.strokeStyle = css('--faint'); g.lineWidth = 1;
+    for (let i = 1; i < 4; i++) { const y = Math.round(h * i / 4) + .5; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    series.forEach((s) => {
+      const d = s.data, step = w / (N - 1), x0 = w - (d.length - 1) * step;
+      if (d.length < 2) return;
+      g.beginPath();
+      d.forEach((v, i) => { const x = x0 + i * step, y = h - (v / max) * (h - 4) - 2; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+      g.strokeStyle = s.accent ? css('--accent') : css('--fg'); g.globalAlpha = s.alpha || 1; g.lineWidth = s.width || 1.3; g.stroke();
+      if (s.fill) { g.lineTo(w, h); g.lineTo(x0, h); g.closePath(); g.globalAlpha = .08; g.fillStyle = g.strokeStyle; g.fill(); }
+      g.globalAlpha = 1;
+    });
+    if (opts.scale) { g.fillStyle = css('--muted'); g.font = '10px JetBrains Mono'; g.fillText(opts.scale(max), 4, 12); }
+  }
+
+  // ---- data from Kansei ----
+  window.sample = (s) => {
+    S = s;
+    push('cpu', s.cpu); push('mem', s.mem.pct);
+    const rx = s.net.reduce((a, n) => a + n.rx, 0), tx = s.net.reduce((a, n) => a + n.tx, 0);
+    push('rx', rx); push('tx', tx); push('rd', s.disk.read); push('wr', s.disk.write);
+    hist.cores = s.cores.map((v, i) => { const a = (hist.cores[i] || []).concat(v); return a.slice(-N); });
+    $('meta').textContent = `${sys ? sys.host + ' · ' : ''}up ${dur(s.uptime)} · load ${s.load.map((l) => l.toFixed(2)).join(' ')} · ${s.procs} processes`;
+    $('clock').textContent = new Date().toLocaleTimeString('en-GB');
+    if (tab === 'overview') overview();
+    if (tab === 'network' && net) network();
+  };
+  window.processes = (list) => { P = list; if (tab === 'processes') programs(); if (tab === 'overview') topList(); };
+  window.connections = (d) => { net = d; };
+  window.got = ({ kind, data }) => {
+    if (kind === 'system') { sys = data; if (tab === 'system') system(); if (tab === 'disk') disk(); }
+    if (kind === 'network') { net = data; if (tab === 'network') network(); }
+    if (kind === 'security') { sec = data; if (tab === 'security') security(); }
+    if (kind === 'diskuse') { du = data; if (tab === 'disk') disk(); }
+  };
+
+  // ---- Overview ----
+  function overview() {
+    const s = S; if (!s) return;
+    const m = $('main');
+    if (!$('ov')) {
+      m.innerHTML = `<div id="ov">
+        <div class="grid g4">
+          <div class="card"><div class="label">Processor<b id="cpuName"></b></div><div class="gauge" id="gCpu"></div></div>
+          <div class="card"><div class="label">Memory</div><div class="gauge" id="gMem"></div></div>
+          <div class="card"><div class="label">Disk</div><div class="gauge" id="gDisk"></div></div>
+          <div class="card"><div class="label">Power</div><div class="gauge" id="gBat"></div></div>
+        </div>
+        <div class="grid g2 section">
+          <div class="card"><div class="label">Processor · 2 min<b id="cpuNow"></b></div><canvas id="cCpu"></canvas>
+            <div class="legend"><span><i class="a"></i>all cores</span><span><i></i>each core</span></div></div>
+          <div class="card"><div class="label">Memory · 2 min<b id="memNow"></b></div><canvas id="cMem"></canvas>
+            <div class="legend"><span><i class="a"></i>in use</span></div></div>
+          <div class="card"><div class="label">Network · 2 min<b id="netNow"></b></div><canvas id="cNet"></canvas>
+            <div class="legend"><span><i class="a"></i>down</span><span><i></i>up</span></div></div>
+          <div class="card"><div class="label">Disk activity · 2 min<b id="dskNow"></b></div><canvas id="cDsk"></canvas>
+            <div class="legend"><span><i class="a"></i>read</span><span><i></i>write</span></div></div>
+        </div>
+        <div class="grid g3 section">
+          <div class="card"><div class="label">Busiest programs<b class="dim">click to stop</b></div><div id="top"></div></div>
+          <div class="card"><div class="label">Cores</div><div class="cores" id="cores"></div></div>
+          <div class="card"><div class="label">Temperatures</div><div class="temps" id="temps"></div></div>
+        </div></div>`;
+      $('top').addEventListener('click', onTopClick);
+    }
+    const t = s.temps.find((x) => /package/i.test(x.label)) || s.temps.find((x) => x.chip === 'coretemp') || s.temps[0];
+    const ghz = s.freq.length ? (s.freq.reduce((a, b) => a + b, 0) / s.freq.length / 1000).toFixed(2) : '–';
+    $('gCpu').innerHTML = gauge(s.cpu, Math.round(s.cpu), 'percent', s.cpu > 80) +
+      `<div class="facts">Speed <b>${ghz} GHz</b>${s.fmax ? ` of ${(s.fmax / 1000).toFixed(1)}` : ''}<br>Heat <b>${t ? Math.round(t.c) + '°C' : '–'}</b><br>Load <b>${s.load[0].toFixed(2)}</b><br>Programs <b>${s.procs}</b></div>`;
+    const mm = s.mem;
+    $('gMem').innerHTML = gauge(mm.pct, Math.round(mm.pct), 'percent', mm.pct > 85) +
+      `<div class="facts">Used <b>${B(mm.used)}</b><br>Free <b>${B(mm.avail)}</b><br>Cache <b>${B(mm.cache)}</b><br>Swap <b>${B(mm.swapUsed)}</b> of ${B(mm.swapTotal)}</div>`;
+    const root = sys && sys.mounts.find((x) => x.mount === '/');
+    $('gDisk').innerHTML = gauge(root ? root.pct : 0, root ? Math.round(root.pct) : '–', 'percent full', root && root.pct > 90) +
+      `<div class="facts">Free <b>${root ? B(root.total - root.used) : '–'}</b><br>Size <b>${root ? B(root.total) : '–'}</b><br>Read <b>${R(s.disk.read)}</b><br>Write <b>${R(s.disk.write)}</b></div>`;
+    const b = s.battery;
+    $('gBat').innerHTML = b ? gauge(b.pct, Math.round(b.pct), b.plugged ? 'charging' : 'battery', !b.plugged && b.pct < 15) +
+      `<div class="facts">Draw <b>${b.watts != null ? b.watts.toFixed(1) + ' W' : '–'}</b><br>${b.plugged ? 'Status' : 'Left'} <b>${b.plugged ? esc(b.status) : b.left ? dur(b.left) : '–'}</b><br>Health <b>${b.health != null ? b.health + '%' : '–'}</b><br>Cycles <b>${b.cycles || '–'}</b></div>`
+      : gauge(100, '∞', 'on power', false);
+    $('cpuName').textContent = sys ? sys.cpu.replace(/\(R\)|\(TM\)|CPU|@.*$/g, '').trim() : '';
+    $('cpuNow').textContent = Math.round(s.cpu) + '%';
+    $('memNow').textContent = B(mm.used);
+    $('netNow').textContent = `↓ ${R(hist.rx.at(-1))}  ↑ ${R(hist.tx.at(-1))}`;
+    $('dskNow').textContent = `${R(s.disk.read)} · ${R(s.disk.write)}`;
+    graph('cCpu', [...hist.cores.map((d) => ({ data: d, alpha: .25, width: 1 })), { data: hist.cpu, accent: true, fill: true, width: 1.6 }], { max: 100 });
+    graph('cMem', [{ data: hist.mem, accent: true, fill: true, width: 1.6 }], { max: 100 });
+    graph('cNet', [{ data: hist.rx, accent: true, fill: true }, { data: hist.tx }], { scale: R });
+    graph('cDsk', [{ data: hist.rd, accent: true, fill: true }, { data: hist.wr }], { scale: R });
+    $('cores').innerHTML = s.cores.map((v, i) => `<div class="core">Core ${i + 1}<div class="b"><i class="${v > 85 ? 'hot' : ''}" style="height:${v}%"></i></div><span class="num">${Math.round(v)}% · ${s.freq[i] ? (s.freq[i] / 1000).toFixed(1) + 'G' : ''}</span></div>`).join('');
+    $('temps').innerHTML = s.temps.map((x) => `<div><span>${esc(x.label)}</span><span class="num${x.c > x.high * .85 ? ' hot' : ''}">${x.c.toFixed(0)}°C</span></div>`).join('') || '<span class="wait">No sensors</span>';
+    topList();
+  }
+  function grouped() {
+    if (!group) return P.map((p) => ({ ...p, n: 1, pids: [p.pid], label: p.app || p.name }));
+    const g = {};
+    P.forEach((p) => {
+      const k = p.app || p.name;
+      const x = g[k] || (g[k] = { label: k, name: p.name, app: p.app, n: 0, cpu: 0, rss: 0, read: 0, write: 0, threads: 0, pids: [], user: p.user, mine: p.mine, cmd: p.cmd, age: p.age, pid: p.pid });
+      x.n++; x.cpu += p.cpu; x.rss += p.rss; x.read += p.read; x.write += p.write; x.threads += p.threads; x.pids.push(p.pid);
+      if (p.age > x.age) { x.age = p.age; x.pid = p.pid; x.cmd = p.cmd; }
+      x.mine = x.mine && p.mine;
+    });
+    return Object.values(g);
+  }
+  function topList() {
+    if (!$('top')) return;
+    const ncores = S ? S.cores.length : 1;
+    const rows = grouped().sort((a, b) => (b.cpu + b.rss / 2e8) - (a.cpu + a.rss / 2e8)).slice(0, 8);
+    $('top').innerHTML = `<table><tr><th>Program</th><th class="r">Processor</th><th class="r">Memory</th><th class="r">Disk</th><th></th></tr>` +
+      rows.map((r) => `<tr><td>${esc(r.label)}${r.n > 1 ? ` <span class="dim">×${r.n}</span>` : ''}</td><td class="r${r.cpu / ncores > 50 ? ' hot' : ''}">${(r.cpu / ncores).toFixed(1)}%</td>` +
+        `<td class="r">${B(r.rss)}</td><td class="r">${R(r.read + r.write)}</td><td class="r"><button class="act q" data-kill="${r.pids.join(',')}" title="Stop ${esc(r.label)}">Stop</button></td></tr>`).join('') + '</table>';
+  }
+  function onTopClick(e) {
+    const k = e.target.closest('[data-kill]'); if (!k) return;
+    k.dataset.kill.split(',').forEach((pid) => send({ type: 'kill', pid: +pid, force: e.altKey }));
+  }
+
+  // ---- Programs ----
+  const COLS = [['label', 'Program'], ['pid', 'PID', 'r'], ['cpu', 'Processor', 'r'], ['rss', 'Memory', 'r'], ['read', 'Read', 'r'], ['write', 'Write', 'r'], ['threads', 'Threads', 'r'], ['user', 'User'], ['age', 'Running', 'r']];
+  function programs() {
+    const m = $('main');
+    if (!$('pr')) {
+      m.innerHTML = `<div id="pr"><div class="tools"><div class="find"><span class="l"></span><input id="q" placeholder="Find a program" spellcheck="false"></div>
+        <button class="opt${group ? ' on' : ''}" id="gApp">By app</button><button class="opt${group ? '' : ' on'}" id="gAll">Every process</button><span class="sum num" id="sum"></span></div>
+        <div id="ptable"></div></div>`;
+      $('q').value = filter;
+      $('q').oninput = () => { filter = $('q').value.toLowerCase(); programs(); };
+      $('gApp').onclick = () => { group = true; $('pr').remove(); programs(); };
+      $('gAll').onclick = () => { group = false; $('pr').remove(); programs(); };
+      $('ptable').addEventListener('click', onProgClick);
+    }
+    const ncores = S ? S.cores.length : 1;
+    let rows = grouped().filter((r) => !filter || (r.label + ' ' + r.name + ' ' + r.cmd).toLowerCase().includes(filter));
+    rows.sort((a, b) => sortBy === 'label' || sortBy === 'user' ? String(a[sortBy]).localeCompare(String(b[sortBy])) : b[sortBy] - a[sortBy]);
+    const tot = P.reduce((a, p) => ({ cpu: a.cpu + p.cpu, rss: a.rss + p.rss }), { cpu: 0, rss: 0 });
+    $('sum').textContent = `${P.length} processes · ${(tot.cpu / ncores).toFixed(0)}% processor · ${B(tot.rss)} memory`;
+    $('ptable').innerHTML = '<table><tr>' + COLS.map(([k, l, c]) => `<th class="${c || ''}${sortBy === k ? ' on' : ''}" data-sort="${k}">${l}</th>`).join('') + '</tr>' +
+      rows.slice(0, 250).map((r) => {
+        const key = r.pids.join(',');
+        let h = `<tr class="p${openPid === key ? ' sel' : ''}" data-open="${key}"><td>${esc(r.label)}${r.n > 1 ? ` <span class="dim">×${r.n}</span>` : ''}</td><td class="r">${r.n > 1 ? '' : r.pid}</td>` +
+          `<td class="r${r.cpu / ncores > 50 ? ' hot' : ''}">${(r.cpu / ncores).toFixed(1)}%</td><td class="r">${B(r.rss)}</td><td class="r">${r.read ? R(r.read) : '<span class="dim">–</span>'}</td>` +
+          `<td class="r">${r.write ? R(r.write) : '<span class="dim">–</span>'}</td><td class="r">${r.threads}</td><td class="${r.mine ? '' : 'dim'}">${esc(r.user)}</td><td class="r">${dur(r.age)}</td></tr>`;
+        if (openPid === key) h += `<tr class="more"><td colspan="9"><div class="mono" style="margin-bottom:12px">${esc(r.cmd || r.name)}</div>` +
+          `<button class="act" data-kill="${key}">Stop${r.n > 1 ? ' all ' + r.n : ''}</button><button class="act q" data-kill="${key}" data-force="1">Force stop</button>` +
+          `${r.mine ? '' : '<span class="dim">Belongs to the system: Kūhaku will ask for your password.</span>'}</td></tr>`;
+        return h;
+      }).join('') + '</table>';
+  }
+  function onProgClick(e) {
+    const s = e.target.closest('[data-sort]'); if (s) { sortBy = s.dataset.sort; return programs(); }
+    const k = e.target.closest('[data-kill]');
+    if (k) { k.dataset.kill.split(',').forEach((pid) => send({ type: 'kill', pid: +pid, force: !!k.dataset.force })); openPid = null; return; }
+    const o = e.target.closest('[data-open]'); if (o) { openPid = openPid === o.dataset.open ? null : o.dataset.open; programs(); }
+  }
+
+  // ---- Network ----
+  function network() {
+    const d = net, s = S; if (!d) { $('main').innerHTML = '<p class="wait">Reading the network…</p>'; return; }
+    if (!$('nw')) {
+      $('main').innerHTML = `<div id="nw"><div class="grid g4">
+        <div class="card"><div class="label">Wi‑Fi</div><div class="gauge" id="gWifi"></div></div>
+        <div class="card" style="grid-column:span 2"><div class="label">Traffic · 2 min<b id="nNow"></b></div><canvas id="cNet2"></canvas>
+          <div class="legend"><span><i class="a"></i>down</span><span><i></i>up</span></div></div>
+        <div class="card"><div class="label">Address</div><div class="kv" id="addr"></div></div></div>
+        <div class="grid g2 section"><div class="card"><div class="label">Talking to the internet<b class="dim">by program</b></div><div id="conns"></div></div>
+        <div class="card"><div class="label">Listening<b class="dim">ports open on this computer</b></div><div id="listen"></div>
+        <div class="label" style="margin-top:22px">Interfaces</div><div id="ifs"></div></div></div></div>`;
+    }
+    const w = d.wifi || {};
+    $('gWifi').innerHTML = gauge(+w.signal || 0, w.signal || '–', 'signal', +w.signal < 30) +
+      `<div class="facts">Network <b>${esc(w.ssid || 'none')}</b><br>Speed <b>${esc(w.rate || '–')}</b><br>Band <b>${esc(w.freq || '–')}</b> ch <b>${esc(w.channel || '–')}</b><br>Security <b>${esc(w.security || '–')}</b></div>`;
+    $('addr').innerHTML = `<span>Address</span><span>${esc(w.ip || '–')}</span><span>Gateway</span><span>${esc(w.gateway || '–')}</span><span>DNS</span><span>${esc((w.dns || []).join(', ') || '–')}</span><span>Device</span><span>${esc(w.device || '–')}</span>`;
+    if (s) { $('nNow').textContent = `↓ ${R(hist.rx.at(-1))}  ↑ ${R(hist.tx.at(-1))}`; graph('cNet2', [{ data: hist.rx, accent: true, fill: true }, { data: hist.tx }], { h: 130, scale: R }); }
+    const out = d.conns.filter((c) => !c.listen && c.rip && !/^(127\.|::1|::ffff:127)/.test(c.rip));
+    const by = {}; out.forEach((c) => (by[c.name || 'unknown'] = by[c.name || 'unknown'] || []).push(c));
+    $('conns').innerHTML = Object.keys(by).length ? '<table><tr><th>Program</th><th>Remote</th><th>State</th></tr>' +
+      Object.entries(by).sort((a, b) => b[1].length - a[1].length).map(([n, cs]) => cs.slice(0, 6).map((c, i) =>
+        `<tr><td>${i ? '' : esc(n) + ` <span class="dim">${cs.length}</span>`}</td><td class="num">${esc(c.remote)}</td><td class="dim">${esc(c.status.toLowerCase())}</td></tr>`).join('')).join('') + '</table>'
+      : '<p class="wait">No connections right now.</p>';
+    const ls = d.conns.filter((c) => c.listen);
+    $('listen').innerHTML = ls.length ? '<table><tr><th>Port</th><th>Program</th><th>Open to</th></tr>' + ls.map((c) => {
+      const local = /^(127\.|::1|::ffff:127)/.test(c.local) || c.local.startsWith('[::1]');
+      return `<tr><td class="num">${esc(c.proto)} ${esc(c.local.split(':').pop())}</td><td>${esc(c.name || '(system)')}</td><td class="${local ? 'dim' : 'hot'}">${local ? 'this computer only' : 'the network'}</td></tr>`;
+    }).join('') + '</table>' : '<p class="wait">Nothing listening.</p>';
+    $('ifs').innerHTML = s ? '<table>' + s.net.map((n) => `<tr><td>${esc(n.nic)}</td><td class="r">↓ ${B(n.rxTotal)}</td><td class="r">↑ ${B(n.txTotal)}</td><td class="r">${R(n.rx + n.tx)}</td></tr>`).join('') + '</table>' : '';
+  }
+
+  // ---- Disk ----
+  function disk() {
+    if (!sys) { $('main').innerHTML = '<p class="wait">Reading disks…</p>'; return; }
+    const mx = du && du.length ? du[0].size : 1;
+    $('main').innerHTML = `<div class="grid g2"><div class="card"><div class="label">Drives</div><div class="bars">` +
+      sys.mounts.map((m) => `<div class="row"><span>${esc(m.mount)} <span class="dim">${esc(m.fs)} · ${esc(m.device)}</span></span><span class="r num">${B(m.used)} / ${B(m.total)}</span><div class="bt"><i style="width:${m.pct}%;${m.pct > 90 ? 'background:var(--accent)' : ''}"></i></div></div>`).join('') +
+      `</div></div><div class="card"><div class="label">Disk activity · 2 min</div><canvas id="cDsk2"></canvas><div class="legend"><span><i class="a"></i>read</span><span><i></i>write</span></div></div></div>
+      <div class="card section"><div class="label">What fills your home folder</div><div class="bars">` +
+      (du ? du.map((r) => `<div class="row"><span style="padding-left:${(r.depth - 1) * 18}px">${esc(r.path)}</span><span class="r num">${B(r.size)}</span><div class="bt"><i style="width:${(100 * r.size / mx).toFixed(1)}%"></i></div></div>`).join('')
+          : '<p class="wait">Measuring folders… this takes a little while.</p>') + '</div></div>';
+    graph('cDsk2', [{ data: hist.rd, accent: true, fill: true }, { data: hist.wr }], { scale: R });
+  }
+
+  // ---- System ----
+  function system() {
+    if (!sys) { $('main').innerHTML = '<p class="wait">Reading the system…</p>'; return; }
+    const y = sys;
+    $('main').innerHTML = `<div class="grid g2"><div class="card"><div class="label">This computer</div><div class="kv">
+      <span>Computer</span><span>${esc(y.model)}</span><span>Processor</span><span>${esc(y.cpu)} · ${y.cores} threads</span>
+      <span>System</span><span>${esc(y.os)} · Kūhaku</span><span>Kernel</span><span>${esc(y.kernel)}</span><span>Firmware</span><span>${esc(y.firmware)}</span>
+      <span>Name</span><span>${esc(y.host)}</span><span>You</span><span>${esc(y.user)}</span><span>Start-up</span><span>${esc(y.boot.replace('Startup finished in ', ''))}</span></div></div>
+      <div class="card"><div class="label">Slowest at start-up</div><table>${y.blame.map((b) => `<tr><td>${esc(b.unit)}</td><td class="r">${esc(b.time)}</td></tr>`).join('')}</table></div></div>
+      <div class="card section"><div class="label">Services running<b class="dim">${y.services.length} system · ${y.userServices} yours</b></div><table><tr><th>Service</th><th>What it is</th><th class="r">Memory</th><th class="r">PID</th></tr>` +
+      y.services.map((s) => `<tr><td>${esc(s.unit.replace('.service', ''))}</td><td class="dim">${esc(s.desc)}</td><td class="r">${s.mem != null ? B(s.mem) : '–'}</td><td class="r">${esc(s.pid)}</td></tr>`).join('') + '</table></div>';
+  }
+
+  // ---- Security ----
+  function security() {
+    if (!sec) { $('main').innerHTML = '<p class="wait">Checking… firewall, ports, updates, encryption, logins.</p>'; return; }
+    const bad = sec.filter((c) => !c.ok && c.level !== 'info').length;
+    $('main').innerHTML = `<div class="card"><div class="label">Security check<b>${bad ? bad + ' to look at' : 'All good'}</b></div><div class="checks">` +
+      sec.map((c) => `<div class="check"><i class="s ${c.ok ? '' : c.level}"></i><div><b>${esc(c.name)}</b><span>${esc(c.detail)}</span>${c.fix ? `<div style="margin-top:8px"><button class="act" data-fix="${c.fix}">Turn on</button></div>` : ''}</div></div>`).join('') + '</div></div>';
+    $('main').querySelectorAll('[data-fix]').forEach((b) => b.onclick = () => { b.textContent = 'Asking for your password…'; send({ type: 'fix', what: b.dataset.fix }); });
+  }
+
+  function show(t) {
+    tab = t;
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+    $('main').innerHTML = ''; $('main').scrollTop = 0;
+    send({ type: 'tab', tab: t });
+    ({ overview, processes: programs, network, disk, system, security })[t]();
+  }
+  $('tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) show(b.dataset.tab); });
+  $('bClose').onclick = () => send({ type: 'close' });
+  $('bMin').onclick = () => send({ type: 'minimize' });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') { if (e.key === 'Escape') e.target.blur(); return; }
+    if (e.key === 'Escape' || ((e.ctrlKey || e.metaKey) && /^[wq]$/i.test(e.key))) send({ type: 'close' });
+    const n = '123456'.indexOf(e.key); if (n >= 0) show(['overview', 'processes', 'network', 'disk', 'system', 'security'][n]);
+  });
+  addEventListener('resize', () => { if (tab === 'overview') overview(); });
+</script>
+</body></html>

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Mado on Chromium (Qt WebEngine); the WebKit Mado if Qt WebEngine is ever missing.
+K="$HOME/.local/share/kuhaku"
+if python3 -c "import PyQt6.QtWebEngineWidgets" 2>/dev/null; then
+  exec python3 "$K/browser.py" "$@"
+fi
+exec python3 "$K/browser_webkit.py" "$@"

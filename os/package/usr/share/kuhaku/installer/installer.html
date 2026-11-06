@@ -1,0 +1,168 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Install Kūhaku</title>
+<style>
+  :root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.08); --accent:#e0301e; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
+               font-family:'Inter Variable','Inter',system-ui,sans-serif; font-weight:300; -webkit-font-smoothing:antialiased; }
+  button, input { font:inherit; }
+  [hidden] { display:none !important; }
+  .screen { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; animation:rise .6s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes rise { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
+  .col { width:min(760px, 86vw); }
+  .kicker { font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:28px; }
+  h1 { margin:0 0 24px; font-size:clamp(40px, 5.6vw, 72px); font-weight:200; letter-spacing:-.035em; line-height:1.05; }
+  p { font-size:20px; line-height:1.55; margin:0 0 18px; }
+  .quiet { color:var(--muted); }
+  .row { display:flex; align-items:stretch; gap:18px; margin:22px 0; }
+  .row .line { width:1.5px; background:var(--accent); flex-shrink:0; }
+  .row input { flex:1; border:0; outline:none; background:none; font-size:26px; font-weight:200; color:var(--fg); caret-color:var(--accent); padding:4px 0; }
+  .row input::placeholder { color:var(--muted); opacity:.6; }
+  .acts { display:flex; gap:34px; align-items:center; margin-top:44px; }
+  .go { border:0; background:none; cursor:pointer; padding:0 0 4px; font-size:19px; color:var(--fg); border-bottom:1.5px solid var(--accent); }
+  .go:disabled { opacity:.35; cursor:default; }
+  .soft { border:0; background:none; cursor:pointer; padding:0; font-size:17px; color:var(--muted); }
+  .soft:hover { color:var(--fg); }
+  .why { color:var(--accent); font-size:15px; min-height:1.4em; }
+  .drive { font-size:26px; font-weight:200; margin:6px 0 14px; }
+  .work { display:flex; align-items:center; gap:20px; }
+  .work { cursor:pointer; }
+  .detail { font:13px/1.6 "JetBrains Mono", monospace; color:#777; white-space:pre-wrap; margin:22px 0 0; max-height:40vh; overflow:auto; }
+  .since { color:#aaa; margin-left:12px; font-size:.7em; }
+  .work .line { width:1.5px; height:40px; background:var(--accent); animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.15 } }
+  .work .what { font-size:30px; font-weight:200; }
+  .bar { height:1.5px; background:var(--faint); margin:40px 0 14px; position:relative; }
+  .bar i { position:absolute; left:0; top:0; bottom:0; background:var(--accent); width:0; transition:width .6s; }
+  .steps { display:flex; gap:24px; font-size:14px; color:var(--muted); }
+  .steps span.on { color:var(--fg); }
+  .steps span.done { color:var(--muted); opacity:.5; }
+  .modes { display:flex; flex-direction:column; gap:22px; margin:30px 0 0; }
+  .mode { display:flex; gap:18px; align-items:stretch; border:0; background:none; text-align:left; cursor:pointer; padding:0; color:var(--fg); }
+  .mode .line { width:1.5px; background:var(--faint); flex-shrink:0; }
+  .mode.on .line { background:var(--accent); }
+  .mode b { display:block; font-weight:300; font-size:24px; }
+  .mode span.t { color:var(--muted); font-size:16px; line-height:1.5; }
+  .mode em { font-style:normal; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin-left:12px; }
+</style></head>
+<body>
+<section class="screen" id="s-welcome"><div class="col">
+  <div class="kicker">Kūhaku</div>
+  <h1>Make this computer Kūhaku.</h1>
+  <p>Kūhaku will replace everything on this computer's drive with a calm, empty screen and one line.</p>
+  <p class="quiet" id="carryNote">It takes about ten minutes.</p>
+  <div class="acts"><button class="go" id="bBegin">Begin</button><button class="soft" id="bLook">Not now, just look around</button></div>
+</div></section>
+
+<section class="screen" id="s-you" hidden><div class="col">
+  <div class="kicker">You</div>
+  <h1>Your name and one password.</h1>
+  <p class="quiet">The password opens the computer when it starts. You will not be asked again after that.</p>
+  <div class="row"><span class="line"></span><input id="iName" placeholder="Your name" spellcheck="false" autocomplete="off"></div>
+  <div class="row"><span class="line"></span><input id="iPass" type="password" placeholder="Password"></div>
+  <div class="row"><span class="line"></span><input id="iPass2" type="password" placeholder="Once more"></div>
+  <div class="why" id="why"></div>
+  <div class="acts"><button class="go" id="bNext">Continue</button><button class="soft" id="bBack">Back</button></div>
+</div></section>
+
+<section class="screen" id="s-claude" hidden><div class="col">
+  <div class="kicker">Claude</div>
+  <h1>How freely may Claude work?</h1>
+  <p class="quiet">You can change this later in Settings.</p>
+  <div class="modes">
+    <button class="mode on" data-mode="bypassPermissions"><span class="line"></span><span><b>Anything, without asking<em>Recommended</em></b>
+      <span class="t">Claude edits files, runs commands, changes settings and installs things on its own. It is told to ask first before deleting anything or doing what cannot be undone. This is how Kūhaku is meant to feel.</span></span></button>
+    <button class="mode" data-mode="acceptEdits"><span class="line"></span><span><b>Careful</b>
+      <span class="t">Claude reads, searches and edits your files, but does not run commands or programs, so it cannot change settings or install anything for you.</span></span></button>
+  </div>
+  <div class="acts"><button class="go" id="bMode">Continue</button><button class="soft" id="bBackM">Back</button></div>
+</div></section>
+
+<section class="screen" id="s-drive" hidden><div class="col">
+  <div class="kicker">The drive</div>
+  <h1>Everything on this drive will be replaced.</h1>
+  <div class="drive" id="driveName"></div>
+  <p class="quiet" id="driveNote"></p>
+  <div class="acts"><button class="go" id="bErase">Replace and install</button><button class="soft" id="bBack2">Back</button></div>
+</div></section>
+
+<section class="screen" id="s-work" hidden><div class="col">
+  <div class="kicker">Installing</div>
+  <div class="work"><span class="line"></span><span class="what" id="what">Preparing the drive</span><span class="since" id="since"></span></div>
+  <div class="bar"><i id="bar"></i></div>
+  <pre class="detail" id="detail" hidden></pre>
+  <div class="steps" id="steps"><span>Drive</span><span>Kūhaku</span><span>Start</span><span>Your things</span><span>Finish</span></div>
+</div></section>
+
+<section class="screen" id="s-done" hidden><div class="col">
+  <div class="kicker">Done</div>
+  <h1>Kūhaku is ready.</h1>
+  <p>Take out the stick, then restart. When the computer starts, type your password once.</p>
+  <div class="acts"><button class="go" id="bRestart">Restart</button></div>
+</div></section>
+
+<section class="screen" id="s-failed" hidden><div class="col">
+  <div class="kicker">Stopped</div>
+  <h1>The install did not finish.</h1>
+  <p class="quiet" id="failWhy"></p>
+  <pre class="detail" id="failDetail"></pre>
+  <div class="acts"><button class="go" id="bAgain">Try again</button><button class="soft" id="bClose">Close</button></div>
+</div></section>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const send = (m) => window.webkit.messageHandlers.install.postMessage(JSON.stringify(m));
+  let known = { disk: null, carry: null }, curStep = 0, mode = 'bypassPermissions';
+  const show = (id) => { document.querySelectorAll('.screen').forEach((s) => (s.hidden = s.id !== 's-' + id)); const f = document.querySelector('#s-' + id + ' input'); if (f) f.focus(); };
+  const gb = (b) => Math.round(b / 1e9) + ' GB';
+  window.facts = (f) => {
+    known = f;
+    if (f.carry) {
+      $('carryNote').textContent = `Your files from the old system are on the stick and come along (${gb(f.carry.size) === '0 GB' ? 'under 1 GB' : gb(f.carry.size)}). It takes about ten minutes.`;
+      if (f.carry.name) $('iName').value = f.carry.name;
+    }
+    if (f.disk) { $('driveName').textContent = `${f.disk.model || 'This computer\'s drive'} · ${gb(f.disk.size)}`; }
+    else { $('driveName').textContent = 'No drive found'; $('bErase').disabled = true; }
+    $('driveNote').textContent = f.carry ? 'Your files from the old system are safe on the stick and will be copied back.'
+      : 'Copy anything you want to keep to another drive first.';
+    if (f.zone) $('driveNote').textContent += ` Time zone: ${f.zone.replace(/_/g, ' ')}.`;
+  };
+  $('bBegin').onclick = () => show('you');
+  $('bLook').onclick = () => send({ type: 'close' });
+  $('bBack').onclick = () => show('welcome');
+  $('bBack2').onclick = () => show('claude');
+  $('bBackM').onclick = () => show('you');
+  $('bMode').onclick = () => show('drive');
+  document.querySelectorAll('.mode').forEach((b) => (b.onclick = () => {
+    mode = b.dataset.mode; document.querySelectorAll('.mode').forEach((x) => x.classList.toggle('on', x === b));
+  }));
+  $('bNext').onclick = () => {
+    const n = $('iName').value.trim(), a = $('iPass').value, b = $('iPass2').value;
+    if (!n) return ($('why').textContent = 'Write your name.');
+    if (a !== b) return ($('why').textContent = 'The two passwords are different.');
+    $('why').textContent = 'Checking…';
+    send({ type: 'check', name: n, password: a });
+  };
+  window.checked = (r) => { $('why').textContent = r.why; if (r.ok) show('claude'); };
+  ['iName', 'iPass', 'iPass2'].forEach((id, i, all) => $(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); i < 2 ? $(all[i + 1]).focus() : $('bNext').click(); }
+  }));
+  $('bErase').onclick = () => { stepAt = Date.now(); show('work'); send({ type: 'install', name: $('iName').value.trim(), password: $('iPass').value, mode }); };
+  // What is happening right now: the last lines behind the breathing line, shown when it is clicked.
+  const lines = []; let stepAt = Date.now();
+  window.detail = (l) => { lines.push(l); if (lines.length > 200) lines.shift(); $('detail').textContent = lines.slice(-14).join('\n'); $('failDetail').textContent = lines.slice(-8).join('\n'); };
+  document.querySelector('.work').onclick = () => { $('detail').hidden = !$('detail').hidden; };
+  setInterval(() => { const s = Math.round((Date.now() - stepAt) / 1000); $('since').textContent = s >= 20 ? (s < 120 ? s + ' s' : Math.round(s / 60) + ' min') : ''; }, 1000);
+  window.step = ({ n, text }) => {
+    curStep = n; stepAt = Date.now(); $('what').textContent = text;
+    [...$('steps').children].forEach((s, i) => { s.className = i + 1 < n ? 'done' : i + 1 === n ? 'on' : ''; });
+    $('bar').style.width = Math.min(100, (n - 1) * 20) + '%';
+  };
+  window.pct = (p) => { if (curStep === 2) $('bar').style.width = (20 + p * 0.2) + '%'; };
+  window.done = () => { $('bar').style.width = '100%'; show('done'); };
+  window.failed = (why) => { $('failWhy').textContent = why; show('failed'); };
+  $('bRestart').onclick = () => send({ type: 'restart' });
+  $('bAgain').onclick = () => show('drive');
+  $('bClose').onclick = () => send({ type: 'close' });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('s-welcome').hidden) send({ type: 'close' }); });
+</script>
+</body></html>

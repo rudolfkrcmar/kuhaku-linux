@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New tab</title>
+<style>
+  :root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --accent:#e0301e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --accent:#f0705a; } }
+  html, body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inter',system-ui,sans-serif;
+         -webkit-font-smoothing:antialiased; display:flex; justify-content:center; align-items:center; padding:0 24px 8vh; }
+  label { width:min(1160px, 100%); display:flex; align-items:stretch; gap:16px; padding:8px 0; }
+  .line { width:1.5px; background:var(--accent); margin:3px 0; flex-shrink:0; }
+  input { flex:1; border:0; outline:none; background:transparent; padding:0; font:inherit; font-size:26px; line-height:1.4;
+          font-weight:200; letter-spacing:-.01em; color:var(--fg); caret-color:var(--accent); }
+  input::placeholder { color:currentColor; opacity:.5; }
+</style>
+</head>
+<body>
+  <label><span class="line"></span><input id="q" placeholder="Search or type an address" autofocus spellcheck="false" autocomplete="off"></label>
+<script>
+  const q = document.getElementById('q');
+  q.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !q.value.trim()) return;
+    const t = q.value.trim();
+    const url = /^[a-z][a-z0-9+.-]*:/i.test(t) && !/^[^/]+:\d/.test(t) ? t
+      : (!/\s/.test(t) && (t.includes('.') || t.startsWith('localhost'))) ? 'https://' + t
+      : 'https://www.google.com/search?q=' + encodeURIComponent(t);
+    location.href = url;
+  });
+  addEventListener('focus', () => q.focus());
+  addEventListener('mouseup', () => q.focus());
+</script>
+</body>
+</html>

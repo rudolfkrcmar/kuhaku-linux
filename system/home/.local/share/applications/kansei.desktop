@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Kansei
+GenericName=System control
+Comment=管制: everything this computer is doing, live
+Exec=kansei
+Icon=kansei
+Categories=System;Monitor;
+StartupWMClass=kansei.py

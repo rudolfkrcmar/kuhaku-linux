@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Mado
+GenericName=Web Browser
+Comment=The web, quietly. Kūhaku's browser.
+Exec=mado %u
+Icon=mado
+Terminal=false
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+StartupWMClass=browser.py
+Actions=private;
+
+[Desktop Action private]
+Name=New private window
+Exec=mado --private

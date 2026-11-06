@@ -1,0 +1,14 @@
+#!/bin/bash
+echo
+echo "  Kūhaku backup: connect GitHub"
+echo
+echo "  1. Copy the code shown below."
+echo "  2. Press Enter. Mado opens GitHub, where you are signed in."
+echo "  3. Paste the code and press Authorize."
+echo
+gh auth login --hostname github.com --git-protocol https --web && gh auth setup-git && {
+  echo; echo "  Connected. Backing up…"; ~/.local/share/kuhaku/kuhaku-backup
+  python3 -c "import sys; sys.path.insert(0,'$HOME/.local/share/kuhaku'); import tsukuru; tsukuru.write_claude_notes(tsukuru.connections())" 2>/dev/null
+  echo; echo "  Done. Your work is in the private repository 'kuhaku' on GitHub. You can close this window."
+}
+read -r -p "  Press Enter to close." _

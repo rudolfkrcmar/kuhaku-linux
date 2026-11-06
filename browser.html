@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mado</title>
+<style>
+  :root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.07); --faint2:rgba(17,17,17,.1); --accent:#e0301e; }
+  body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.07); --faint2:rgba(236,236,236,.12); --accent:#f0705a; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; }
+  body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inter',system-ui,sans-serif;
+         -webkit-font-smoothing:antialiased; user-select:none; cursor:default; position:relative; }
+  button { border:0; background:none; padding:0; font:inherit; color:var(--muted); cursor:pointer; outline:none;
+           display:flex; align-items:center; justify-content:center; transition:color .15s, opacity .25s; }
+  button:hover { color:var(--fg); }
+
+  /* One line: the address. Everything else waits until the pointer comes near. */
+  .bar { height:52px; display:flex; align-items:center; padding:0 20px 0 32px; gap:18px; }
+  .where { flex:1; min-width:0; display:flex; align-items:center; gap:14px; height:40px; cursor:text; }
+  .line { width:1.5px; height:20px; background:var(--accent); flex-shrink:0; }
+  /* Loading: the Mado mark, its red line breathing above the window. */
+  .dot { width:16px; height:16px; flex-shrink:0; margin:0 -7px; display:flex; }
+  .dot[hidden] { display:none; }
+  .dot .bar { fill:var(--accent); animation:pulse 1.4s ease-in-out infinite; }
+  .dot .frame { fill:none; stroke:var(--muted); stroke-width:1.3; }
+  .addr { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+          font-size:15px; font-weight:300; letter-spacing:.005em; color:var(--muted); }
+  .addr .host { color:var(--fg); }
+  input { flex:1; min-width:0; border:0; outline:none; background:transparent; padding:0; font:inherit;
+          font-size:16px; font-weight:300; color:var(--fg); caret-color:var(--accent); }
+  input::placeholder { color:currentColor; opacity:.45; }
+  /* Selected text: a quiet shade, not the accent (red is for the one line that matters). */
+  input::selection { background:rgba(127,127,127,.28); color:inherit; }
+  .count { font-size:13px; color:var(--muted); white-space:nowrap; }
+  .note { font-size:13px; color:var(--muted); white-space:nowrap; display:flex; gap:12px; align-items:center; animation:fade .3s both; }
+  .note button { font-size:13px; }
+
+  .quiet { display:flex; gap:2px; opacity:0; transition:opacity .3s; }
+  body:hover .quiet { opacity:1; }
+  .quiet button { width:30px; height:30px; }
+  .quiet button[disabled] { opacity:.2; pointer-events:none; }
+  .quiet .gap { width:14px; }
+
+  .tabrow { height:36px; display:flex; align-items:stretch; padding:0 20px 0 36px; gap:2px; }
+  .tab { flex:0 1 210px; min-width:48px; position:relative; justify-content:flex-start; gap:8px; padding:0 12px;
+         font-size:12.5px; font-weight:300; letter-spacing:.005em; color:var(--muted); }
+  .tab span { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-align:left;
+              -webkit-mask-image:linear-gradient(to right, #000 78%, transparent); }
+  .tab::after { content:''; position:absolute; left:12px; right:12px; bottom:0; height:1.5px; background:var(--accent);
+                transform:scaleX(0); transform-origin:left; transition:transform .3s cubic-bezier(.2,.7,.2,1); }
+  .tab.active { color:var(--fg); }
+  .tab.active::after { transform:scaleX(1); }
+  .tab.loading::before { content:''; width:4px; height:4px; border-radius:9px; background:var(--accent); flex-shrink:0;
+                         animation:pulse 1.4s ease-in-out infinite; }
+  .tab .x { width:16px; height:16px; display:flex; align-items:center; justify-content:center; opacity:0;
+            border-radius:9px; transition:opacity .15s; flex-shrink:0; }
+  .tab:hover .x { opacity:.6; }
+  .tab .x:hover { opacity:1; }
+  .plus { width:30px; opacity:0; }
+  .tabrow:hover .plus { opacity:.8; }
+
+  .progress { position:absolute; left:0; bottom:0; height:1.5px; background:var(--accent); width:0;
+              transition:width .3s ease, opacity .5s .2s; opacity:0; }
+  .progress.on { opacity:1; transition:width .3s ease, opacity .1s; }
+  .rule { position:absolute; left:0; right:0; bottom:0; height:1px; background:var(--faint); }
+  [hidden] { display:none !important; }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.15 } }
+  @keyframes fade { from { opacity:0 } to { opacity:1 } }
+
+  /* Three modes in one small toggle: Normal, Private, Developer. The chosen one names itself. */
+  .modes { display:flex; align-items:center; gap:2px; padding:2px; border-radius:17px;
+           box-shadow:inset 0 0 0 1px var(--faint2); }
+  .modes button { height:28px; min-width:32px; padding:0 8px; border-radius:14px; gap:7px; position:relative;
+                  font-size:12.5px; font-weight:300; letter-spacing:.03em; transition:color .15s, background .2s; }
+  .modes button span { display:none; }
+  .modes button.on { background:var(--faint2); color:var(--fg); padding:0 12px 0 9px; }
+  .modes button.on span { display:inline; }
+  .modes .hot { stroke:currentColor; transition:stroke .15s; }
+  .modes button.on .hot, .modes button:hover .hot { stroke:var(--accent); }
+  .modes sup { position:absolute; top:2px; right:2px; font-size:9px; color:var(--accent); }
+  .divide { width:1px; height:18px; background:var(--faint2); }
+
+  /* Private keeps nothing: its line is hollow. Developer: the line is drawn in dots. */
+  body.private .line { background:none; border-left:1.5px dashed var(--accent); width:0; }
+  body.developer .line { background:none; border-left:1.5px dotted var(--accent); width:0; }
+
+  /* The tools of a mode: trackers stopped (Private), the simulated device (Developer). */
+  .tool { height:30px; gap:8px; padding:0 6px; font-size:13px; font-weight:300; white-space:nowrap; }
+  .tool .dim { color:var(--muted); opacity:.75; }
+  .tool.open { color:var(--fg); }
+  .panel { padding:2px 32px 12px 46px; display:flex; flex-wrap:wrap; gap:6px 26px; font-size:12.5px; font-weight:300;
+           color:var(--muted); max-height:120px; overflow:auto; animation:fade .3s both; }
+  .panel .h { color:var(--fg); }
+  .panel.devices { gap:4px; padding-left:40px; }
+  .panel .dev { height:38px; padding:0 12px; gap:9px; border-radius:10px; font-size:13px; font-weight:300; position:relative; }
+  .panel .dev small { font-size:11px; opacity:.6; }
+  .panel .dev:hover { background:var(--faint); }
+  .panel .dev.on { color:var(--fg); }
+  .panel .dev.on::after { content:''; position:absolute; left:12px; right:12px; bottom:3px; height:1.5px; background:var(--accent); }
+
+  /* Minimise and close live in Kūhaku's bar at the top of the screen; one of each is enough. */
+  #bMin, #bClose, #minimize, #quit { display:none !important; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="where" id="where">
+      <span class="line" id="line"></span><span class="dot" id="dot" hidden><svg viewBox="0 0 16 16" width="16" height="16"><rect class="bar" x="2.6" y="1.6" width="10.8" height="1.4"/><rect class="frame" x="3.6" y="5.8" width="8.8" height="8.8"/></svg></span>
+      <div class="addr" id="addr"></div>
+      <input id="input" hidden spellcheck="false" autocomplete="off">
+      <span class="count" id="count" hidden></span>
+    </div>
+    <div class="note" id="note" hidden></div>
+    <button class="tool" id="stopped" hidden title="What this site tried to track"></button>
+    <button class="tool" id="device" hidden title="Simulate a device"></button>
+    <span class="divide" id="divide" hidden></span>
+    <div class="modes" id="modes">
+      <button data-m="normal" title="Normal: your everyday tabs"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round"><path class="hot" d="M6.2 5.35h11.6"/><path d="M7.2 9.2h9.6v9.6H7.2z" stroke="currentColor"/></svg><span>Normal</span></button>
+      <button data-m="private" title="Private: nothing is kept (Ctrl+Shift+N)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round"><path class="hot" d="M6.2 5.35h11.6"/><path d="M7.2 9.2h9.6v9.6H7.2z" stroke="currentColor" stroke-dasharray="2.4 2.4"/></svg><span>Private</span><sup id="ptabs"></sup></button>
+      <button data-m="developer" title="Developer: tools and devices (F12)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5" stroke="currentColor"/><path class="hot" d="M13.4 5.5l-2.8 13"/></svg><span>Developer</span></button>
+    </div>
+    <div class="quiet">
+      <button id="back" title="Back (Alt+Left)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button id="forward" title="Forward (Alt+Right)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      <span class="gap"></span>
+      <button id="minimize" title="Minimise"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+      <button id="quit" title="Close (Ctrl+Q)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </div>
+  <div class="tabrow" id="tabrow" hidden>
+    <div class="tabs" id="tabs" style="display:flex;align-items:stretch;gap:2px;min-width:0"></div>
+    <button class="plus" id="plus" title="New tab (Ctrl+T)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
+  <div class="panel" id="panel" hidden></div>
+  <div class="rule"></div>
+  <div class="progress" id="progress"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const send = (m) => { try { window.webkit.messageHandlers.chrome.postMessage(JSON.stringify(m)); } catch (e) {} };
+  const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const params = new URLSearchParams(location.search);
+  if (params.get('theme') === 'night') document.body.classList.add('night');
+  let panel = null, height = -1;
+  const svg = (d, w = 15) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const ICON = {
+    shield: svg('<path d="M12 3.8l7 2.6v5.2c0 4.3-3 7.4-7 8.6-4-1.2-7-4.3-7-8.6V6.4z"/><path d="M9.2 12l2 2 3.8-4"/>'),
+    phone: svg('<rect x="7.5" y="3.5" width="9" height="17" rx="2"/><path d="M11 17.6h2"/>'),
+    tablet: svg('<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M11 17.6h2"/>'),
+    laptop: svg('<rect x="5.5" y="5.5" width="13" height="9" rx="1"/><path d="M3.5 18h17"/>'),
+    full: svg('<rect x="3.5" y="5" width="17" height="12" rx="1.2"/><path d="M9 20h6M12 17v3"/>'),
+  };
+  // The bar grows only by what it shows: the tab row, the list of stopped trackers.
+  function fit() {
+    const h = 52 + ($('tabrow').hidden ? 0 : 36) + ($('panel').hidden ? 0 : $('panel').offsetHeight);
+    if (h !== height) { height = h; send({ type: 'height', value: h }); }
+  }
+
+  let state = { url: '', title: '', tabs: [] }, mode = null, hovering = '';
+
+  function pretty(url) {
+    try {
+      const u = new URL(url);
+      if (!/^https?:$/.test(u.protocol)) return `<span class="host">${esc(url)}</span>`;
+      const host = u.hostname.replace(/^www\./, '');
+      const rest = (u.pathname === '/' ? '' : decodeURI(u.pathname)) + (u.search.length > 1 ? u.search : '');
+      return `<span class="host">${esc(host)}</span>${esc(rest.length > 48 ? rest.slice(0, 48) + '…' : rest)}`;
+    } catch (e) { return esc(url); }
+  }
+
+  function drawAddr() {
+    const a = $('addr');
+    a.classList.toggle('hovering', !!hovering);
+    if (hovering) { a.textContent = hovering; return; }
+    if (!state.url) { a.textContent = 'Search or type an address'; return; }
+    a.innerHTML = pretty(state.url);
+  }
+
+  window.update = (s) => {
+    state = s;
+    $('back').disabled = !s.back; $('forward').disabled = !s.forward;
+    $('line').hidden = s.loading; $('dot').hidden = !s.loading;
+    const p = $('progress');
+    p.classList.toggle('on', s.loading);
+    p.style.width = (s.loading ? Math.max(.06, s.progress) : 1) * 100 + '%';
+    if (!s.loading) setTimeout(() => { if (!state.loading) p.style.width = '0'; }, 700);
+    $('tabs').innerHTML = s.tabs.map((t, i) =>
+      `<button class="tab${t.active ? ' active' : ''}${t.loading ? ' loading' : ''}" data-i="${i}" title="${esc(t.title)}"><span>${esc(t.title)}</span>` +
+      `<i class="x" data-close="${i}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></i></button>`).join('');
+    // The tab row only exists when there is more than one tab.
+    const many = s.tabs.length > 1;
+    $('tabrow').hidden = !many;
+    const m = s.mode || 'normal';
+    document.body.classList.toggle('private', m === 'private');
+    document.body.classList.toggle('developer', m === 'developer');
+    document.querySelectorAll('.modes button').forEach((b) => b.classList.toggle('on', b.dataset.m === m));
+    $('ptabs').textContent = m !== 'private' && s.privateTabs ? s.privateTabs : '';
+    // Private: what the site tried, and Mado stopped.
+    const st = s.stopped || [];
+    $('stopped').hidden = m !== 'private';
+    $('stopped').innerHTML = ICON.shield + (st.length ? `${st.length} <span class="dim">stopped</span>` : '<span class="dim">No trackers</span>');
+    // Developer: the device the page is shown as; its icon opens the others.
+    $('device').hidden = m !== 'developer';
+    const dv = (s.devices || []).find((x) => x.name === s.device);
+    if (m === 'developer' && dv) $('device').innerHTML = ICON[dv.kind] + esc(dv.kind === 'full' ? 'Full window' : dv.name) + (s.size ? ` <span class="dim">${esc(s.size)}</span>` : '');
+    $('divide').hidden = m === 'normal';
+    if ((panel === 'trackers' && m !== 'private') || (panel === 'devices' && m !== 'developer')) panel = null;
+    $('stopped').classList.toggle('open', panel === 'trackers');
+    $('device').classList.toggle('open', panel === 'devices');
+    const pn = $('panel');
+    pn.hidden = !panel;
+    pn.classList.toggle('devices', panel === 'devices');
+    if (panel === 'trackers') pn.innerHTML = st.length
+      ? st.map((t) => `<span><span class="h">${esc(t.host)}</span> · ${esc(t.how)}</span>`).join('')
+      : '<span>Nothing on this site tried to follow you.</span>';
+    if (panel === 'devices') pn.innerHTML = s.devices.map((x) =>
+      `<button class="dev${x.name === s.device ? ' on' : ''}" data-dev="${esc(x.name)}">${ICON[x.kind]}${esc(x.name)}${x.size ? ` <small>${esc(x.size)}</small>` : ''}</button>`).join('');
+    fit();
+    const d = s.download, n = $('note');
+    n.hidden = !d && !s.ask;
+    // A site asking for the microphone, camera or clipboard: one quiet line, answered once.
+    if (s.ask) n.innerHTML = `${esc(s.ask.host)} wants ${esc(s.ask.what)} <button id="permYes">Allow</button><button id="permNo">Not now</button>`;
+    else if (d) n.innerHTML = d.done ? `Saved ${esc(d.name)} <button id="openDl">Show</button>`
+                                : `Downloading ${esc(d.name)} · ${Math.round((d.progress || 0) * 100)}%`;
+    if (!mode) drawAddr();
+    if (!mode && !s.url && document.hasFocus()) {}
+  };
+
+  window.hover = (link) => { hovering = link; if (!mode) drawAddr(); };
+
+  function edit(next, value) {
+    mode = next;
+    $('addr').hidden = true; $('input').hidden = false;
+    $('count').hidden = next !== 'find';
+    $('input').placeholder = next === 'find' ? 'Find in page' : 'Search or type an address';
+    $('input').value = value;
+    $('input').focus(); $('input').select();
+  }
+  function done() {
+    if (mode === 'find') send({ type: 'find', text: '' });
+    mode = null;
+    $('addr').hidden = false; $('input').hidden = true; $('count').hidden = true;
+    drawAddr();
+    send({ type: 'doneEditing' });
+  }
+  window.editAddress = () => edit('address', state.url);
+  window.editFind = () => { edit('find', ''); $('count').textContent = ''; };
+  window.found = (n) => { $('count').textContent = $('input').value ? (n ? n + (n === 1 ? ' match' : ' matches') : 'No matches') : ''; };
+
+  $('where').addEventListener('click', () => { if (!mode) editAddress(); });
+  $('input').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); return done(); }
+    if (e.key !== 'Enter') return;
+    if (mode === 'address') { const t = $('input').value; mode = null; done(); send({ type: 'go', text: t }); }
+    else send({ type: 'find', text: $('input').value, next: true, backwards: e.shiftKey });
+  });
+  $('input').addEventListener('input', () => { if (mode === 'find') send({ type: 'find', text: $('input').value }); });
+  $('input').addEventListener('blur', () => { if (mode === 'address') setTimeout(() => { if (mode === 'address' && document.activeElement !== $('input')) done(); }, 100); });
+
+  $('back').addEventListener('click', () => send({ type: 'back' }));
+  $('forward').addEventListener('click', () => send({ type: 'forward' }));
+  $('modes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send({ type: 'mode', mode: b.dataset.m }); });
+  $('stopped').addEventListener('click', () => { panel = panel === 'trackers' ? null : 'trackers'; update(state); });
+  $('device').addEventListener('click', () => { panel = panel === 'devices' ? null : 'devices'; update(state); });
+  $('panel').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dev]');
+    if (b) { panel = null; send({ type: 'device', name: b.dataset.dev }); }
+  });
+  $('plus').addEventListener('click', () => send({ type: 'newTab' }));
+  $('quit').addEventListener('click', () => send({ type: 'quit' }));
+  $('minimize').addEventListener('click', () => send({ type: 'minimize' }));
+  $('note').addEventListener('click', (e) => {
+    if (e.target.id === 'openDl') send({ type: 'openDownloads' });
+    if (e.target.id === 'permYes' || e.target.id === 'permNo') send({ type: 'perm', allow: e.target.id === 'permYes' });
+  });
+  $('tabs').addEventListener('click', (e) => {
+    const x = e.target.closest('[data-close]');
+    if (x) return send({ type: 'closeTab', index: +x.dataset.close });
+    const t = e.target.closest('.tab'); if (t) send({ type: 'tab', index: +t.dataset.i });
+  });
+  $('tabs').addEventListener('auxclick', (e) => { const t = e.target.closest('.tab'); if (t && e.button === 1) send({ type: 'closeTab', index: +t.dataset.i }); });
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  drawAddr();
+</script>
+</body>
+</html>

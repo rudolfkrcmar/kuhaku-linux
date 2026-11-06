@@ -1,0 +1,13 @@
+#!/bin/sh
+# Sign-in pages from claude, codex and gemini open in Kūhaku's clean sign-in window;
+# it is told which tool is waiting, so closing the window stops that tool too.
+# Claude's pages sit behind Cloudflare's human check, which WebKitGTK can never pass,
+# so those go to Firefox (KUHAKU_SIGNIN_BROWSER=firefox, set by kuhaku.py sign_in).
+case "$1" in
+  http://*|https://*)
+    if [ "$KUHAKU_SIGNIN_BROWSER" = firefox ] && [ -x "$HOME/.local/opt/firefox-signin" ]; then
+      exec "$HOME/.local/opt/firefox-signin" "$1"
+    fi
+    KUHAKU_SIGNIN_PARENT=$PPID exec setsid -f python3 "$HOME/.local/share/kuhaku/kuhaku-signin.py" "$1" >/dev/null 2>&1 ;;
+  *) exec /usr/bin/xdg-open "$@" ;;
+esac

@@ -1,0 +1,66 @@
+#!/bin/sh
+# Gives the person logging in their own Kūhaku: the app in ~/.local/share/kuhaku
+# (a copy Claude can change and back up), launchers, icons and file defaults.
+# Every step is independent: one failing file must never stop the rest
+# (that once left a whole first start without apps or Claude).
+SRC="${KUHAKU_SHARE:-/usr/share/kuhaku}"
+K="$HOME/.local/share/kuhaku"
+mkdir -p "$K" "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.config/kuhaku" \
+         "$HOME/Pictures/Screenshots" "$HOME/Videos/Screen Recordings" "$HOME/Projects"
+cp -a "$SRC/app/." "$K/" || true
+# Launchers and app entries, pointing at this home.
+for f in "$SRC"/home/.local/bin/*; do
+  [ -f "$f" ] && [ -r "$f" ] || continue
+  n=$(basename "$f")
+  sed "s#\$HOME#$HOME#g" "$f" > "$HOME/.local/bin/$n" && chmod +x "$HOME/.local/bin/$n" || true
+done
+for f in "$SRC"/home/.local/share/applications/*.desktop; do
+  [ -f "$f" ] && [ -r "$f" ] || continue
+  sed "s#\$HOME#$HOME#g" "$f" > "$HOME/.local/share/applications/$(basename "$f")" || true
+done
+[ -d "$SRC/home/.local/share/icons" ] && cp -a "$SRC/home/.local/share/icons" "$HOME/.local/share/" 2>/dev/null
+[ -d "$SRC/home/.local/share/themes" ] && cp -a "$SRC/home/.local/share/themes" "$HOME/.local/share/" 2>/dev/null
+[ -f "$SRC/home/.config/mimeapps.list" ] && cp "$SRC/home/.config/mimeapps.list" "$HOME/.config/mimeapps.list"
+if [ -f "$SRC/home/.config/touchegg/touchegg.conf" ]; then
+  mkdir -p "$HOME/.config/touchegg"; cp "$SRC/home/.config/touchegg/touchegg.conf" "$HOME/.config/touchegg/"
+fi
+if [ -f "$SRC/home/.config/kuhaku/config.json" ] && [ ! -f "$HOME/.config/kuhaku/config.json" ]; then
+  cp "$SRC/home/.config/kuhaku/config.json" "$HOME/.config/kuhaku/"
+  # How freely Claude may work, as chosen in the installer (only on this first copy).
+  if [ -r /etc/kuhaku/permission-mode ]; then
+    python3 - "$HOME/.config/kuhaku/config.json" "$(cat /etc/kuhaku/permission-mode)" <<'PY' || true
+import json, sys
+p, mode = sys.argv[1], sys.argv[2]
+if mode in ("bypassPermissions", "acceptEdits"):
+    c = json.load(open(p)); c["permission_mode"] = mode
+    if mode == "acceptEdits":  # Kūhaku cannot show a permission prompt: careful means no commands at all
+        c["allowed_tools"] = [t for t in c.get("allowed_tools", []) if t != "Bash"]
+    json.dump(c, open(p, "w"), indent=2)
+PY
+  fi
+fi
+update-desktop-database "$HOME/.local/share/applications" 2>/dev/null
+# Kūhaku keeps its own history, so every change Claude makes can be undone and backed up.
+if [ ! -d "$K/.git" ]; then
+  git -C "$K" init -q -b main && git -C "$K" add -A && \
+    git -C "$K" -c user.name="Kūhaku" -c user.email="kuhaku@localhost" commit -q -m "Kūhaku as installed"
+fi
+
+# Claude Code (Anthropic's installer, into ~/.local/bin) as soon as there is internet,
+# then its sign-in opens once in Kūhaku's terminal.
+if ! command -v claude >/dev/null && [ ! -x "$HOME/.local/bin/claude" ]; then
+  (
+    for _ in $(seq 1 720); do                      # up to an hour, waiting for Wi‑Fi
+      if nmcli -t networking connectivity 2>/dev/null | grep -q full; then
+        if curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1 && [ -x "$HOME/.local/bin/claude" ]; then
+          [ -d /run/live/medium ] || notify-send "Kūhaku" "Claude is ready. Sign in once in the window that opens." 2>/dev/null
+          # From the stick the installer comes first; sign in on the installed system.
+          [ -d /run/live/medium ] || "$HOME/.local/bin/kuhaku-terminal" -e "$HOME/.local/bin/claude" &
+          break
+        fi
+      fi
+      sleep 5
+    done
+  ) &
+fi
+exit 0

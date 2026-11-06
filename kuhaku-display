@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""The screen's size at login: the one you chose, or else the clearest comfortable one.
+
+    kuhaku-display apply          set each screen to its chosen (or best) size
+    kuhaku-display save OUT MODE  remember OUT's size (Settings calls this)
+
+A size chosen in Settings is kept in ~/.config/kuhaku/display.json and used at every
+login. Without one, a built-in panel gets the largest size of its own shape that
+stays under about 190 pixels per inch: sharp, but type and buttons stay a readable
+size (2304x1440 MacBook panel → 1920x1200). Ordinary screens keep their native size.
+"""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+SAVED = Path.home() / ".config/kuhaku/display.json"
+MAX_DPI = 192
+
+
+def outputs():
+    out = subprocess.run(["xrandr", "--query"], capture_output=True, text=True).stdout
+    outs, cur = [], None
+    for line in out.splitlines():
+        m = re.match(r"^(\S+) connected.*?(?:(\d+)mm x (\d+)mm)?$", line)
+        if m:
+            cur = {"name": m.group(1), "mm": int(m.group(2) or 0), "modes": [], "current": None}
+            outs.append(cur)
+            continue
+        if not line.startswith(" "):
+            cur = None
+            continue
+        mm = re.match(r"^\s+(\d+)x(\d+)\s+(.*)", line)
+        if cur and mm:
+            res = (int(mm.group(1)), int(mm.group(2)))
+            if res not in cur["modes"]:
+                cur["modes"].append(res)
+            if "*" in mm.group(3):
+                cur["current"] = res
+    return outs
+
+
+def best(o):
+    if not o["modes"]:
+        return None
+    nw, nh = o["modes"][0]
+    if not o["name"].startswith(("eDP", "LVDS", "DSI")) or not o["mm"]:
+        return o["modes"][0]
+    inches = o["mm"] / 25.4
+    same = [m for m in o["modes"] if abs(m[0] / m[1] - nw / nh) < 0.02 and m[0] >= 1280]
+    fit = [m for m in same if m[0] / inches <= MAX_DPI]
+    return max(fit) if fit else o["modes"][0]
+
+
+def load():
+    try:
+        return json.loads(SAVED.read_text())
+    except Exception:
+        return {}
+
+
+def apply():
+    saved = load()
+    for o in outputs():
+        if o["current"] is None:
+            continue  # switched off: leave it be
+        want = saved.get(o["name"])
+        mode = tuple(map(int, want.split("x"))) if want and re.fullmatch(r"\d+x\d+", want) else None
+        if mode not in o["modes"]:
+            mode = best(o)
+        if mode and mode != o["current"]:
+            subprocess.run(["xrandr", "--output", o["name"], "--mode", f"{mode[0]}x{mode[1]}"])
+
+
+def save(name, mode):
+    data = load()
+    data[name] = mode
+    SAVED.parent.mkdir(parents=True, exist_ok=True)
+    SAVED.write_text(json.dumps(data, indent=1))
+
+
+if __name__ == "__main__":
+    if sys.argv[1:2] == ["save"] and len(sys.argv) == 4:
+        save(sys.argv[2], sys.argv[3])
+    else:
+        apply()

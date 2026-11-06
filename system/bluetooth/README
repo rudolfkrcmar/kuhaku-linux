@@ -1,0 +1,8 @@
+MacBook8,1 Bluetooth (BCM2E7C on the UART ttyS4).
+The firmware's ACPI table lists an SSD debug port (URT0.SSDC) before Bluetooth (URT0.BLTH) on the same UART;
+Linux allows one device per UART, so Bluetooth never registered (serdev -EBUSY).
+Fix: the original DSDT with SSDC._STA changed 0x0F -> 0x00 (3 bytes: value, OEM revision, checksum),
+loaded early at boot as an ACPI table override: /boot/kuhaku-acpi-override.cpio via
+GRUB_EARLY_INITRD_LINUX_CUSTOM in /etc/default/grub.d/91-kuhaku-acpi.cfg.
+Undo: sudo rm /etc/default/grub.d/91-kuhaku-acpi.cfg /boot/kuhaku-acpi-override.cpio && sudo update-grub
+Not included here: the DSDT is Apple firmware. Make your own: sudo cat /sys/firmware/acpi/tables/DSDT > DSDT, patch SSDC._STA as above, then pack it into kuhaku-acpi-override.cpio (kernel/firmware/acpi/DSDT).

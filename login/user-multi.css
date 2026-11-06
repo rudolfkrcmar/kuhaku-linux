@@ -1,0 +1,10 @@
+
+/* More than one person: the name shows above the line, as quiet text that opens a list. */
+#user_combobox, #user_combobox *, #user_combobox cellview,
+#user_combobox button, #user_combobox button:hover, #user_combobox button:checked {
+  opacity: 1; background: transparent; border: none; box-shadow: none; color: #9a9a9a;
+  font-size: 15px; font-weight: 300; letter-spacing: .02em; padding: 0 0 0 20px; min-height: 0;
+}
+#user_combobox { margin-bottom: 18px; }
+#user_combobox button:hover * { color: #ececec; }
+#user_combobox arrow { opacity: 0; }

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Kiroku
+GenericName=Job history
+Comment=記録: every job an AI did, with model, time, tokens, cost and energy
+Exec=kiroku
+Icon=kiroku
+Categories=Utility;
+StartupWMClass=kiroku.py

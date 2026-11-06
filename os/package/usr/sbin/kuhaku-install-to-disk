@@ -1,0 +1,161 @@
+#!/bin/bash
+# Installs the running live Kūhaku onto a computer's own drive. Run as root by the installer.
+#
+#   kuhaku-install-to-disk DISK USER "Full Name" MODE ZONE [CARRY]   (the password comes on stdin)
+#   MODE: how freely Claude may work, bypassPermissions (default) or acceptEdits.
+#   ZONE: time zone, e.g. Europe/Prague (UTC if unknown).
+#
+# One password does everything: it unlocks the encrypted drive when the computer starts
+# (asked on the boot screen), it is the account password, and it opens the carried files.
+# After the drive is unlocked Kūhaku logs in by itself, so it is asked only once.
+# Progress is printed as "STEP n text" and "PCT n" lines for the installer screen.
+set -euo pipefail
+DISK="$1"; USERNAME="$2"; FULLNAME="$3"; MODE="${4:-bypassPermissions}"; ZONE="${5:-UTC}"; CARRY="${6:-}"
+IFS= read -r PASS
+T=/target
+SQUASH=/run/live/medium/live/filesystem.squashfs
+step() { echo "STEP $1 $2"; }
+fail() { echo "FAIL $*"; exit 1; }
+say() { echo "$(date +%H:%M:%S) $*"; }
+# One drive command with a time limit: a stuck drive must fail with a reason, never hang silently.
+# (Usage: run SECONDS "what it does" command…; the password is never part of the command line.)
+run() { local t="$1" what="$2"; shift 2; say "$what"
+  timeout "$t" "$@" || { local rc=$?; [ $rc = 124 ] && fail "$what took longer than ${t}s"; fail "$what failed ($rc)"; }; }
+trap 'echo "FAIL line $LINENO"' ERR
+say "Disk $DISK: $(lsblk -dno MODEL,SIZE "$DISK" | xargs)"
+
+[ -b "$DISK" ] || fail "no such disk $DISK"
+[ -f "$SQUASH" ] || fail "not running from the Kūhaku stick"
+[[ "$USERNAME" =~ ^[a-z][a-z0-9-]{0,30}$ ]] || fail "name must be lowercase letters"
+[[ "$ZONE" =~ ^[A-Za-z0-9_+/-]+$ && "$ZONE" != *..* && -f "/usr/share/zoneinfo/$ZONE" ]] || ZONE=UTC
+case "$MODE" in bypassPermissions|acceptEdits) ;; *) fail "unknown mode $MODE" ;; esac
+[[ "$FULLNAME" != *[:$'\n']* ]] || fail "the name cannot contain a colon"
+case "$DISK" in *nvme*|*mmcblk*) P=p ;; *) P= ;; esac
+
+# 1. The drive: a small EFI part, a small start part (/boot, readable before the password)
+#    and one encrypted part for everything else.
+step 1 "Preparing the drive"
+say "Letting go of the old system's parts"
+for m in $(lsblk -nrpo MOUNTPOINT "$DISK" | grep -v '^$' | sort -r); do timeout 30 umount -l "$m" || true; done
+timeout 30 swapoff -a || true
+for d in $(lsblk -nrpo NAME,TYPE "$DISK" | awk '$2=="crypt"{print $1}'); do timeout 30 cryptsetup close "$d" || true; done
+run 120 "Erasing the old layout" wipefs -af "$DISK"
+run 120 "Clearing the partition table" sgdisk -Z "$DISK"
+run 120 "Making three parts" sgdisk -n1:0:+512M -t1:ef00 -c1:EFI -n2:0:+1G -t2:8300 -c2:start -n3:0:0 -t3:8309 -c3:kuhaku "$DISK"
+say "Telling the system about them"
+timeout 60 partprobe "$DISK" || true; timeout 60 udevadm settle --timeout=50 || true
+EFI="${DISK}${P}1"; BOOT="${DISK}${P}2"; ROOT="${DISK}${P}3"
+for i in $(seq 1 20); do [ -b "$ROOT" ] && break; sleep 1; done
+[ -b "$ROOT" ] || fail "the new parts did not appear"
+run 120 "Formatting the EFI part" mkfs.vfat -F32 -n EFI "$EFI"
+# nodiscard: trimming a whole SSD first can take very long on some drives (Apple's among them).
+run 300 "Formatting the start part" mkfs.ext4 -q -F -E nodiscard -L start "$BOOT"
+step 1 "Locking the drive with your password"
+say "Encrypting (this takes a few seconds)"
+printf '%s' "$PASS" | timeout 300 cryptsetup luksFormat --type luks2 --pbkdf argon2id --iter-time 1500 -q --key-file=- "$ROOT" \
+  || fail "encrypting the drive failed"
+say "Opening it"
+printf '%s' "$PASS" | timeout 120 cryptsetup open --key-file=- --allow-discards "$ROOT" kuhaku-root || fail "opening the encrypted drive failed"
+run 600 "Formatting the main part" mkfs.ext4 -q -F -E nodiscard,lazy_itable_init=1 -L kuhaku /dev/mapper/kuhaku-root
+say "Mounting"
+mkdir -p "$T"; mount /dev/mapper/kuhaku-root "$T"
+mkdir -p "$T/boot"; mount "$BOOT" "$T/boot"
+mkdir -p "$T/boot/efi"; mount "$EFI" "$T/boot/efi"
+
+# 2. Kūhaku itself: the same system you are running, copied whole.
+step 2 "Copying Kūhaku"
+say "Copying the whole system from the stick"
+unsquashfs -f -percentage -d "$T" "$SQUASH" | while read -r n; do echo "PCT $n"; done
+
+# 3. Make it this computer's own system.
+step 3 "Making it start"
+say "Writing the drive's settings"
+for d in dev dev/pts proc sys run; do mount --bind "/$d" "$T/$d"; done
+mount --make-rslave "$T/dev" "$T/sys" 2>/dev/null || true
+[ -d /sys/firmware/efi/efivars ] && mount -t efivarfs efivarfs "$T/sys/firmware/efi/efivars" 2>/dev/null || true
+LUKS_UUID=$(blkid -s UUID -o value "$ROOT")
+ROOT_UUID=$(blkid -s UUID -o value /dev/mapper/kuhaku-root)
+EFI_UUID=$(blkid -s UUID -o value "$EFI")
+BOOT_UUID=$(blkid -s UUID -o value "$BOOT")
+cat > "$T/etc/fstab" <<F
+UUID=$ROOT_UUID  /          ext4  defaults,noatime,discard  0 1
+UUID=$BOOT_UUID  /boot      ext4  defaults,noatime          0 2
+UUID=$EFI_UUID   /boot/efi  vfat  umask=0077               0 1
+F
+echo "kuhaku-root UUID=$LUKS_UUID none luks,discard" > "$T/etc/crypttab"
+echo kuhaku > "$T/etc/hostname"
+printf '127.0.0.1\tlocalhost\n127.0.1.1\tkuhaku\n::1\tlocalhost ip6-localhost ip6-loopback\n' > "$T/etc/hosts"
+# Wi‑Fi joined in the live system comes along.
+cp -a /etc/NetworkManager/system-connections/. "$T/etc/NetworkManager/system-connections/" 2>/dev/null || true
+# Only what this computer needs at start (the live start carries drivers for every computer).
+mkdir -p "$T/etc/initramfs-tools/conf.d"
+echo "MODULES=dep" > "$T/etc/initramfs-tools/conf.d/kuhaku"
+# …but always the display drivers, so the boot screen (and its password line) is Kūhaku's.
+printf 'i915\namdgpu\nnouveau\nbochs\nvirtio_gpu\nsimpledrm\n' >> "$T/etc/initramfs-tools/modules"
+echo "FRAMEBUFFER=y" > "$T/etc/initramfs-tools/conf.d/kuhaku-splash"
+printf '[Daemon]\nTheme=kuhaku\nShowDelay=0\n' > "$T/etc/plymouth/plymouthd.conf"
+# The installed system is quiet and has no menu.
+sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/; s/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3"/' "$T/etc/default/grub"
+grep -q '^GRUB_TIMEOUT_STYLE' "$T/etc/default/grub" || echo 'GRUB_TIMEOUT_STYLE=hidden' >> "$T/etc/default/grub"
+echo 'GRUB_DISTRIBUTOR="Kuhaku"' > "$T/etc/default/grub.d/90-kuhaku.cfg" 2>/dev/null || { mkdir -p "$T/etc/default/grub.d"; echo 'GRUB_DISTRIBUTOR="Kuhaku"' > "$T/etc/default/grub.d/90-kuhaku.cfg"; }
+
+say "Making your account"
+chroot "$T" /bin/bash -e <<CH
+export DEBIAN_FRONTEND=noninteractive
+# The live system's helpers are not part of an installed computer.
+apt-get purge -y -q live-boot live-boot-initramfs-tools live-config live-config-systemd live-tools user-setup >/dev/null 2>&1 || true
+rm -f /usr/lib/live/config/0031-kuhaku-admin
+userdel -r admin >/dev/null 2>&1 || true
+# The person.
+ln -sf "/usr/share/zoneinfo/$ZONE" /etc/localtime; echo "$ZONE" > /etc/timezone
+CH
+# The person (name passed as an argument, never pasted into a script: quotes in a name are fine).
+chroot "$T" useradd -m -s /bin/bash -c "$FULLNAME" -G sudo,audio,video,netdev,plugdev,users "$USERNAME"
+printf '%s:%s\n' "$USERNAME" "$PASS" | chroot "$T" chpasswd
+# How freely Claude may work, as chosen in the installer (read by kuhaku-setup-user at first login).
+mkdir -p "$T/etc/kuhaku"; echo "$MODE" > "$T/etc/kuhaku/permission-mode"
+# The drive password was just typed at start: log straight in after that.
+mkdir -p "$T/etc/lightdm/lightdm.conf.d"
+printf '[Seat:*]\nautologin-user=%s\nautologin-session=kuhaku\n' "$USERNAME" > "$T/etc/lightdm/lightdm.conf.d/95-kuhaku-autologin.conf"
+chroot "$T" groupadd -f -r autologin; chroot "$T" gpasswd -a "$USERNAME" autologin >/dev/null
+
+# 4. Your things from the old system (encrypted with the same password).
+if [ -n "$CARRY" ] && [ -f "$CARRY" ]; then
+  step 4 "Bringing your things"
+  H="$T/home/$USERNAME"
+  printf '%s' "$PASS" | gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 0 -d "$CARRY" | tar -x -C "$H"
+  # System pieces carried along (Wi‑Fi networks, Bluetooth fix for this MacBook).
+  if [ -d "$H/.kuhaku-carry/system" ]; then
+    cp -a "$H/.kuhaku-carry/system/NetworkManager/." "$T/etc/NetworkManager/system-connections/" 2>/dev/null || true
+    [ -f "$H/.kuhaku-carry/system/kuhaku-acpi-override.cpio" ] && {
+      cp "$H/.kuhaku-carry/system/kuhaku-acpi-override.cpio" "$T/boot/"
+      echo 'GRUB_EARLY_INITRD_LINUX_CUSTOM="kuhaku-acpi-override.cpio"' > "$T/etc/default/grub.d/91-kuhaku-acpi.cfg"; }
+  fi
+  chroot "$T" chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
+fi
+chmod 600 "$T"/etc/NetworkManager/system-connections/* 2>/dev/null || true
+
+# 4b. This MacBook's speakers: build the driver if it came along and there is internet.
+if [ -d "$T/home/$USERNAME/src/macbook8.1-speaker-driver" ] && grep -q "MacBook8,1" /sys/class/dmi/id/product_name 2>/dev/null; then
+  step 4 "Making the speakers work"
+  cp /etc/resolv.conf "$T/etc/resolv.conf" 2>/dev/null || true
+  chroot "$T" /bin/bash -c "export DEBIAN_FRONTEND=noninteractive; apt-get update -q >/dev/null 2>&1 &&
+    apt-get install -y -q dkms build-essential bc flex bison libelf-dev libssl-dev python3 curl wget xz-utils linux-headers-\$(uname -r) >/dev/null 2>&1 &&
+    cd /home/$USERNAME/src/macbook8.1-speaker-driver && SUDO_USER=$USERNAME timeout 1800 bash install.sh >/var/log/kuhaku-speakers.log 2>&1" \
+    || echo "NOTE speakers later: see /var/log/kuhaku-speakers.log"
+fi
+
+# 5. Start-up files and the boot loader (EFI/BOOT/BOOTX64.EFI: Macs start it without settings).
+step 5 "Finishing"
+say "Making the start-up files"
+chroot "$T" update-initramfs -c -k all >/dev/null 2>&1 || chroot "$T" update-initramfs -u -k all >/dev/null
+say "Installing the boot loader"
+chroot "$T" grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=kuhaku --removable --no-nvram
+chroot "$T" update-grub
+say "Writing everything down"
+cp /tmp/kuhaku-install.log "$T/var/log/kuhaku-install.log" 2>/dev/null || true
+sync
+umount -R "$T" || umount -lR "$T"
+cryptsetup close kuhaku-root || true
+step 6 "Done"
+echo DONE

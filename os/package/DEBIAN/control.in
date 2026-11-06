@@ -1,0 +1,20 @@
+Package: kuhaku
+Version: @VERSION@
+Section: x11
+Priority: optional
+Architecture: all
+Maintainer: Rudolf Krcmar <3954764+rudolfkrcmar@users.noreply.github.com>
+Depends: python3, python3-gi, python3-gi-cairo, gir1.2-gtk-3.0, gir1.2-webkit2-4.1, gir1.2-vte-2.91, gir1.2-secret-1,
+ gir1.2-pango-1.0, wmctrl, x11-utils, x11-xserver-utils, x11-xkb-utils, xfwm4, xfce4-settings, xfconf, xfce4-power-manager,
+ xfce4-notifyd, light-locker, lightdm, lightdm-gtk-greeter, network-manager, pipewire-pulse, wireplumber, pulseaudio-utils,
+ gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, gstreamer1.0-tools,
+ plymouth, poppler-utils, power-profiles-daemon, mate-polkit, gnome-keyring, libpam-gnome-keyring, git, gh, rsync, curl,
+ unattended-upgrades, xdg-utils, xdg-user-dirs, fonts-inter, fonts-jetbrains-mono, heif-gdk-pixbuf, dbus-x11,
+ wpasupplicant, pkexec, python3-psutil, upower, rtkit, at-spi2-core, fonts-wqy-microhei, libnotify-bin,
+ plymouth-label, python3-pyqt6.qtwebengine, python3-pyqt6.qtwebchannel, squashfs-tools, cryptsetup, cryptsetup-initramfs, gdisk, dosfstools, grub-efi-amd64, efibootmgr, gnupg, parted
+Recommends: touchegg, firmware-brcm80211, xfce4-terminal, python3-numpy
+Homepage: https://www.kuhaku.space
+Description: Kūhaku (空白), a calm home for Claude
+ A full screen home where you ask Claude and it does the work: the home screen,
+ Mado (browser), Miru (files), Tegami (mail), Tsukuru (code), screenshots with
+ markup, and the login and boot screens in the same quiet style.

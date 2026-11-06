@@ -1,0 +1,10 @@
+[Unit]
+Description=Kūhaku: update the Claude desktop app daily
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1d
+Persistent=true
+
+[Install]
+WantedBy=timers.target

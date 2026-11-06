@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Packs this computer's things for the move to Kūhaku on Debian.
+
+Asks once for the new Kūhaku password (it will open the new computer, and these files),
+then writes one encrypted archive to the stick's KUHAKU-CARRY partition:
+your home folder without caches, Kūhaku's own folder with its history, mail, browser
+sign-ins, Claude and GitHub sign-ins, saved passwords (mail), Wi‑Fi networks and this
+MacBook's Bluetooth and speaker fixes.
+
+    kuhaku-carry            (the stick must be plugged in, already holding the Kūhaku image)
+"""
+import json
+import os
+import subprocess
+import sys
+import threading
+from pathlib import Path
+
+import gi
+gi.require_version("Gtk", "3.0")
+gi.require_version("Secret", "1")
+from gi.repository import GLib, Gtk, Secret
+
+HOME = Path.home()
+HELPER = Path(__file__).resolve().parent / "kuhaku-carry-root"
+KEEP = [".local/share/kuhaku", ".local/state/kuhaku", ".config/kuhaku", ".claude", ".claude.json", ".config/gh",
+        ".railway", ".ssh", ".gitconfig", ".config/Claude", ".local/share/fonts", ".local/share/icons",
+        ".local/share/themes", ".local/share/applications", ".config/mimeapps.list", ".config/touchegg",
+        ".config/pipewire", ".config/wireplumber", ".config/gtk-3.0", "Projects", "Documents", "Pictures", "Videos",
+        "Music", "Downloads", "Desktop", "src", ".bashrc", ".profile"]
+SKIP = [".local/share/kuhaku/venv", ".local/share/kuhaku/archive", ".config/Claude/vm_bundles", ".config/Claude/Cache",
+        ".config/Claude/Code Cache", ".config/Claude/GPUCache", ".config/Claude/claude-code-vm", "**/__pycache__",
+        "**/node_modules", ".cache"]
+SCHEMAS = ["app.kuhaku.Tegami"]
+
+
+def export_secrets():
+    out = []
+    for name in SCHEMAS:
+        schema = Secret.Schema.new(name, Secret.SchemaFlags.DONT_MATCH_NAME, {})
+        try:
+            found = Secret.password_search_sync(schema, {}, Secret.SearchFlags.ALL | Secret.SearchFlags.UNLOCK
+                                                | Secret.SearchFlags.LOAD_SECRETS, None)
+        except Exception:
+            found = []
+        for item in found:
+            attrs = dict(item.get_attributes())
+            attrs.pop("xdg:schema", None)
+            sec = item.retrieve_secret_sync(None)
+            if sec:
+                out.append({"schema": name, "attributes": attrs, "label": item.get_label(), "secret": sec.get_text()})
+    return out
+
+
+class Window:
+    def __init__(self):
+        css = Gtk.CssProvider()
+        css.load_from_data(b"""
+          window { background:#f7f4f1; }
+          * { font-family: Inter; color:#111; }
+          .t { font-size:30pt; font-weight:200; }
+          .q { font-size:12pt; color:#666; }
+          entry { background:none; border:0; border-left:2px solid #e0301e; border-radius:0; box-shadow:none;
+                  font-size:18pt; font-weight:200; padding:4px 14px; }
+          button { background:none; border:0; box-shadow:none; border-radius:0; border-bottom:2px solid #e0301e; padding:2px 0; }
+          button label { font-size:13pt; }
+          .why { color:#e0301e; }
+        """)
+        Gtk.StyleContext.add_provider_for_screen(__import__("gi.repository.Gdk", fromlist=["Screen"]).Screen.get_default(),
+                                                 css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.win = Gtk.Window(title="Kūhaku · move")
+        self.win.set_decorated(False)
+        self.win.set_default_size(760, 520)
+        self.win.set_position(Gtk.WindowPosition.CENTER)
+        self.win.connect("destroy", Gtk.main_quit)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        box.set_margin_start(70); box.set_margin_end(70); box.set_margin_top(60); box.set_margin_bottom(50)
+        t = Gtk.Label(label="Your new password.", xalign=0); t.get_style_context().add_class("t")
+        q = Gtk.Label(label="Choose the password for Kūhaku. It will open the new computer when it starts,\n"
+                            "and it locks the files you carry over on the stick.", xalign=0)
+        q.get_style_context().add_class("q")
+        self.p1 = Gtk.Entry(visibility=False, placeholder_text="Password")
+        self.p2 = Gtk.Entry(visibility=False, placeholder_text="Once more")
+        self.why = Gtk.Label(label="", xalign=0); self.why.get_style_context().add_class("why")
+        self.go = Gtk.Button(label="Pack my things"); self.go.set_halign(Gtk.Align.START)
+        self.go.connect("clicked", self.start)
+        self.p2.connect("activate", self.start)
+        for w in (t, q, self.p1, self.p2, self.why, self.go):
+            box.pack_start(w, False, False, 0)
+        self.win.add(box)
+        self.win.show_all()
+
+    def say(self, text):
+        GLib.idle_add(self.why.set_text, text)
+
+    def start(self, *_):
+        a, b = self.p1.get_text(), self.p2.get_text()
+        if len(a) < 6:
+            return self.why.set_text("At least six characters.")
+        if a != b:
+            return self.why.set_text("The two passwords are different.")
+        self.go.set_sensitive(False)
+        threading.Thread(target=self.pack, args=(a,), daemon=True).start()
+
+    def pack(self, password):
+        carry = HOME / ".kuhaku-carry"
+        (carry / "system").mkdir(parents=True, exist_ok=True)
+        self.say("Saving your passwords…")
+        secrets = carry / "secrets.json"
+        secrets.write_text(json.dumps(export_secrets()))
+        os.chmod(secrets, 0o600)
+        bt = HOME / ".local/share/kuhaku/system/bluetooth/kuhaku-acpi-override.cpio"
+        if bt.exists():
+            subprocess.run(["cp", str(bt), str(carry / "system/")])
+        gecos = subprocess.run(["getent", "passwd", os.environ.get("USER", "")], capture_output=True, text=True).stdout.split(":")
+        about = {"user": os.environ.get("USER", ""), "name": gecos[4].split(",")[0] if len(gecos) > 4 else "",
+                 "keep": [k for k in KEEP if (HOME / k).exists()] + [".kuhaku-carry"], "skip": SKIP, "home": str(HOME)}
+        (carry / "about.json").write_text(json.dumps(about))
+        self.say("Packing your things and writing them to the stick… your password may be asked once.")
+        # Everything else runs as root in one step (Wi‑Fi networks are root's), password on stdin.
+        res = subprocess.run(["pkexec", str(HELPER), str(carry / "about.json")], input=password + "\n",
+                             capture_output=True, text=True)
+        secrets.unlink(missing_ok=True)          # the plain copy never stays behind
+        if res.returncode == 0:
+            self.say("Done. Your things are on the stick, locked with your new password.")
+            GLib.timeout_add_seconds(5, Gtk.main_quit)
+        else:
+            self.say("Could not finish: " + (res.stdout + res.stderr).strip()[-220:])
+            GLib.idle_add(self.go.set_sensitive, True)
+
+
+if __name__ == "__main__":
+    Window()
+    Gtk.main()

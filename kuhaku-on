@@ -1,0 +1,17 @@
+#!/bin/bash
+# Switches Kūhaku on now and at every login.
+mkdir -p "$HOME/.config/autostart"
+cat > "$HOME/.config/autostart/kuhaku.desktop" <<DESK
+[Desktop Entry]
+Type=Application
+Name=Kūhaku
+Comment=A full screen home for Claude
+Exec=$HOME/.local/share/kuhaku/kuhaku-session
+X-GNOME-Autostart-enabled=true
+Hidden=false
+DESK
+# The Claude desktop app is part of Kūhaku: install it once and keep it updated daily.
+if ! dpkg -s claude-desktop >/dev/null 2>&1 || ! systemctl is-enabled kuhaku-claude-update.timer >/dev/null 2>&1; then
+  pkexec "$HOME/.local/share/kuhaku/kuhaku-install-claude"
+fi
+pgrep -f "share/kuhaku/kuhaku.py" >/dev/null || setsid -f "$HOME/.local/share/kuhaku/kuhaku-session" >/dev/null 2>&1

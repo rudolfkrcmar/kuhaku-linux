@@ -1,0 +1,85 @@
+#!/bin/bash
+# Started at login. Clears the XFCE desktop away and keeps Kūhaku running.
+export PATH="$HOME/.local/bin:$PATH"
+DIR="$(dirname "$(readlink -f "$0")")"
+
+# No panel, no desktop icons, no wallpaper. They no longer start with the
+# session; if one appears anyway, close it quietly (never ask a panel that is
+# not running to quit: that shows a "Failed to quit panel" error).
+(
+  for _ in $(seq 1 20); do
+    pgrep -x xfce4-panel >/dev/null && xfce4-panel --quit >/dev/null 2>&1
+    pgrep -x xfdesktop >/dev/null && pkill -x xfdesktop
+    sleep 1
+  done
+) &
+
+# The system's password dialog, restyled in Kūhaku's look (its own style folder).
+(
+  sleep 2
+  pkill -f polkit-mate-authentication-agent-1
+  for agent in /usr/libexec/polkit-mate-authentication-agent-1 /usr/lib/x86_64-linux-gnu/polkit-mate/polkit-mate-authentication-agent-1; do
+    [ -x "$agent" ] && XDG_CONFIG_HOME="$DIR/polkit-style" exec "$agent"
+  done
+) >/dev/null 2>&1 &
+
+# The lock screen: Kūhaku's own, inside the session. light-locker (started by kuhaku-start)
+# handed the screen to the login screen and could leave a padlock there with no way out.
+if [ ! -d /run/live/medium ]; then
+  (
+    for _ in $(seq 1 10); do pkill -x light-locker; sleep 1; done
+  ) >/dev/null 2>&1 &
+  xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -n -t bool -s false 2>/dev/null \
+    || xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -s false 2>/dev/null
+  # Keep it watching; if it ever ends, start it again (an open lock simply disappears with it).
+  ( while :; do python3 "$DIR/kuhaku-lock.py"; sleep 2; done ) >/dev/null 2>&1 &
+fi
+
+# No window frames: every app's minimise, close and clock are in Kūhaku's bar.
+[ -d "$HOME/.themes/Kuhaku" ] || { mkdir -p "$HOME/.themes"; cp -r "$DIR/system/themes/Kuhaku" "$HOME/.themes/"; }
+xfconf-query -c xfwm4 -p /general/theme -s Kuhaku 2>/dev/null
+xfconf-query -c xfwm4 -p /general/button_layout -s "|" 2>/dev/null
+xfconf-query -c xfwm4 -p /general/show_dock_shadow -s false 2>/dev/null
+
+# The panel used to handle the volume keys; hand them to pactl instead.
+k=/commands/custom
+xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioRaiseVolume" -n -t string -s "$DIR/kuhaku-volume up" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioRaiseVolume" -s "$DIR/kuhaku-volume up"
+xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioLowerVolume" -n -t string -s "$DIR/kuhaku-volume down" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioLowerVolume" -s "$DIR/kuhaku-volume down"
+xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioMute" -n -t string -s "$DIR/kuhaku-volume mute" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioMute" -s "$DIR/kuhaku-volume mute"
+
+# Brightness keys and power notices: Kūhaku shows them in its own design.
+for kv in "XF86MonBrightnessUp up" "XF86MonBrightnessDown down"; do
+  set -- $kv
+  xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$1" -n -t string -s "$DIR/kuhaku-brightness $2" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$1" -s "$DIR/kuhaku-brightness $2"
+done
+for prop in handle-brightness-keys general-notification; do
+  xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -n -t bool -s false 2>/dev/null || xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -s false
+done
+
+# The power key: Kūhaku's own menu, not the system's log-out dialog (holding it still forces power off).
+xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86PowerOff" -n -t string -s "$DIR/kuhaku-power" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86PowerOff" -s "$DIR/kuhaku-power"
+xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action -s 0 2>/dev/null
+
+# Mac-style capture keys. Cmd is Ctrl on this keyboard (ctrl:swap_lwin_lctl), so
+# Cmd+Shift+3/4/5 arrive as <Primary><Shift>. Both keysym spellings are bound.
+for kv in "numbersign full" "3 full" "dollar area" "4 area" "percent record" "5 record"; do
+  set -- $kv
+  for mods in "<Primary><Shift>" "<Primary><Shift><Super>"; do
+    act=$2; [ "$mods" = "<Primary><Shift><Super>" ] && { [ "$act" = record ] && continue; act="$act-clip"; }
+    xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$mods$1" -n -t string -s "$DIR/kuhaku-capture $act" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$mods$1" -s "$DIR/kuhaku-capture $act"
+  done
+done
+
+# The screen's size: the one chosen in Settings, or the clearest comfortable one.
+python3 "$DIR/kuhaku-display" apply
+
+# Keep Kūhaku alive; give up if it crashes repeatedly so the machine stays usable.
+fails=0
+while [ $fails -lt 5 ]; do
+  start=$(date +%s)
+  python3 "$DIR/kuhaku.py" && exit 0
+  [ $(( $(date +%s) - start )) -lt 10 ] && fails=$((fails + 1)) || fails=0
+  sleep 1
+done
+# Kūhaku keeps failing: bring the normal desktop back.
+xfdesktop & xfce4-panel &
