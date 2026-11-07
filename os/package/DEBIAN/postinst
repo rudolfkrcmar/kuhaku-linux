@@ -33,6 +33,8 @@ if [ "$1" = configure ]; then
   systemctl enable kuhaku-programs.service >/dev/null 2>&1 || true
   # A clock that keeps time, and a real language setting (some programs quit without one).
   systemctl enable systemd-timesyncd.service >/dev/null 2>&1 || true
+  # Idle parts of the computer may sleep: longer on battery.
+  systemctl enable kuhaku-powersave.service >/dev/null 2>&1 || true
   if [ -f /etc/locale.gen ] && ! locale -a 2>/dev/null | grep -qi '^en_US.utf-\?8$'; then
     sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
     locale-gen >/dev/null 2>&1 || true

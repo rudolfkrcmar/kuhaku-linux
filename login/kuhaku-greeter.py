@@ -6,7 +6,7 @@ The home screen's prompt and nothing else: the red line where the home screen ha
 no name is shown. Several: their names sit quietly above the line, a click chooses.
 A wrong password says so under the line, in the accent colour.
 
-Installed by kuhaku-login-fix.sh. If it ever fails to start, the wrapper falls back to
+Shipped in the Kūhaku package (/usr/sbin/kuhaku-greeter). If it ever fails to start, the wrapper falls back to
 the standard greeter, so the computer can always be opened.
 """
 import os

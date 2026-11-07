@@ -1,0 +1,2 @@
+# A newly plugged USB device gets the same power savings (input devices are left awake).
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", RUN+="/usr/sbin/kuhaku-powersave"

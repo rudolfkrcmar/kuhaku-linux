@@ -1,0 +1,6 @@
+#!/bin/sh
+# Kūhaku's login and unlock screen; if it cannot start, the standard one, so the computer always opens.
+start=$(date +%s)
+python3 /usr/share/kuhaku/app/login/kuhaku-greeter.py && exit 0
+[ $(( $(date +%s) - start )) -lt 15 ] && exec /usr/sbin/lightdm-gtk-greeter
+exit 1

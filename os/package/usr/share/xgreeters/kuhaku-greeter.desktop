@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Kūhaku
+Comment=Kūhaku login
+Exec=/usr/sbin/kuhaku-greeter
+Type=Application

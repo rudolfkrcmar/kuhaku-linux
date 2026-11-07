@@ -1,0 +1,10 @@
+[Unit]
+Description=Kūhaku power savings
+After=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/kuhaku-powersave
+
+[Install]
+WantedBy=multi-user.target
