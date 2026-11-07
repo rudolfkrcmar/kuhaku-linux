@@ -29,3 +29,6 @@ VISION-jobs.md
 # Builds of the Kūhaku package and install image
 os/out/
 os/image/work/
+
+# Local safety copies
+*.bak-*

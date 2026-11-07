@@ -14,10 +14,17 @@ DIR="$(dirname "$(readlink -f "$0")")"
   done
 ) &
 
-# The system's password dialog, restyled in Kūhaku's look (its own style folder).
+# When something needs your password: Kūhaku's own window (kuhaku-polkit.py). If it cannot
+# run (its polkit library missing), the system's dialog, restyled in Kūhaku's look.
 (
   sleep 2
   pkill -f polkit-mate-authentication-agent-1
+  while :; do
+    start=$(date +%s)
+    python3 "$DIR/kuhaku-polkit.py"
+    [ $(( $(date +%s) - start )) -lt 10 ] && break
+    sleep 1
+  done
   for agent in /usr/libexec/polkit-mate-authentication-agent-1 /usr/lib/x86_64-linux-gnu/polkit-mate/polkit-mate-authentication-agent-1; do
     [ -x "$agent" ] && XDG_CONFIG_HOME="$DIR/polkit-style" exec "$agent"
   done
@@ -31,8 +38,18 @@ if [ ! -d /run/live/medium ]; then
   ) >/dev/null 2>&1 &
   xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -n -t bool -s false 2>/dev/null \
     || xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -s false 2>/dev/null
+  # Anything else that wants the screen locked (the power manager on sleep or lid) uses
+  # this lock too; with no lock command set it shows "None of the screen lock tools ran".
+  xfconf-query -c xfce4-session -p /general/LockCommand -n -t string -s "python3 $DIR/kuhaku-lock.py lock" 2>/dev/null \
+    || xfconf-query -c xfce4-session -p /general/LockCommand -s "python3 $DIR/kuhaku-lock.py lock" 2>/dev/null
   # Keep it watching; if it ever ends, start it again (an open lock simply disappears with it).
   ( while :; do python3 "$DIR/kuhaku-lock.py"; sleep 2; done ) >/dev/null 2>&1 &
+fi
+
+# Convertibles: the touch keyboard when the screen folds back, and writing with the pen.
+# It stays out of the way on computers without a touch screen or pen.
+if grep -qiE "touch|pen|stylus|wacom" /proc/bus/input/devices 2>/dev/null; then
+  ( while :; do python3 "$DIR/kuhaku-tablet.py"; sleep 2; done ) >/dev/null 2>&1 &
 fi
 
 # No window frames: every app's minimise, close and clock are in Kūhaku's bar.

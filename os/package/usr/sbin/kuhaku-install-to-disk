@@ -1,16 +1,18 @@
 #!/bin/bash
 # Installs the running live Kūhaku onto a computer's own drive. Run as root by the installer.
 #
-#   kuhaku-install-to-disk DISK USER "Full Name" MODE ZONE [CARRY]   (the password comes on stdin)
+#   kuhaku-install-to-disk DISK USER "Full Name" MODE ZONE HIDE ADD [CARRY]   (the password comes on stdin)
 #   MODE: how freely Claude may work, bypassPermissions (default) or acceptEdits.
 #   ZONE: time zone, e.g. Europe/Prague (UTC if unknown).
+#   HIDE: Kūhaku's own apps left out, comma separated (kept installed, only hidden), or "-".
+#   ADD:  programs by others to fetch from their makers once online, comma separated, or "-".
 #
 # One password does everything: it unlocks the encrypted drive when the computer starts
 # (asked on the boot screen), it is the account password, and it opens the carried files.
 # After the drive is unlocked Kūhaku logs in by itself, so it is asked only once.
 # Progress is printed as "STEP n text" and "PCT n" lines for the installer screen.
 set -euo pipefail
-DISK="$1"; USERNAME="$2"; FULLNAME="$3"; MODE="${4:-bypassPermissions}"; ZONE="${5:-UTC}"; CARRY="${6:-}"
+DISK="$1"; USERNAME="$2"; FULLNAME="$3"; MODE="${4:-bypassPermissions}"; ZONE="${5:-UTC}"; HIDE="${6:--}"; ADD="${7:--}"; CARRY="${8:-}"
 IFS= read -r PASS
 T=/target
 SQUASH=/run/live/medium/live/filesystem.squashfs
@@ -30,6 +32,11 @@ say "Disk $DISK: $(lsblk -dno MODEL,SIZE "$DISK" | xargs)"
 [[ "$ZONE" =~ ^[A-Za-z0-9_+/-]+$ && "$ZONE" != *..* && -f "/usr/share/zoneinfo/$ZONE" ]] || ZONE=UTC
 case "$MODE" in bypassPermissions|acceptEdits) ;; *) fail "unknown mode $MODE" ;; esac
 [[ "$FULLNAME" != *[:$'\n']* ]] || fail "the name cannot contain a colon"
+# Only names from the installer's lists.
+OURS="tsukuru tegami miru notes kansei"
+THEIRS="claude-desktop firefox-esr thunderbird libreoffice gimp inkscape krita vlc audacity blender freecad"
+pick() { local out="" x; for x in ${1//,/ }; do [[ " $2 " == *" $x "* ]] && out="$out $x"; done; echo "${out# }"; }
+HIDE=$(pick "$HIDE" "$OURS"); ADD=$(pick "$ADD" "$THEIRS")
 case "$DISK" in *nvme*|*mmcblk*) P=p ;; *) P= ;; esac
 
 # 1. The drive: a small EFI part, a small start part (/boot, readable before the password)
@@ -105,6 +112,9 @@ export DEBIAN_FRONTEND=noninteractive
 # The live system's helpers are not part of an installed computer.
 apt-get purge -y -q live-boot live-boot-initramfs-tools live-config live-config-systemd live-tools user-setup >/dev/null 2>&1 || true
 rm -f /usr/lib/live/config/0031-kuhaku-admin
+# The stick's own package source is gone after this (apt-get update would fail on it).
+sed -i 's|^\(deb .*file:/run/live/medium.*\)|# \1|' /etc/apt/sources.list 2>/dev/null || true
+rm -f /etc/apt/sources.list.d/*live-medium* 2>/dev/null || true
 userdel -r admin >/dev/null 2>&1 || true
 # The person.
 ln -sf "/usr/share/zoneinfo/$ZONE" /etc/localtime; echo "$ZONE" > /etc/timezone
@@ -114,6 +124,13 @@ chroot "$T" useradd -m -s /bin/bash -c "$FULLNAME" -G sudo,audio,video,netdev,pl
 printf '%s:%s\n' "$USERNAME" "$PASS" | chroot "$T" chpasswd
 # How freely Claude may work, as chosen in the installer (read by kuhaku-setup-user at first login).
 mkdir -p "$T/etc/kuhaku"; echo "$MODE" > "$T/etc/kuhaku/permission-mode"
+# Programs chosen in the installer: Kūhaku's own left out are hidden at first login (kuhaku-setup-user);
+# the others' are fetched once online by kuhaku-programs.service (the Claude app by its own service).
+say "Programs: hidden ${HIDE:-none}; to fetch ${ADD:-none}"
+printf '%s\n' $HIDE > "$T/etc/kuhaku/hidden-apps"
+[[ " $ADD " == *" claude-desktop "* ]] || rm -f "$T/etc/apt/sources.list.d/claude-desktop.list"
+printf '%s\n' $ADD | grep -vx -e claude-desktop -e '' > "$T/etc/kuhaku/programs" || true
+[ -s "$T/etc/kuhaku/programs" ] && chroot "$T" systemctl enable kuhaku-programs.service >/dev/null 2>&1 || true
 # The drive password was just typed at start: log straight in after that.
 mkdir -p "$T/etc/lightdm/lightdm.conf.d"
 printf '[Seat:*]\nautologin-user=%s\nautologin-session=kuhaku\n' "$USERNAME" > "$T/etc/lightdm/lightdm.conf.d/95-kuhaku-autologin.conf"

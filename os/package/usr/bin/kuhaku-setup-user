@@ -39,6 +39,13 @@ if mode in ("bypassPermissions", "acceptEdits"):
 PY
   fi
 fi
+# Kūhaku's own apps left out in the installer: still there (files open, Claude can use them), just not listed.
+if [ -r /etc/kuhaku/hidden-apps ]; then
+  while read -r a; do
+    f="$HOME/.local/share/applications/$a.desktop"
+    [ -f "$f" ] && ! grep -q '^NoDisplay=true' "$f" && sed -i '/^\[Desktop Entry\]/a NoDisplay=true' "$f"
+  done < /etc/kuhaku/hidden-apps
+fi
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null
 # Kūhaku keeps its own history, so every change Claude makes can be undone and backed up.
 if [ ! -d "$K/.git" ]; then

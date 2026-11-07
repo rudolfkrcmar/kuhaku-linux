@@ -1049,6 +1049,7 @@
     if (changed) { b.classList.remove('flip'); void b.offsetWidth; b.classList.add('flip'); }
   };
   $('acctBtn').addEventListener('click', () => native({ type: 'panel', action: 'account-cycle' }));
+  window.setTablet = () => {};
   window.setStatus = ({ battery, wifi, bt: btIcon, signal }) => {
     const bars = wifi === 'on' ? (signal >= 67 ? 3 : signal >= 34 ? 2 : 1) : 0;
     ['l1', 'l2', 'l3'].forEach((c, i) => $('wifi').querySelector('.' + c).classList.toggle('dim', i >= bars));

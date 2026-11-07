@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Kūhaku's installer: four quiet screens instead of an installer program.
 
-Welcome · you (name and one password) · how freely Claude may work · the drive · progress · done. The work is
+Welcome · you (name and one password) · how freely Claude may work · programs · the drive · progress · done. The work is
 done by /usr/sbin/kuhaku-install-to-disk (as root, through sudo in the live system).
 Files carried from an old computer sit on the stick's KUHAKU-CARRY partition,
 encrypted with the same password the person types here.
@@ -22,6 +22,10 @@ from gi.repository import Gdk, GLib, Gtk, WebKit2
 
 HERE = Path(__file__).resolve().parent
 CARRY_MNT = Path("/run/kuhaku-carry")
+
+
+# blkid, cryptsetup… live in /usr/sbin, which a normal user's PATH can lack.
+os.environ["PATH"] = os.environ.get("PATH", "/usr/bin:/bin") + ":/usr/sbin:/sbin"
 
 
 def sh(argv, **kw):
@@ -148,8 +152,11 @@ class Installer:
     def _install(self, msg):
         user = (self.carry or {}).get("user") or short_name(msg["name"])
         mode = msg.get("mode") if msg.get("mode") in ("bypassPermissions", "acceptEdits") else "bypassPermissions"
+        # Programs: Kūhaku's own to hide, others' to fetch (the install script checks every name again).
+        ok = lambda xs: ",".join(x for x in xs if isinstance(x, str) and re.fullmatch(r"[a-z0-9][a-z0-9.+-]*", x)) or "-"
         argv = ["sudo", "-n", "/usr/sbin/kuhaku-install-to-disk", self.disk["dev"], user,
-                msg["name"], mode, self.zone] + ([self.carry["path"]] if self.carry else [])
+                msg["name"], mode, self.zone, ok(msg.get("hide") or []), ok(msg.get("add") or [])] \
+            + ([self.carry["path"]] if self.carry else [])
         log = open("/tmp/kuhaku-install.log", "w")
         p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         p.stdin.write(msg["password"] + "\n")

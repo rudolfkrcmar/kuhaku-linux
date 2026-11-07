@@ -5,8 +5,11 @@ below it). On the right: the date, time, Wi‑Fi and battery, as on the home scr
 the red dot (the open apps, as cards), the red line, which takes you home to Kūhaku (the app stays open), and a cross that
 closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku in front, the bar steps away.
 """
+import os
 import subprocess
+import sys
 import time
+from pathlib import Path
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -16,9 +19,21 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
 # Outside apps that should open filling the screen, as Kūhaku's own apps do (WM_CLASS parts).
-FILL_CLASSES = ("com.anthropic.Claude", "\"slack\"")
+FILL_CLASSES = ("com.anthropic.Claude", "\"slack\"", "io.tangencylabs.solidcraft")
 
 H = 34
+HERE = Path(__file__).resolve().parent
+TABLET_MODE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "kuhaku-tablet-mode"
+
+
+def tablet_mode():
+    """Folded into a tablet (kuhaku-tablet.py says so): the bar knows."""
+    try:
+        return TABLET_MODE.read_text().strip() == "1"
+    except OSError:
+        return False
+
+
 DAY = {"bg": (0.969, 0.957, 0.945), "fg": (0.067, 0.067, 0.067), "muted": (0.4, 0.4, 0.4), "accent": (0.878, 0.188, 0.118)}
 NIGHT = {"bg": (0.071, 0.071, 0.071), "fg": (0.925, 0.925, 0.925), "muted": (0.6, 0.6, 0.6), "accent": (0.941, 0.439, 0.353)}
 
@@ -66,6 +81,7 @@ class Corner:
         Gdk.Screen.get_default().connect("monitors-changed", lambda *_: GLib.timeout_add(300, self.refit))
         Gtk.Settings.get_default().connect("notify::gtk-xft-dpi", lambda *_: GLib.timeout_add(300, self.refit))
         self.shown = False
+        self.tablet = tablet_mode()
         self.filled = set()
         GLib.timeout_add(800, self.poll)
         GLib.timeout_add_seconds(20, self.read_status)
@@ -113,6 +129,10 @@ class Corner:
         if want != self.shown:
             self.shown = want
             (self.win.show_all if want else self.win.hide)()
+        tablet = tablet_mode()
+        if tablet != self.tablet:
+            self.tablet = tablet
+            self.win.queue_draw()
         if want:
             self.win.queue_draw()
             self.fill(active)
@@ -216,6 +236,7 @@ class Corner:
         x -= tw + 18
         dw = self.text(cr, time.strftime("%a %-d %b", now), x, 9.5, hot("calendar", c["muted"]), right=True)
         zones.append((x - dw - 9, x + 9, "calendar"))
+        x -= dw + 30
         self.zones = zones
 
     def click(self, _w, e):

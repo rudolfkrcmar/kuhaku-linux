@@ -24,7 +24,19 @@ if [ "$1" = configure ]; then
   # MacBook keyboard and trackpad at boot (harmless elsewhere)
   cp "$A"/system/root/etc/modprobe.d/kuhaku-applespi.conf /etc/modprobe.d/ 2>/dev/null || true
   update-initramfs -u >/dev/null 2>&1 || true
+  # Convertibles: the laptop/tablet switch is readable by the person at the screen (touch keyboard).
+  udevadm control --reload-rules >/dev/null 2>&1 || true
+  udevadm trigger --subsystem-match=input --action=change >/dev/null 2>&1 || true
   # The Claude desktop app comes from Anthropic on this computer, never inside Kūhaku's image.
   systemctl enable kuhaku-claude-desktop.service >/dev/null 2>&1 || true
+  # Programs by others chosen in the installer (it does nothing without that list).
+  systemctl enable kuhaku-programs.service >/dev/null 2>&1 || true
+  # A clock that keeps time, and a real language setting (some programs quit without one).
+  systemctl enable systemd-timesyncd.service >/dev/null 2>&1 || true
+  if [ -f /etc/locale.gen ] && ! locale -a 2>/dev/null | grep -qi '^en_US.utf-\?8$'; then
+    sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+    locale-gen >/dev/null 2>&1 || true
+  fi
+  [ -f /etc/default/locale ] && grep -q '^LANG=' /etc/default/locale || update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
 fi
 exit 0

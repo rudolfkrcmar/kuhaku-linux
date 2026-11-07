@@ -43,6 +43,18 @@
   .mode b { display:block; font-weight:300; font-size:24px; }
   .mode span.t { color:var(--muted); font-size:16px; line-height:1.5; }
   .mode em { font-style:normal; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin-left:12px; }
+  .groups { display:grid; grid-template-columns:1fr 1fr; gap:48px; margin:30px 0 0; }
+  .group h2 { margin:0 0 6px; font-size:13px; font-weight:400; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .group .note { font-size:14px; color:var(--muted); margin:0 0 16px; }
+  .apps { display:flex; flex-direction:column; gap:12px; max-height:44vh; overflow:auto; }
+  .app { display:flex; gap:14px; align-items:stretch; border:0; background:none; text-align:left; cursor:pointer; padding:0; color:var(--fg); }
+  .app .line { width:1.5px; background:var(--faint); flex-shrink:0; }
+  .app.on .line { background:var(--accent); }
+  .app:not(.on) b { color:var(--muted); }
+  .app b { display:block; font-weight:300; font-size:19px; }
+  .app span.t { color:var(--muted); font-size:14px; line-height:1.4; }
+  .app.fixed { cursor:default; }
+  .app.fixed b::after { content:'always'; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-left:10px; }
 </style></head>
 <body>
 <section class="screen" id="s-welcome"><div class="col">
@@ -75,6 +87,17 @@
       <span class="t">Claude reads, searches and edits your files, but does not run commands or programs, so it cannot change settings or install anything for you.</span></span></button>
   </div>
   <div class="acts"><button class="go" id="bMode">Continue</button><button class="soft" id="bBackM">Back</button></div>
+</div></section>
+
+<section class="screen" id="s-apps" hidden><div class="col" style="width:min(980px, 90vw)">
+  <div class="kicker">Programs</div>
+  <h1>What would you like?</h1>
+  <p class="quiet">Choose what appears on this computer. Programs by others are fetched from their makers once you are online. Claude can add or remove any of them later.</p>
+  <div class="groups">
+    <div class="group"><h2>Made for Kūhaku</h2><p class="note">By the Kūhaku project, in its quiet design.</p><div class="apps" id="ours"></div></div>
+    <div class="group"><h2>Made by others</h2><p class="note">Free programs from their own makers.</p><div class="apps" id="theirs"></div></div>
+  </div>
+  <div class="acts"><button class="go" id="bApps">Continue</button><button class="soft" id="bBackA">Back</button></div>
 </div></section>
 
 <section class="screen" id="s-drive" hidden><div class="col">
@@ -126,12 +149,48 @@
       : 'Copy anything you want to keep to another drive first.';
     if (f.zone) $('driveNote').textContent += ` Time zone: ${f.zone.replace(/_/g, ' ')}.`;
   };
+  // Programs: ours are hidden when left out (they stay installed, so nothing breaks); others are installed online.
+  const OURS = [
+    ['mado', 'Mado', 'The web, quietly. The browser.', true],
+    ['kuhaku-terminal', 'Terminal', 'A shell in Kūhaku\'s quiet design.', true],
+    ['tsukuru', 'Tsukuru', 'Make things with Claude. The code editor.'],
+    ['tegami', 'Tegami', 'Letters, even offline. Mail.'],
+    ['miru', 'Miru', 'Your files, and a previewer.'],
+    ['kansei', 'Kansei', 'Everything this computer is doing, live.'],
+  ];
+  const THEIRS = [
+    ['claude-desktop', 'Claude', 'Anthropic', 'The Claude app, next to Kūhaku.', true],
+    ['firefox-esr', 'Firefox', 'Mozilla', 'A second web browser.'],
+    ['thunderbird', 'Thunderbird', 'Mozilla', 'Mail and calendar.'],
+    ['libreoffice', 'LibreOffice', 'The Document Foundation', 'Documents, spreadsheets, slides.'],
+    ['gimp', 'GIMP', 'The GIMP team', 'Photos and pictures.'],
+    ['inkscape', 'Inkscape', 'The Inkscape project', 'Drawings and vector graphics.'],
+    ['krita', 'Krita', 'KDE', 'Painting.'],
+    ['vlc', 'VLC', 'VideoLAN', 'Plays any video or music.'],
+    ['audacity', 'Audacity', 'Audacity team', 'Records and edits sound.'],
+    ['blender', 'Blender', 'Blender Foundation', '3D models and animation.'],
+    ['freecad', 'FreeCAD', 'FreeCAD project', '3D design for making things.'],
+  ];
+  const picked = new Set([...OURS.map((a) => a[0]), ...THEIRS.filter((a) => a[4]).map((a) => a[0])]);
+  const appBtn = (id, name, text, fixed) => {
+    const b = document.createElement('button'); b.className = 'app on' + (fixed ? ' fixed' : '');
+    b.innerHTML = '<span class="line"></span><span><b></b><span class="t"></span></span>';
+    b.querySelector('b').textContent = name; b.querySelector('.t').textContent = text;
+    if (!fixed) b.onclick = () => { picked.has(id) ? picked.delete(id) : picked.add(id); b.classList.toggle('on', picked.has(id)); };
+    return b;
+  };
+  OURS.forEach(([id, n, t, fixed]) => $('ours').append(appBtn(id, n, t, fixed)));
+  THEIRS.forEach(([id, n, by, t, on]) => { const b = appBtn(id, n, by + ' · ' + t); b.classList.toggle('on', !!on); $('theirs').append(b); });
+  const hidden = () => OURS.filter((a) => !a[3] && !picked.has(a[0])).map((a) => a[0]);
+  const extra = () => THEIRS.filter((a) => picked.has(a[0])).map((a) => a[0]);
+  $('bApps').onclick = () => show('drive');
+  $('bBackA').onclick = () => show('claude');
   $('bBegin').onclick = () => show('you');
   $('bLook').onclick = () => send({ type: 'close' });
   $('bBack').onclick = () => show('welcome');
-  $('bBack2').onclick = () => show('claude');
+  $('bBack2').onclick = () => show('apps');
   $('bBackM').onclick = () => show('you');
-  $('bMode').onclick = () => show('drive');
+  $('bMode').onclick = () => show('apps');
   document.querySelectorAll('.mode').forEach((b) => (b.onclick = () => {
     mode = b.dataset.mode; document.querySelectorAll('.mode').forEach((x) => x.classList.toggle('on', x === b));
   }));
@@ -146,7 +205,7 @@
   ['iName', 'iPass', 'iPass2'].forEach((id, i, all) => $(id).addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); i < 2 ? $(all[i + 1]).focus() : $('bNext').click(); }
   }));
-  $('bErase').onclick = () => { stepAt = Date.now(); show('work'); send({ type: 'install', name: $('iName').value.trim(), password: $('iPass').value, mode }); };
+  $('bErase').onclick = () => { stepAt = Date.now(); show('work'); send({ type: 'install', name: $('iName').value.trim(), password: $('iPass').value, mode, hide: hidden(), add: extra() }); };
   // What is happening right now: the last lines behind the breathing line, shown when it is clicked.
   const lines = []; let stepAt = Date.now();
   window.detail = (l) => { lines.push(l); if (lines.length > 200) lines.shift(); $('detail').textContent = lines.slice(-14).join('\n'); $('failDetail').textContent = lines.slice(-8).join('\n'); };

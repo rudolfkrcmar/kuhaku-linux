@@ -54,7 +54,7 @@ set -e
 cd /build
 lb config \
   --distribution trixie --archive-areas "main contrib non-free non-free-firmware" \
-  --debian-installer live --debian-installer-gui true \
+  --debian-installer none \
   --iso-application "Kuhaku" --iso-volume "Kuhaku" --image-name kuhaku \
   --bootappend-live "boot=live components quiet splash username=admin live-config.username=admin live-config.user-fullname=Kuhaku" \
   --backports true \

@@ -95,8 +95,20 @@ def spawn(argv):
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def find_battery():
+    """The laptop's battery, whatever the firmware calls it (BAT0, CMB1 …)."""
+    for p in sorted(Path("/sys/class/power_supply").glob("*")):
+        try:
+            if (p / "type").read_text().strip() == "Battery" and \
+                    (not (p / "scope").exists() or (p / "scope").read_text().strip() != "Device"):
+                return p
+        except OSError:
+            pass
+    return None
+
+
 def read_battery():
-    for bat in sorted(Path("/sys/class/power_supply").glob("BAT*")):
+    for bat in [b for b in [find_battery()] if b]:
         try:
             # "capacity" is relative to the design size of a worn battery; report
             # charge against what it can hold today, as upower does.
@@ -238,7 +250,7 @@ def wifi_connect(ssid, password):
 # --- battery panel ----------------------------------------------------------
 def battery_details():
     _, devs, _ = run(["upower", "-e"])
-    path = next((d for d in devs.split() if "battery_BAT" in d), None)
+    path = next((d for d in devs.split() if "/battery_" in d and "DisplayDevice" not in d), None)
     if not path:
         return None
     _, out, _ = run(["upower", "-i", path])
@@ -690,6 +702,7 @@ class Kuhaku:
         self.window.present()
 
         GLib.timeout_add_seconds(30, self.push_status)
+        GLib.timeout_add(1000, self.push_tablet)
         GLib.timeout_add_seconds(15, self.schedule)
         GLib.timeout_add(1500, lambda: (self.schedule(), False)[1])
         self.last_windows = None
@@ -781,6 +794,17 @@ class Kuhaku:
         self.send("setAccount", {"name": accounts.active()["name"], "many": len(accounts.ready("claude")) > 1})
         self.send("setStatus", {"battery": read_battery(), "wifi": read_wifi(), "bt": bluetooth_icon_state(),
                                 "signal": wifi_signal()})
+        return True
+
+    def push_tablet(self):
+        """Folded into a tablet: the home screen is told (kuhaku-tablet.py writes the mode)."""
+        try:
+            on = (Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "kuhaku-tablet-mode").read_text().strip() == "1"
+        except OSError:
+            on = False
+        if on != getattr(self, "tablet_on", None):
+            self.tablet_on = on
+            self.send("setTablet", {"on": on})
         return True
 
     def push_windows(self):
@@ -996,6 +1020,29 @@ class Kuhaku:
                         GLib.idle_add(self.show_menu)
                     elif len(parts) >= 2 and parts[0] == "continue":   # from Kiroku: a past job in a new tab
                         GLib.idle_add(self.continue_thread, parts[1], " ".join(parts[2:]))
+                    elif len(parts) >= 2 and parts[0] == "ask":        # from another app: a new job
+                        try:
+                            GLib.idle_add(self.ask_new_tab, json.loads(line.split(None, 1)[1]).get("text", ""))
+                        except Exception:
+                            pass
+
+    def ask_new_tab(self, text):
+        """A job from another app: a new tab of its own, started at once, with Kūhaku in front."""
+        cur = self.tabs.get(self.tabs.current)
+        cur["session_id"] = self.state.get("session_id")
+        self.tabs.new()
+        self.state["session_id"] = None
+        self.tabs.save()
+        self.save_state()
+        subprocess.run(["wmctrl", "-k", "on"], capture_output=True)
+        self.window.present()
+        self.js("if (page) closePage(); if (panel) closePanel()")
+        self.restore_tab()
+        self.push_tabs()
+        self.ask(text)
+        self.push_tabs()
+        self.restore_tab()
+        return False
 
     def continue_thread(self, session_id, agent=""):
         """A finished conversation comes back as a tab (the one it lives in, if still open), ready for the next question."""

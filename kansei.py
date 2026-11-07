@@ -129,7 +129,9 @@ class Collector:
                 temps.append({"chip": chip, "label": (base + (" " + lab if lab else "")).strip(), "c": e.current,
                               "high": e.high or e.critical or 100})
         bat = psutil.sensors_battery()
-        bdir = Path("/sys/class/power_supply/BAT0")
+        bdir = next((p for p in sorted(Path("/sys/class/power_supply").glob("*"))
+                     if (p / "type").exists() and (p / "type").read_text().strip() == "Battery"),
+                    Path("/sys/class/power_supply/BAT0"))
         watts = None
         try:
             if (bdir / "power_now").exists():
@@ -180,7 +182,8 @@ class Collector:
                 if "python" in exe and i["cmdline"] and len(i["cmdline"]) > 1:
                     app = {"kuhaku.py": "Kūhaku", "browser.py": "Mado", "miru.py": "Miru", "tegami.py": "Tegami",
                            "tsukuru.py": "Tsukuru", "terminal.py": "Terminal", "kansei.py": "Kansei",
-                           "kuhaku-gestures.py": "Kūhaku gestures"}.get(os.path.basename(i["cmdline"][1]))
+                           "kuhaku-gestures.py": "Kūhaku gestures",
+                           "kuhaku-tablet.py": "Kūhaku keyboard"}.get(os.path.basename(i["cmdline"][1]))
                 if not app and "python" in exe and i["cmdline"] and len(i["cmdline"]) > 1:
                     app = "Python: " + os.path.basename(i["cmdline"][1])
                 app = app or self.names.get(exe) or self.names.get(i["name"])

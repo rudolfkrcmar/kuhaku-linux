@@ -20,6 +20,7 @@ gi.require_version("PolkitAgent", "1.0")
 from gi.repository import Gdk, Gio, GLib, Gtk, Polkit, PolkitAgent  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import touchkeys  # noqa: E402
 try:
     from terminal import theme
 except Exception:
@@ -36,6 +37,15 @@ FRIENDLY = {
 }
 
 
+def log(*a):
+    try:
+        import time
+        with open(os.path.join(GLib.get_user_runtime_dir(), "kuhaku-polkit.log"), "a") as f:
+            f.write(time.strftime("%H:%M:%S ") + " ".join(map(str, a)) + "\n")
+    except Exception:
+        pass
+
+
 class Prompt:
     def __init__(self, done, action_id, message, details, cookie, identities):
         self.done, self.cookie = done, cookie
@@ -44,7 +54,7 @@ class Prompt:
                              identities[0] if identities else None)
         bg, fg, muted, accent = COLORS["night" if theme() == "night" else "day"]
         css = Gtk.CssProvider()
-        css.load_from_data(f"""
+        css.load_from_data((f"""
             window {{ background: {bg}; }}
             * {{ font-family: "Inter", sans-serif; }}
             #why {{ color: {fg}; font-size: 17px; font-weight: 300; }}
@@ -55,7 +65,7 @@ class Prompt:
             #hint {{ color: alpha({fg}, .35); font-size: 26px; font-weight: 200; }}
             #error {{ color: {accent}; font-size: 13px; font-weight: 300; }}
             #keys {{ color: {muted}; font-size: 12px; font-weight: 300; }}
-        """.encode())
+        """ + touchkeys.css(fg, muted, accent)).encode())
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
         w = self.win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
@@ -78,7 +88,7 @@ class Prompt:
         why.set_line_wrap(True)
         why.set_margin_start(20)
         box.pack_start(why, False, False, 0)
-        program = details.lookup("program") if details else None
+        program = details.get("program") if details else None
         what = Gtk.Label(label=program or message if program or message != why.get_text() else action_id, name="what", xalign=0)
         what.set_ellipsize(3)
         what.set_margin_start(20)
@@ -113,11 +123,19 @@ class Prompt:
         keys.set_margin_top(30)
         box.pack_start(keys, False, False, 0)
 
+        # Folded into a tablet: keys of its own (this screen holds the keyboard and mouse).
+        touchkeys.front(True)
+        self.keys = touchkeys.TouchKeys(self.entry, self.submit)
+        kw = min(1100, g.width - 40)
+        self.keys.set_size_request(kw, -1)
+        stage.put(self.keys, g.x + (g.width - kw) // 2, g.y + g.height - 300)
+
         w.connect("key-press-event", self.on_key)
         w.show_all()
         w.present()
         GLib.timeout_add(150, lambda: (self.grab(), False)[1])
         self.session = None
+        self.retired = []
         self.start()
 
     def grab(self):
@@ -127,77 +145,155 @@ class Prompt:
         seat.grab(self.win.get_window(), Gdk.SeatCapabilities.KEYBOARD, False, None, None, None)
 
     def start(self):
+        # A fresh PAM conversation. The previous session is kept alive until this one replaces it:
+        # dropping it from inside its own "completed" signal frees it mid-emission and crashes.
+        self.asked = False      # PAM has asked for the password
+        self.typed = None       # Enter pressed before PAM asked: answer as soon as it does
+        if self.session:
+            self.retired.append(self.session)
         s = self.session = PolkitAgent.Session.new(self.identity, self.cookie)
-        s.connect("request", lambda _s, prompt, echo: (self.entry.set_sensitive(True), self.entry.set_visibility(echo), self.entry.grab_focus()))
-        s.connect("show-error", lambda _s, text: self.error.set_text(text))
+        s.connect("request", self.on_request)
+        s.connect("show-error", lambda _s, text: (log("show-error", text), self.error.set_text(text)))
+        s.connect("show-info", lambda _s, text: log("show-info", text))
+        log("session start")
         s.connect("completed", self.completed)
         s.initiate()
 
-    def submit(self, entry):
-        if self.session:
-            self.entry.set_sensitive(False)
-            self.session.response(entry.get_text())
-
-    def completed(self, _s, gained):
-        if gained:
-            self.finish(True)
+    def on_request(self, s, prompt, echo):
+        log("request", repr(prompt), "echo", echo, "current", s is self.session, "queued", self.typed is not None)
+        if s is not self.session:
             return
-        self.entry.set_text("")
+        self.entry.set_visibility(echo)
+        if self.typed is not None:
+            text, self.typed = self.typed, None
+            s.response(text)
+            return
+        self.asked = True
         self.entry.set_sensitive(True)
-        self.error.set_text("Wrong password")
-        self.start()
         self.entry.grab_focus()
+
+    def submit(self, entry):
+        text = entry.get_text()
+        log("submit", "len", len(text), "asked", self.asked)
+        if not text or not self.session or getattr(self, "finished", False):
+            return
+        self.entry.set_sensitive(False)
+        if self.asked:
+            self.asked = False
+            self.session.response(text)
+        else:
+            self.typed = text
+
+    def completed(self, s, gained):
+        log("completed", gained, "current", s is self.session)
+        if s is not self.session or getattr(self, "finished", False):
+            return
+        if gained:
+            GLib.idle_add(lambda: (self.finish(True), False)[1])
+            return
+        def again():
+            if getattr(self, "finished", False):
+                return False
+            self.entry.set_text("")
+            self.entry.set_sensitive(True)
+            self.error.set_text("Wrong password, try again")
+            self.start()
+            self.entry.grab_focus()
+            return False
+        GLib.idle_add(again)
 
     def on_key(self, _w, ev):
         if ev.keyval == Gdk.KEY_Escape:
-            if self.session:
-                self.session.cancel()
-            self.finish(False)
+            GLib.idle_add(lambda: (self.finish(False), False)[1])
             return True
         return False
 
+    def cancel(self):
+        self.finish(False)
+        return False
+
     def finish(self, ok):
+        log("finish", ok)
+        if getattr(self, "finished", False):
+            return
+        self.finished = True
         Gdk.Display.get_default().get_default_seat().ungrab()
+        touchkeys.front(False)
         self.win.destroy()
         self.done(ok)
 
 
-class Listener(PolkitAgent.Listener):
-    """Answers polkit while the question is still open: the window runs in a nested loop and the
-    reply goes back before this call returns (a reply sent later, from Python, crashes)."""
-    busy = False
+AGENT_PATH = "/org/freedesktop/PolicyKit1/AuthenticationAgent"
+AGENT_XML = """<node><interface name="org.freedesktop.PolicyKit1.AuthenticationAgent">
+  <method name="BeginAuthentication">
+    <arg type="s" name="action_id" direction="in"/><arg type="s" name="message" direction="in"/>
+    <arg type="s" name="icon_name" direction="in"/><arg type="a{ss}" name="details" direction="in"/>
+    <arg type="s" name="cookie" direction="in"/><arg type="a(sa{sv})" name="identities" direction="in"/>
+  </method>
+  <method name="CancelAuthentication"><arg type="s" name="cookie" direction="in"/></method>
+</interface></node>"""
 
-    def do_initiate_authentication(self, action_id, message, icon_name, details, cookie, identities, cancellable, callback, *user_data):
-        task = Gio.Task.new(self, None, None, None)
-        if self.busy:
-            task.return_error(GLib.Error.new_literal(Polkit.error_quark(), "Busy", Polkit.Error.FAILED))
-        else:
-            self.busy = True
-            result = {}
-            loop = GLib.MainLoop()
 
-            def done(ok):
-                result["ok"] = ok
-                loop.quit()
-            Prompt(done, action_id, message, details, cookie, identities)
-            loop.run()
-            self.busy = False
-            if result.get("ok"):
-                task.return_boolean(True)
-            else:
-                task.return_error(GLib.Error.new_literal(Polkit.error_quark(), "Declined", Polkit.Error.CANCELLED))
-        callback(self, task, *user_data)
+class Agent:
+    """polkit's authentication agent, spoken directly over D-Bus.
 
-    def do_initiate_authentication_finish(self, result):
-        return result.propagate_boolean()
+    (PolkitAgent.Listener subclassed from Python crashed whenever a question was declined: the
+    async reply crosses the Python binding badly. Here each question is a D-Bus call we answer
+    ourselves when the window closes; PolkitAgent.Session still runs the PAM conversation.
+    polkitd grants only what its own helper verified, so the reply itself grants nothing.)"""
+
+    def __init__(self):
+        self.bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+        self.current = None   # (cookie, invocation, prompt)
+        node = Gio.DBusNodeInfo.new_for_xml(AGENT_XML)
+        self.bus.register_object(AGENT_PATH, node.interfaces[0], self.on_call, None, None)
+        session = Polkit.UnixSession.new_for_process_sync(os.getpid(), None)
+        self.bus.call_sync("org.freedesktop.PolicyKit1", "/org/freedesktop/PolicyKit1/Authority",
+                           "org.freedesktop.PolicyKit1.Authority", "RegisterAuthenticationAgent",
+                           GLib.Variant("((sa{sv})ss)", (("unix-session", {"session-id": GLib.Variant("s", session.get_session_id())}), os.environ.get("LANG", "C"), AGENT_PATH)),
+                           None, Gio.DBusCallFlags.NONE, -1, None)
+        log("agent registered for session", session.get_session_id())
+
+    def on_call(self, _bus, _sender, _path, _iface, method, params, invocation):
+        if method == "BeginAuthentication":
+            action_id, message, _icon, details, cookie, identities = params.unpack()
+            if self.current:
+                invocation.return_dbus_error("org.freedesktop.PolicyKit1.Error.Failed", "Another request is open")
+                return
+            ids = []
+            for kind, props in identities:
+                if kind == "unix-user" and "uid" in props:
+                    ids.append(Polkit.UnixUser.new(props["uid"]))
+                elif kind == "unix-group" and "gid" in props:
+                    ids.append(Polkit.UnixGroup.new(props["gid"]))
+            log("begin", action_id)
+
+            def done(ok, cookie=cookie, invocation=invocation):
+                if not self.current or self.current[0] != cookie:
+                    return
+                self.current = None
+                log("reply", "ok" if ok else "declined")
+                if ok:
+                    invocation.return_value(None)
+                else:
+                    invocation.return_dbus_error("org.freedesktop.PolicyKit1.Error.Cancelled", "Declined")
+            self.current = (cookie, invocation, None)
+            prompt = Prompt(done, action_id, message, details, cookie, ids)
+            if self.current and self.current[0] == cookie:
+                self.current = (cookie, invocation, prompt)
+        elif method == "CancelAuthentication":
+            (cookie,) = params.unpack()
+            log("cancel requested")
+            cur = self.current
+            invocation.return_value(None)
+            if cur and cur[0] == cookie and cur[2]:
+                GLib.idle_add(cur[2].cancel)
 
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     Gtk.init(None)
-    listener = Listener()
-    subject = Polkit.UnixSession.new_for_process_sync(os.getpid(), None)
-    listener.handle = PolkitAgent.register_listener(listener, subject, "/org/freedesktop/PolicyKit1/AuthenticationAgent")
+    agent = Agent()  # noqa: F841 (kept alive by the main loop)
     Gtk.main()
 
 

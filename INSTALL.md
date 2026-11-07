@@ -21,23 +21,24 @@ There are two ways in:
    - Most PCs: press the boot menu key while it starts (often F12, F11, F9 or Esc) and pick the USB stick.
    - Turn off **Secure Boot** in the firmware settings first (usually F2 or Del at start). Kūhaku's boot loader is not signed yet.
    - Intel Macs: hold Option (⌥) while starting and pick "EFI Boot".
-4. **Look around, or install.** Kūhaku starts from the stick without touching the computer. To install, follow the four screens:
-   your name and one password, how freely Claude may work, the drive, and the copying.
+4. **Look around, or install.** Kūhaku starts from the stick without touching the computer. To install, follow the screens:
+   your name and one password, how freely Claude may work, your programs, the drive, and the copying.
    - The password unlocks the encrypted drive when the computer starts. It is the only password you type; there is no separate login.
    - **"Anything, without asking" (recommended):** Claude edits files, runs commands, changes settings and installs software on its own, and is told to ask before deleting or anything that cannot be undone. **"Careful":** Claude reads and edits files but runs no commands. You can switch in Settings later.
+   - **Programs:** two lists, *Made for Kūhaku* (Mado, Tsukuru, Tegami, Miru, Kansei) and *Made by others* (the Claude app, Firefox, LibreOffice, GIMP, VLC, Blender, FreeCAD and more). Programs by others are fetched from their makers once the computer is online. Claude can add or remove any of them later.
    - **Everything on the computer's drive is replaced.** Copy what you want to keep first.
 5. **Restart**, take out the stick, type your password once.
 6. **Sign in to Claude.** At the first start Kūhaku installs Claude Code from Anthropic and opens its sign-in. After that, just type what you want.
 
 ## B. Add Kūhaku to Debian 13 or Linux Mint
 
-1. Download `kuhaku_all.deb` from the [latest release](https://github.com/rudolfkrcmar/kuhaku-linux/releases/latest).
-2. Install it with its dependencies:
+1. In a terminal, run:
    ```sh
-   sudo apt install ./kuhaku_all.deb
+   curl -fsSL https://www.kuhaku.space/install.sh | sh
    ```
-3. Log out. On the login screen choose the **Kūhaku** session, and log in.
-4. Kūhaku sets itself up in `~/.local/share/kuhaku`, installs Claude Code and opens its sign-in.
+   It downloads the latest package and installs it with apt. Or by hand: download `kuhaku_all.deb` from the [latest release](https://github.com/rudolfkrcmar/kuhaku-linux/releases/latest) and run `sudo apt install ./kuhaku_all.deb`.
+2. Log out. On the login screen choose the **Kūhaku** session, and log in.
+3. Kūhaku sets itself up in `~/.local/share/kuhaku`, installs Claude Code and opens its sign-in.
 
 To go back, choose your old session on the login screen. To remove it: `sudo apt remove kuhaku`, and delete `~/.local/share/kuhaku` if you like.
 

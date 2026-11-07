@@ -25,6 +25,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import touchkeys  # noqa: E402
 try:
     from terminal import theme
 except Exception:
@@ -50,7 +51,7 @@ class Lock:
         self.on_shown = on_shown
         bg, fg, muted, accent = COLORS["night" if theme() == "night" else "day"]
         self.css = Gtk.CssProvider()
-        self.css.load_from_data(f"""
+        self.css.load_from_data((f"""
             #lock {{ background: {bg}; }}
             #lock * {{ font-family: "Inter", sans-serif; }}
             #lock #line {{ background: {accent}; min-width: 2px; }}
@@ -59,7 +60,7 @@ class Lock:
             #lock entry selection {{ background: alpha({fg}, .15); }}
             #lock #hint {{ color: alpha({fg}, .35); font-size: 26px; font-weight: 200; }}
             #lock #error {{ color: {accent}; font-size: 13px; font-weight: 300; }}
-        """.encode())
+        """ + touchkeys.css(fg, muted, accent)).encode())
         screen = Gdk.Screen.get_default()
         Gtk.StyleContext.add_provider_for_screen(screen, self.css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
@@ -100,6 +101,13 @@ class Lock:
         self.error.set_margin_start(20)
         self.error.set_margin_top(14)
         box.pack_start(self.error, False, False, 0)
+
+        # Folded into a tablet: keys of its own (this screen holds the keyboard and mouse).
+        touchkeys.front(True)
+        self.keys = touchkeys.TouchKeys(self.entry, self.submit)
+        kw = min(1100, g.width - 40)
+        self.keys.set_size_request(kw, -1)
+        stage.put(self.keys, g.x + (g.width - kw) // 2, g.y + g.height - 300)
 
         w.connect("key-press-event", self.on_key)
         w.connect("map-event", lambda *_: GLib.timeout_add(120, self.shown))
@@ -162,6 +170,7 @@ class Lock:
 
     def close(self):
         Gdk.Display.get_default().get_default_seat().ungrab()
+        touchkeys.front(False)
         Gtk.StyleContext.remove_provider_for_screen(Gdk.Screen.get_default(), self.css)
         self.win.destroy()
         self.win = None
@@ -242,6 +251,11 @@ def main():
         GLib.timeout_add(500, lambda: Gtk.main_quit() if not lock.win else True)
         Gtk.main()
         return
+    # One watcher per session: a second one (a second start of the session script) waits here
+    # instead of locking the screen twice.
+    import fcntl
+    hold = open(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "kuhaku-lock.watch"), "w")
+    fcntl.flock(hold, fcntl.LOCK_EX)
     Gtk.init(None)
     Watcher()
     Gtk.main()

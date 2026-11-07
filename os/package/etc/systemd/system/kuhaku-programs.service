@@ -1,0 +1,16 @@
+[Unit]
+Description=Kūhaku: install the programs by others chosen in the installer, once online
+# On the installed computer only, and only until they are in (the list is then set aside).
+ConditionPathExists=!/run/live/medium
+ConditionFileNotEmpty=/etc/kuhaku/programs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=DEBIAN_FRONTEND=noninteractive
+ExecStart=/bin/sh -c 'for i in $(seq 1 60); do apt-get update -q && xargs -r apt-get install -y -q < /etc/kuhaku/programs && mv /etc/kuhaku/programs /etc/kuhaku/programs.installed && exit 0; sleep 60; done; exit 1'
+TimeoutStartSec=4h
+
+[Install]
+WantedBy=multi-user.target

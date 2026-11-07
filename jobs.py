@@ -165,7 +165,9 @@ class Tabs:
 # --- What each job cost: kept for Kiroku, the history of jobs ---------------
 RUNS_FILE = Path.home() / ".local/state/kuhaku/jobs.jsonl"
 TICK = 100   # clock ticks per second in /proc (os.sysconf("SC_CLK_TCK") on this kernel)
-BATTERY = Path("/sys/class/power_supply/BAT0")
+BATTERY = next((p for p in sorted(Path("/sys/class/power_supply").glob("*"))
+                if (p / "type").exists() and (p / "type").read_text().strip() == "Battery"),
+               Path("/sys/class/power_supply/BAT0"))
 CHIP_WATTS = 4.5   # the Core M's whole design power, used when the battery cannot say
 
 

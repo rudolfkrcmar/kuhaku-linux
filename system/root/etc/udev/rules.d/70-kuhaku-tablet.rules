@@ -1,0 +1,3 @@
+# Kūhaku: the person at the screen may read the switches (laptop or tablet, lid),
+# so the touch keyboard can come up when a convertible is folded back.
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_SWITCH}=="1", TAG+="uaccess"

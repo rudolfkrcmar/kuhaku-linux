@@ -20,7 +20,7 @@ Personal project, early and changing quickly. Some parts are tuned for specific 
 
 ## Installing
 
-See **[INSTALL.md](INSTALL.md)**: a USB stick that installs Kūhaku as the whole system, or a package that adds it to Debian 13 or Linux Mint. Downloads are on the [releases page](https://github.com/rudolfkrcmar/kuhaku-linux/releases/latest).
+The easiest way is **[kuhaku.space/download](https://www.kuhaku.space/download/)**. See also **[INSTALL.md](INSTALL.md)**: a USB stick that installs Kūhaku as the whole system, or a package that adds it to Debian 13 or Linux Mint. Downloads are on the [releases page](https://github.com/rudolfkrcmar/kuhaku-linux/releases/latest).
 
 `os/` holds how the package and the install image are built (`os/build-deb.sh`, `os/image/build-iso.sh`).
 
@@ -33,10 +33,6 @@ The installer asks which you want. **Careful** lets Claude read, search and edit
 ## Privacy
 
 This repository holds code and shared settings only. Mail accounts, Claude notes, browser profiles and package lists stay on your computer; they are listed in `.gitignore`, and `kuhaku-backup` writes your home folder and user name as `$HOME` and `USER`.
-
-## Supporting Kūhaku
-
-Kūhaku is free. If it is useful to you and you would like to help, the **Sponsor** button on this repository takes voluntary support through GitHub Sponsors. Nothing is locked behind it.
 
 ## License
 
