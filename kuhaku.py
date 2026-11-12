@@ -46,12 +46,13 @@ from kuhaku_config import (  # noqa: E402
     MENU,
     STATE_DIR,
     STATE_FILE)
+from kuhaku_panels import Panels  # noqa: E402
 from kuhaku_voice import Voice  # noqa: E402
 from kuhaku_settings import Settings  # noqa: E402
 from kuhaku_claude import ClaudeJobs  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
-class Kuhaku(Voice, Settings, ClaudeJobs):
+class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
     def __init__(self):
         STATE_DIR.mkdir(parents=True, exist_ok=True)
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -242,197 +243,29 @@ class Kuhaku(Voice, Settings, ClaudeJobs):
         except Exception:
             report()
             return
-        kind = msg.get("type")
-        if kind == "ask":
-            self.ask(msg.get("text", ""), voice=bool(msg.get("voice")))
-        elif kind == "voice":
-            self.voice(msg.get("on"))
-        elif kind == "cancel":
-            self.cancel(msg.get("tab"))
-        elif kind == "tab":
-            self.tab_action(msg)
-        elif kind == "menu":
-            self.menu(msg.get("id"))
-        elif kind == "dictate":
-            self.dictate(msg.get("on"))
-        elif kind == "picture":
-            self.pick_pictures()
-        elif kind == "stopRecording":
-            if self.recording:
-                self.capture("record")
-        elif kind == "dismiss":
-            self.state["dismissed"] = True
-            self.save_state()
-        elif kind == "draft":
-            # What is typed (and the prepared next message) belongs to its tab and survives restarts.
-            tab = self.tabs.get(msg.get("tab")) or self.tabs.get(self.tabs.current)
-            tab["draft"] = msg.get("text", "")[:20000]
-            tab["next"] = msg.get("next", "")[:20000]
-            self.tabs.save()
-        elif kind == "panel":
-            threading.Thread(target=self.panel, args=(msg,), daemon=True).start()
-        elif kind == "overview":
-            from rundot import overview
-            if not overview():
-                self.js("openRuns()")
+        handler = MESSAGES.get(msg.get("type"))
+        if handler:
+            handler(self, msg)
 
-    # --- status panels: Wi-Fi, battery ----------------------------------
-    def panel(self, msg):
-        action = msg.get("action")
-        reply = None
-        if action == "wifi":
-            reply = wifi_networks(msg.get("rescan", False))
-        elif action == "wifi-connect":
-            reply = wifi_connect(msg.get("ssid", ""), msg.get("password"))
-            reply["ssid"] = msg.get("ssid")
-        elif action == "wifi-forget":
-            run(["nmcli", "connection", "delete", "id", msg.get("ssid", "")])
-            reply = wifi_networks(False)
-            action = "wifi"
-        elif action == "wifi-disconnect":
-            run(["nmcli", "connection", "down", "id", msg.get("ssid", "")])
-            reply = {"ok": True}
-        elif action == "wifi-radio":
-            run(["nmcli", "radio", "wifi", "on" if msg.get("on") else "off"])
-            time.sleep(2 if msg.get("on") else 0)
-            reply = wifi_networks(bool(msg.get("on")))
-        elif action == "bt":
-            reply = bluetooth_state(msg.get("scan", False))
-        elif action == "bt-power":
-            run(["bluetoothctl", "power", "on" if msg.get("on") else "off"], timeout=8)
-            reply = bluetooth_state()
-            GLib.idle_add(lambda: self.push_status() and False)
-        elif action == "bt-connect":
-            mac = msg.get("mac", "")
-            if re.fullmatch(r"[0-9A-F:]{17}", mac):
-                info = run(["bluetoothctl", "info", mac], timeout=5)[1]
-                if "Paired: yes" not in info:
-                    run(["bluetoothctl", "pair", mac], timeout=30)
-                    run(["bluetoothctl", "trust", mac], timeout=5)
-                ok = "successful" in run(["bluetoothctl", "connect", mac], timeout=20)[1].lower()
-            else:
-                ok = False
-            reply = {**bluetooth_state(), "note": "" if ok else "Could not connect. Is it in pairing mode?", "mac": mac}
-            GLib.idle_add(lambda: self.push_status() and False)
-        elif action in ("bt-disconnect", "bt-forget"):
-            mac = msg.get("mac", "")
-            if re.fullmatch(r"[0-9A-F:]{17}", mac):
-                run(["bluetoothctl", "disconnect" if action == "bt-disconnect" else "remove", mac], timeout=10)
-            reply = bluetooth_state()
-            GLib.idle_add(lambda: self.push_status() and False)
-        elif action == "battery":
-            reply = battery_details()
-        elif action == "power-profile":
-            run(["powerprofilesctl", "set", msg.get("profile", "balanced")])
-            reply = battery_details()
-        elif action == "calendar":
-            reply = {"days": daily_tokens(), "limits": plan_limits()}
-        elif action == "cal-events":
-            import calendars
-            y, m = int(msg.get("year", 0)), int(msg.get("month", 0))
-            reply = calendars.month_view(y, m)          # from the copy on disk: instant
-            GLib.idle_add(self.send, "panelData", {"action": action, "data": reply})
-            calendars.refresh()                          # then fresh from Google, if online
-            reply = calendars.month_view(y, m)
-        elif action == "cal-add":
-            import calendars
-            try:
-                name = calendars.add(msg.get("url", ""))
-                reply = {"ok": True, "name": name}
-            except Exception as e:
-                reply = {"ok": False, "error": "That address did not work. Copy the secret address in iCal format again."
-                         if "calendar feed" in str(e) or "HTTP" in str(e) or "unknown url" in str(e).lower() else str(e)[:160]}
-        elif action == "cal-remove":
-            import calendars
-            calendars.remove(int(msg.get("index", -1)))
-            reply = {"ok": True}
-        elif action == "settings":
-            spawn(MENU.get(msg.get("which"), ["xfce4-settings-manager"]))
-            return
-        elif action == "apps":
-            reply = list_apps()
-        elif action == "launch":
-            launch_app(msg.get("id", ""))
-            return
-        elif action == "focus":
-            xid = msg.get("xid", "")
-            if re.fullmatch(r"0x[0-9a-fA-F]+", xid):
-                spawn(["wmctrl", "-i", "-a", xid])
-            return
-        elif action == "close":
-            # Closes the window the polite way: the app may still ask to save.
-            xid = msg.get("xid", "")
-            if re.fullmatch(r"0x[0-9a-fA-F]+", xid):
-                spawn(["wmctrl", "-i", "-c", xid])
-            return
-        elif action == "talk":
-            # The mic hands over to the Claude app: a new chat, ready for its own mic.
-            spawn(["claude-desktop", "claude://claude.ai/new?surface=chat&source=desktop_action"])
-            return
-        elif action in ("notices", "notices-clear"):
-            reply = notices(clear=action == "notices-clear")
-            action = "notices"
-        elif action == "prefs":
-            reply = self.read_prefs()
-        elif action == "unlock":
-            # Fingers and face: the windows do the teaching; Settings is told again when they close.
-            what, finger = msg.get("what"), str(msg.get("finger") or "")
-            if what in ("add-finger", "face-setup", "guided"):
-                argv = {"add-finger": ["python3", str(HERE / "kuhaku-finger.py")],
-                        "face-setup": ["python3", str(HERE / "kuhaku-face.py"), "enroll"],
-                        "guided": ["python3", str(HERE / "kuhaku-unlock-setup.py")]}[what]
-                p = subprocess.Popen(argv, start_new_session=True, cwd=HOME,
-                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    def save_draft(self, msg):
+        """What is typed (and the prepared next message) belongs to its tab and survives restarts."""
+        tab = self.tabs.get(msg.get("tab")) or self.tabs.get(self.tabs.current)
+        tab["draft"] = msg.get("text", "")[:20000]
+        tab["next"] = msg.get("next", "")[:20000]
+        self.tabs.save()
 
-                def closed():
-                    if p.poll() is None:
-                        return True
-                    self.send("panelData", {"action": "prefs", "data": self.read_prefs()})
-                    return False
-                GLib.timeout_add_seconds(1, closed)
-                return
-            if what == "forget-finger" and finger in FINGER_ORDER:
-                subprocess.run(["fprintd-delete", pwd.getpwuid(os.getuid()).pw_name, "-f", finger],
-                               capture_output=True, timeout=15)
-            elif what == "forget-fingers":
-                subprocess.run(["fprintd-delete", pwd.getpwuid(os.getuid()).pw_name], capture_output=True, timeout=15)
-            elif what == "face-forget":
-                (HERE / "face" / "embeddings.npy").unlink(missing_ok=True)
-            reply = self.read_prefs()
-            action = "prefs"
-        elif action in ("account-use", "account-cycle", "account-add", "account-signin", "account-remove",
-                        "ai-signin", "ai-set-add", "ai-set-remove"):
-            if action == "ai-signin":
-                ident = accounts.ensure(str(msg.get("set") or "Personal"), str(msg.get("kind") or "claude"))
-                GLib.idle_add(lambda: self.sign_in(ident) and False)
-            elif action == "ai-set-add":
-                accounts.add_set(msg.get("name"))
-            elif action == "ai-set-remove":
-                accounts.remove_set(msg.get("name"))
-                GLib.idle_add(lambda: self.push_status() and False)
-            elif action == "account-add":
-                ident = accounts.add(msg.get("name", ""), msg.get("kind") or "claude")
-                GLib.idle_add(lambda: self.switch_account(ident) and False)
-            elif action == "account-use":
-                GLib.idle_add(lambda: self.switch_account(msg.get("id")) and False)
-            elif action == "account-cycle":
-                GLib.idle_add(lambda: self.switch_account() and False)
-            elif action == "account-signin":
-                GLib.idle_add(lambda: self.sign_in(msg.get("id")) and False)
-            elif action == "account-remove":
-                accounts.remove(msg.get("id"))
-                GLib.idle_add(lambda: self.push_status() and False)
-            time.sleep(0.3)
-            reply = self.read_prefs()
-            action = "prefs"
-        elif action == "pref":
-            self.write_pref(msg.get("key"), msg.get("value"))
-            if msg.get("quiet"):
-                return
-            reply = self.read_prefs()
-            action = "prefs"
-        GLib.idle_add(self.send, "panelData", {"action": action, "data": reply})
-        GLib.idle_add(lambda: self.push_status() and False)
+    def dismiss(self, _msg=None):
+        self.state["dismissed"] = True
+        self.save_state()
+
+    def stop_recording(self, _msg=None):
+        if self.recording:
+            self.capture("record")
+
+    def overview(self, _msg=None):
+        from rundot import overview
+        if not overview():
+            self.js("openRuns()")
 
     # --- commands from keyboard shortcuts (kuhaku-capture writes to the FIFO) -
     def listen_fifo(self):
@@ -707,6 +540,23 @@ class Kuhaku(Voice, Settings, ClaudeJobs):
             if p and p.poll() is None:
                 p.terminate()
         Gtk.main_quit()
+
+
+# What the page may say (window.webkit.messageHandlers.kuhaku), and who listens.
+MESSAGES = {
+    "ask": lambda k, m: k.ask(m.get("text", ""), voice=bool(m.get("voice"))),
+    "voice": lambda k, m: k.voice(m.get("on")),
+    "cancel": lambda k, m: k.cancel(m.get("tab")),
+    "tab": lambda k, m: k.tab_action(m),
+    "menu": lambda k, m: k.menu(m.get("id")),
+    "dictate": lambda k, m: k.dictate(m.get("on")),
+    "picture": lambda k, m: k.pick_pictures(),
+    "stopRecording": lambda k, m: k.stop_recording(),
+    "dismiss": lambda k, m: k.dismiss(),
+    "draft": lambda k, m: k.save_draft(m),
+    "panel": lambda k, m: threading.Thread(target=k.panel, args=(m,), daemon=True).start(),
+    "overview": lambda k, m: k.overview(),
+}
 
 
 if __name__ == "__main__":

@@ -678,48 +678,28 @@ class Miru:
         except Exception:
             report()
             return
-        kind = msg.get("type")
-        if kind == "close":
-            self.win.destroy()
-        elif kind == "next":
-            self.step(1)
-        elif kind == "prev":
-            self.step(-1)
-        elif kind == "open":
-            self.open_in_app(msg.get("path"))
-        elif kind == "folder":
-            # From a preview: back to its folder, with the file chosen.
-            self.browse(self.path.parent, select=self.path.name)
-        elif kind == "nav":
-            target = msg.get("path", str(HOME))
-            if target.startswith("mount:"):
-                self.mount(target[6:])
-            elif target.startswith("cloud:"):
-                self.cloud_page(target[6:])
-            else:
-                self.browse(target, select=msg.get("select"))
-        elif kind == "eject":
-            self.eject(msg.get("dev", ""))
-        elif kind == "preview":
-            self.show(Path(msg["path"]))
-        elif kind == "trash":
-            self.trash(msg.get("paths") or [msg["path"]])
-        elif kind in ("duplicate", "copy", "cut", "paste", "copypath", "restore", "forget", "emptytrash", "markup"):
-            self.file_op(msg)
-        elif kind == "rename":
-            self.rename(msg["path"], msg.get("name", ""))
-        elif kind == "mkdir":
-            self.mkdir(msg.get("name", ""))
-        elif kind == "hidden":
-            self.hidden = not self.hidden
-            self.browse(self.folder)
-        elif kind == "terminal":
-            subprocess.Popen([str(HOME / ".local/bin/kuhaku-terminal")], cwd=str(self.folder or HOME),
-                             start_new_session=True)
-        elif kind == "minimize":
-            self.win.iconify()
+        kind = msg.get("type") or ""
+        handler = MESSAGES.get(kind)
+        if handler:
+            handler(self, msg)
         elif kind.startswith("cloud-"):
             self.cloud_msg(kind[6:], msg)
+
+    def nav(self, msg):
+        target = msg.get("path", str(HOME))
+        if target.startswith("mount:"):
+            self.mount(target[6:])
+        elif target.startswith("cloud:"):
+            self.cloud_page(target[6:])
+        else:
+            self.browse(target, select=msg.get("select"))
+
+    def toggle_hidden(self):
+        self.hidden = not self.hidden
+        self.browse(self.folder)
+
+    def open_terminal(self):
+        subprocess.Popen([str(HOME / ".local/bin/kuhaku-terminal")], cwd=str(self.folder or HOME), start_new_session=True)
 
     # --- Dropbox and Google Drive ----------------------------------------------------
     def cloud_page(self, key, phase=None, error=None):
@@ -875,6 +855,27 @@ class Miru:
 
 PAGE_URI = (Path(__file__).resolve().parent / "miru/miru.html").as_uri()   # its CSS and script sit beside it
 PAGE = (Path(__file__).resolve().parent / "miru/miru.html").read_text(encoding="utf-8")
+
+
+# What Miru's page may say, and who listens (cloud-* messages go to cloud_msg).
+MESSAGES = {
+    "close": lambda m, msg: m.win.destroy(),
+    "next": lambda m, msg: m.step(1),
+    "prev": lambda m, msg: m.step(-1),
+    "open": lambda m, msg: m.open_in_app(msg.get("path")),
+    "folder": lambda m, msg: m.browse(m.path.parent, select=m.path.name),   # from a preview: back, the file chosen
+    "nav": lambda m, msg: m.nav(msg),
+    "eject": lambda m, msg: m.eject(msg.get("dev", "")),
+    "preview": lambda m, msg: m.show(Path(msg["path"])),
+    "trash": lambda m, msg: m.trash(msg.get("paths") or [msg["path"]]),
+    **{k: (lambda m, msg: m.file_op(msg)) for k in ("duplicate", "copy", "cut", "paste", "copypath", "restore",
+                                                     "forget", "emptytrash", "markup")},
+    "rename": lambda m, msg: m.rename(msg["path"], msg.get("name", "")),
+    "mkdir": lambda m, msg: m.mkdir(msg.get("name", "")),
+    "hidden": lambda m, msg: m.toggle_hidden(),
+    "terminal": lambda m, msg: m.open_terminal(),
+    "minimize": lambda m, msg: m.win.iconify(),
+}
 
 
 if __name__ == "__main__":
