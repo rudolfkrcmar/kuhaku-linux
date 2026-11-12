@@ -27,7 +27,9 @@ import threading
 import time
 import urllib.request
 import zipfile
+from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import Any
 
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
@@ -44,7 +46,7 @@ EVERY = 300  # seconds between rounds
 MIN_RCLONE = (1, 66)  # bisync's --recover, --resilient, --conflict-resolve
 
 # The kinds of cloud. An account is one kind plus a number (see account()).
-KINDS = {
+KINDS: dict[str, dict[str, Any]] = {
     "dropbox": {"name": "Dropbox", "type": "dropbox", "local": HOME / "Dropbox", "flags": []},
     # Google Docs, Sheets and Slides have no file to copy; they stay online.
     "drive": {
@@ -58,7 +60,7 @@ KINDS = {
 KEY = re.compile(r"^(dropbox|drive)(?:-([2-9]|[1-9]\d))?$")
 
 
-def account(key):
+def account(key: str) -> dict[str, Any] | None:
     """Everything about one account, connected or not; None for a key that cannot be one."""
     m = KEY.match(key or "")
     if not m:
@@ -91,7 +93,15 @@ def account(key):
     }
 
 
-def _remotes():
+def acct(key: str) -> dict[str, Any]:
+    """account() for a key that must be one (a ValueError otherwise)."""
+    a = account(key)
+    if a is None:
+        raise ValueError(f"not a cloud account: {key!r}")
+    return a
+
+
+def _remotes() -> list[str]:
     """Account keys with a saved sign-in, in the order they were added."""
     try:
         names = re.findall(r"^\[kuhaku-([a-z0-9-]+)\]\s*$", RCLONE_CONF.read_text(), re.M)
@@ -100,16 +110,16 @@ def _remotes():
     return [n for n in names if KEY.match(n)]
 
 
-def accounts():
+def accounts() -> dict[str, dict[str, Any]]:
     """The first Dropbox and Google Drive always (to connect), then every further account signed in."""
     keys = ["dropbox", "drive"]
     for k in sorted(_remotes(), key=lambda k: (k.split("-")[0] != "dropbox", int(k.split("-")[1]) if "-" in k else 1)):
         if k not in keys:
             keys.insert(max(i for i, x in enumerate(keys) if x.split("-")[0] == k.split("-")[0]) + 1, k)
-    return {k: account(k) for k in keys}
+    return {k: acct(k) for k in keys}
 
 
-def new_key(kind):
+def new_key(kind: str) -> str:
     """The key for one more account of this kind."""
     taken = set(_remotes()) | set(_load(CHOICES))
     n = 2
@@ -119,14 +129,14 @@ def new_key(kind):
 
 
 # --- rclone itself -------------------------------------------------------------
-def rclone_path():
+def rclone_path() -> str | None:
     for p in (shutil.which("rclone"), str(HOME / ".local/bin/rclone")):
         if p and os.access(p, os.X_OK) and rclone_version(p) >= MIN_RCLONE:
             return p
     return None
 
 
-def rclone_version(path):
+def rclone_version(path: str) -> tuple[int, int]:
     try:
         out = subprocess.run([path, "version"], capture_output=True, text=True, timeout=10).stdout
         m = re.search(r"v(\d+)\.(\d+)", out)
@@ -136,7 +146,7 @@ def rclone_version(path):
         return (0, 0)
 
 
-def install_rclone():
+def install_rclone() -> str:
     """The official build into ~/.local/bin, checked against its published SHA-256 (no password needed).
     Debian's own rclone is too old for safe two-way sync."""
     base = "https://downloads.rclone.org"
@@ -160,7 +170,7 @@ def install_rclone():
     return str(dest)
 
 
-def rclone(*args, timeout=None):
+def rclone(*args: str, timeout: float | None = None) -> subprocess.CompletedProcess[str]:
     exe = rclone_path()
     if not exe:
         raise RuntimeError("rclone is not installed")
@@ -168,7 +178,7 @@ def rclone(*args, timeout=None):
 
 
 # --- what you chose ----------------------------------------------------------------
-def _load(p):
+def _load(p: Path) -> dict[str, Any]:
     try:
         return json.loads(p.read_text())
     except Exception:
@@ -176,31 +186,31 @@ def _load(p):
         return {}
 
 
-def _save(p, data):
+def _save(p: Path, data: dict[str, Any]) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2))
     tmp.replace(p)
 
 
-def connected(key):
+def connected(key: str) -> bool:
     try:
         return f"[kuhaku-{key}]" in RCLONE_CONF.read_text()
     except OSError:
         return False
 
 
-def folders(key):
+def folders(key: str) -> list[str]:
     return list(_load(CHOICES).get(key, {}).get("folders", []))
 
 
-def tidy(paths):
+def tidy(paths: Iterable[str]) -> list[str]:
     """Drop a folder when its parent is chosen too: the parent brings it along."""
     paths = sorted({p.strip("/") for p in paths if p.strip("/")})
     return [p for p in paths if not any(p.startswith(q + "/") for q in paths if q != p)]
 
 
-def choose(key, paths):
+def choose(key: str, paths: Iterable[str]) -> None:
     data = _load(CHOICES)
     data.setdefault(key, {})["folders"] = tidy(paths)
     _save(CHOICES, data)
@@ -211,7 +221,7 @@ def choose(key, paths):
     nudge()
 
 
-def disconnect(key):
+def disconnect(key: str) -> None:
     """Forget the account and the choice. The copies already on this computer stay."""
     rclone("config", "delete", "kuhaku-" + key, timeout=30)
     data = _load(CHOICES)
@@ -222,11 +232,11 @@ def disconnect(key):
     _save(STATUS, st)
 
 
-def local_base(key):
-    return account(key)["local"]
+def local_base(key: str) -> Path:
+    return acct(key)["local"]
 
 
-def which_cloud(path):
+def which_cloud(path: str | Path) -> tuple[str | None, str | None]:
     """The cloud a local path belongs to, if any: (key, folder relative to its base)."""
     path = Path(path)
     for key, p in accounts().items():
@@ -238,7 +248,7 @@ def which_cloud(path):
     return None, None
 
 
-def nudge(path=None):
+def nudge(path: str | Path | None = None) -> None:
     """Ask the daemon to sync soon (after a change in a cloud folder, or a new choice)."""
     if path is not None and which_cloud(path)[0] is None:
         return
@@ -246,11 +256,11 @@ def nudge(path=None):
     TRIGGER.touch()
 
 
-def status(key):
+def status(key: str) -> dict[str, Any]:
     return _load(STATUS).get(key, {})
 
 
-def describe(key):
+def describe(key: str) -> str:
     """One short line for Miru's side bar."""
     if not connected(key):
         return "Connect"
@@ -280,7 +290,7 @@ def describe(key):
 
 
 # --- signing in ------------------------------------------------------------------------
-def whoami(kind, token):
+def whoami(kind: str, token: str) -> dict[str, str]:
     """The signed-in person's email and name, asked of the cloud with the new token ({} if it will not say)."""
     try:
         access = json.loads(token)["access_token"]
@@ -302,9 +312,9 @@ def whoami(kind, token):
         return {}
 
 
-def _known_email(key):
+def _known_email(key: str) -> str:
     """The email of an account signed in before Kumo noted emails (asked once, then kept)."""
-    a = account(key)
+    a = acct(key)
     if a["email"] or not connected(key):
         return a["email"]
     try:
@@ -320,15 +330,15 @@ def _known_email(key):
     return email
 
 
-def _clean_label(text):
+def _clean_label(text: str) -> str:
     text = re.sub(r"[/\\\x00-\x1f]+", " ", text or "").strip()[:40]
     return text.strip(". ") or ""
 
 
-def connect(key, open_url, done, label=""):
+def connect(key: str, open_url: Callable[[str], None], done: Callable[[str | None], None], label: str = "") -> None:
     """Signs in through the browser; calls done(None) once the account is saved, or done(error).
     A further account (dropbox-2…) is refused if it turns out to be one already here."""
-    p = account(key)
+    p = acct(key)
 
     def work():
         try:
@@ -339,6 +349,7 @@ def connect(key, open_url, done, label=""):
                 stderr=subprocess.STDOUT,
                 text=True,
             )
+            assert proc.stdout is not None  # stdout=PIPE above
             out, opened = [], False
             deadline = time.time() + 600
             for line in proc.stdout:
@@ -407,9 +418,9 @@ def connect(key, open_url, done, label=""):
     threading.Thread(target=work, daemon=True).start()
 
 
-def list_folders(key, path=""):
+def list_folders(key: str, path: str = "") -> list[str]:
     """Folder names directly inside path in the cloud."""
-    a = account(key)
+    a = acct(key)
     r = rclone("lsjson", "--dirs-only", *a["flags"], f"{a['remote']}:{path}", timeout=90)
     if r.returncode != 0:
         raise RuntimeError((r.stderr.strip().splitlines() or ["could not list the folders"])[-1])
@@ -417,7 +428,7 @@ def list_folders(key, path=""):
 
 
 # --- keeping them the same -------------------------------------------------------------
-def _log(text):
+def _log(text: str) -> None:
     try:
         LOG.parent.mkdir(parents=True, exist_ok=True)
         if LOG.exists() and LOG.stat().st_size > 2_000_000:
@@ -428,14 +439,14 @@ def _log(text):
         pass
 
 
-def _set(key, **kv):
+def _set(key: str, **kv: Any) -> None:
     st = _load(STATUS)
     st.setdefault(key, {}).update(kv)
     _save(STATUS, st)
 
 
-def sync_folder(key, folder, first):
-    p = account(key)
+def sync_folder(key: str, folder: str, first: bool) -> None:
+    p = acct(key)
     local = p["local"] / folder
     local.mkdir(parents=True, exist_ok=True)
     cmd = [
@@ -467,7 +478,7 @@ def sync_folder(key, folder, first):
         raise RuntimeError((errs or r.stderr.strip().splitlines() or ["sync failed"])[-1][-160:])
 
 
-def sync_all():
+def sync_all() -> None:
     # Every account on its own: one that fails (signed out, offline, a conflict) never stops the others.
     for key in accounts():
         chosen = folders(key)
@@ -489,7 +500,7 @@ def sync_all():
         )
 
 
-def daemon():
+def daemon() -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     lock = open(LOCK, "w")  # noqa: SIM115  held (and locked) for the life of the daemon
     try:
@@ -501,7 +512,7 @@ def daemon():
         if st[key].get("state") == "syncing":
             st[key]["state"] = "idle"
     _save(STATUS, st)
-    last = 0
+    last = 0.0
     while True:
         due = time.time() - last >= EVERY
         if TRIGGER.exists():
@@ -514,7 +525,7 @@ def daemon():
         time.sleep(3)
 
 
-def ensure_daemon():
+def ensure_daemon() -> None:
     """Start the daemon if it is not running (its lock keeps it to one)."""
     try:
         with open(LOCK, "a+") as f:

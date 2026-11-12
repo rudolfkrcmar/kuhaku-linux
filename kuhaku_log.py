@@ -21,17 +21,17 @@ import traceback
 from pathlib import Path
 
 LOG_DIR = Path.home() / ".local/state/kuhaku/logs"
-_seen = set()
-_logger = None
+_seen: set[tuple[str, type[BaseException] | None]] = set()
+_logger: logging.Logger | None = None
 
 
-def app_name():
+def app_name() -> str:
     main = sys.modules.get("__main__")
     name = Path(getattr(main, "__file__", "") or sys.argv[0] or "kuhaku").stem
     return name.replace("_", "-") or "kuhaku"
 
 
-def logger():
+def logger() -> logging.Logger:
     global _logger
     if _logger is None:
         _logger = logging.getLogger("kuhaku")
@@ -39,7 +39,7 @@ def logger():
         _logger.propagate = False
         try:
             LOG_DIR.mkdir(parents=True, exist_ok=True)
-            handler = logging.handlers.RotatingFileHandler(
+            handler: logging.Handler = logging.handlers.RotatingFileHandler(
                 LOG_DIR / f"{app_name()}.log", maxBytes=500_000, backupCount=1, encoding="utf-8"
             )
         except OSError:
@@ -51,7 +51,7 @@ def logger():
     return _logger
 
 
-def report(what=None):
+def report(what: str | None = None) -> None:
     """Writes down the exception being handled (call it inside an except block). Never raises."""
     try:
         etype, err, tb = sys.exc_info()
@@ -69,7 +69,7 @@ def report(what=None):
         pass  # the log itself must never break an app
 
 
-def note(text):
+def note(text: str) -> None:
     """Writes down something worth knowing that is not an exception."""
     try:
         logger().info(text)

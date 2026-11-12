@@ -1,16 +1,32 @@
 #!/bin/sh
-# Everything Kūhaku checks before a change is saved: the Python compiles, the tests pass,
-# the safety guard works, and every page loads without a script error.
+# Everything Kūhaku checks before a change is saved: the Python compiles, is formatted and
+# linted (ruff), the core modules type-check (mypy), the tests pass, and every page loads
+# without a script error and looks as it did (screenshots).
 #     dev/check          all of it
-#     dev/check quick    no pages (what runs before each commit)
+#     dev/check quick    no pages or screenshots (what runs before each commit)
 set -e
 cd "$(dirname "$0")/.."
+tool() {  # a tool from PATH, or from Kūhaku's own venv
+  command -v "$1" 2>/dev/null || { [ -x "$HOME/.local/share/kuhaku/venv/bin/$1" ] && echo "$HOME/.local/share/kuhaku/venv/bin/$1"; } || true
+}
 echo "· compiling"
 for f in *.py; do python3 -m py_compile "$f"; done
-if [ -d tests ]; then
-  echo "· tests"
-  python3 -m unittest discover -s tests -t . -q
+RUFF=$(tool ruff); MYPY=$(tool mypy)
+if [ -n "$RUFF" ]; then
+  echo "· format and lint"
+  "$RUFF" format --check --quiet .
+  "$RUFF" check --quiet .
+else
+  echo "· format and lint: skipped (pip install ruff)"
 fi
+if [ -n "$MYPY" ]; then
+  echo "· types"
+  "$MYPY" --no-error-summary
+else
+  echo "· types: skipped (pip install mypy)"
+fi
+echo "· tests"
+python3 -m unittest discover -s tests -t . -q
 if [ "$1" != quick ]; then
   echo "· pages"
   python3 dev/pagecheck.py

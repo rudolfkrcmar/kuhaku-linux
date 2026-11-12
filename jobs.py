@@ -22,7 +22,7 @@ RESERVE_MB = 1200
 FIRST, NORMAL, LATER = 2, 1, 0  # priorities: put first, normal, whenever there is room
 
 
-def mem_available_mb():
+def mem_available_mb() -> int:
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
             if line.startswith("MemAvailable:"):
@@ -32,7 +32,7 @@ def mem_available_mb():
     return 4096
 
 
-def plan_room(limits):
+def plan_room(limits: dict | None) -> tuple[str, float | None]:
     """(level, resets): "open", "tight" (only first jobs, one at a time) or "closed" until resets."""
     s = (limits or {}).get("session") or {}
     w = (limits or {}).get("week") or {}
@@ -45,7 +45,7 @@ def plan_room(limits):
     return "open", resets
 
 
-def slots(running, max_jobs, limits):
+def slots(running: int, max_jobs: int, limits: dict | None) -> tuple[int, str | None, float | None]:
     """How many more jobs may start now, and why not, if none."""
     level, resets = plan_room(limits)
     if level == "closed":
@@ -62,7 +62,7 @@ def slots(running, max_jobs, limits):
 WHEN = re.compile(r"^(?:at|@)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?[,:]?\s+", re.I)
 
 
-def parse_when(text):
+def parse_when(text: str) -> tuple[int | None, str]:
     """ "at 7:00 sort my mail" -> (timestamp of the next 7:00, "sort my mail")."""
     m = WHEN.match(text)
     if not m:
@@ -81,13 +81,13 @@ def parse_when(text):
     return int(at.timestamp()), text[m.end() :].strip() or text
 
 
-def model_label(model_id):
+def model_label(model_id: str | None) -> str:
     """claude-opus-5-5 -> Opus 5.5, claude-haiku-4-5-20251001 -> Haiku 4.5."""
     parts = [p for p in (model_id or "").removeprefix("claude-").split("-") if not (p.isdigit() and len(p) == 8)]
     return (parts[0].capitalize() + (" " + ".".join(parts[1:]) if parts[1:] else "")) if parts else ""
 
 
-def title_of(text):
+def title_of(text: str) -> str:
     words = re.sub(r"\s+", " ", text).strip().split(" ")
     t = " ".join(words[:4])
     return (t[:32] + "…") if len(t) > 32 or len(words) > 4 else t
@@ -190,7 +190,7 @@ BATTERY = next(
 CHIP_WATTS = 4.5  # the Core M's whole design power, used when the battery cannot say
 
 
-def cpu_seconds(pid):
+def cpu_seconds(pid: int) -> float | None:
     """Processor time a program and the tools it waited for have used so far."""
     try:
         f = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
@@ -200,7 +200,7 @@ def cpu_seconds(pid):
         return None
 
 
-def memory_mb(pid):
+def memory_mb(pid: int) -> float | None:
     """What a program and everything it started hold in memory now."""
     try:
         import psutil
@@ -212,7 +212,7 @@ def memory_mb(pid):
         return None
 
 
-def erase_session(config_dir, session_id):
+def erase_session(config_dir: str | Path, session_id: str) -> None:
     """An anonymous conversation leaves nothing behind on this computer once its tab closes."""
     import shutil
 
@@ -234,7 +234,7 @@ def erase_session(config_dir, session_id):
                 pass
 
 
-def battery_watts():
+def battery_watts() -> float | None:
     """What the whole laptop draws now, when it runs on battery (None on the charger)."""
     try:
         if (BATTERY / "status").read_text().strip() != "Discharging":
@@ -245,7 +245,7 @@ def battery_watts():
         return None
 
 
-def energy_wh(seconds, cpu, watts):
+def energy_wh(seconds: float, cpu: float | None, watts: list[float]) -> tuple[float | None, str | None]:
     """The laptop's share: measured on battery, otherwise estimated from processor time."""
     if watts:
         return round(sum(watts) / len(watts) * seconds / 3600, 3), "battery"
@@ -254,7 +254,7 @@ def energy_wh(seconds, cpu, watts):
     return None, None
 
 
-def log_run(record):
+def log_run(record: dict) -> None:
     try:
         with open(RUNS_FILE, "a") as f:
             f.write(json.dumps(record) + "\n")
