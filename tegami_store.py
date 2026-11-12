@@ -14,7 +14,8 @@ import threading
 import time
 from pathlib import Path
 
-imaplib._MAXLINE = 50_000_000  # long server answers (big mailboxes) are fine
+# Long server answers (big mailboxes) are fine.
+imaplib._MAXLINE = 50_000_000  # type: ignore[attr-defined]
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
 CONFIG = HOME / ".config/kuhaku/mail.json"
@@ -164,7 +165,7 @@ UPDATE_WORDS = re.compile(
 
 def correspondents(store):
     """Everyone the user has written to: their letters are important."""
-    out = set()
+    out: set = set()
     for (r,) in store.q("SELECT recipients FROM msg WHERE folder='sent'"):
         out.update(a.lower() for _, a in email.utils.getaddresses([r or ""]) if a)
     return out

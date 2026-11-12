@@ -272,7 +272,7 @@ class Sync:
 
     def gmail_categories(self, a, M, role, uids):
         """Gmail already sorts mail into tabs; use its answer for the letters we keep."""
-        new = {}
+        new: dict = {}
         for gcat in ("purchases", "promotions", "forums", "updates", "social"):
             try:
                 typ, data = M.uid("search", None, f"UID {uids[0]}:*", "X-GM-RAW", f'"category:{gcat}"')
@@ -427,6 +427,7 @@ class Sync:
             try:
                 port = int(a.get("smtp_port", 465))
                 ctx = ssl.create_default_context()
+                S: smtplib.SMTP
                 if port == 465:
                     S = smtplib.SMTP_SSL(a["smtp_host"], port, context=ctx, timeout=30)
                 else:

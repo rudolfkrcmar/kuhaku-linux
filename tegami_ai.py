@@ -118,7 +118,7 @@ def topic(subject):
 def threads(rows):
     """Give each letter a conversation id: letters linked by References/In-Reply-To, or with the same
     topic from the same side (sender's domain), share one. rows: dicts with msgid, refs, subject, addr."""
-    parent = {}
+    parent: dict = {}
 
     def find(x):
         while parent.setdefault(x, x) != x:
@@ -304,7 +304,7 @@ class Assistant:
         if not rows:
             return False
         # Newsletters need no one: noted without asking Claude.
-        ask = []
+        ask: list = []
         for r in rows:
             if r[9] == "newsletters":
                 self.store.q(
@@ -669,7 +669,7 @@ class Assistant:
             ]
         )
         rank = {"reply": 0, "todo": 1, "read": 2}
-        groups = {}
+        groups: dict = {}
         for r in out:
             groups.setdefault(r["thread"], []).append(r)
         merged = []

@@ -21,6 +21,11 @@ from kuhaku_log import report
 
 
 class Voice:
+    recorder: subprocess.Popen | None
+    speaker: subprocess.Popen | None
+    voice_proc: subprocess.Popen | None
+    whisper: subprocess.Popen | None
+
     # --- dictation: record with PipeWire, transcribe offline with Whisper --
     def dictate(self, on):
         if on and not self.recorder:

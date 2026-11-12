@@ -117,7 +117,7 @@ def sessions(root, limit=14):
 def diff_lines(old, new, cap=400):
     """A line diff with a little context, in the page's {s, t, n} rows; '⋯' marks a gap."""
     a, b = (old or "").split("\n"), (new or "").split("\n")
-    rows = []
+    rows: list[dict] = []
     for group in difflib.SequenceMatcher(None, a, b, autojunk=False).get_grouped_opcodes(2):
         if rows:
             rows.append({"s": " ", "t": "⋯", "n": ""})
@@ -182,7 +182,7 @@ def tool_block(root, b):
     if name == "Edit":
         block["diff"] = diff_lines(i.get("old_string"), i.get("new_string"))
     elif name == "MultiEdit":
-        rows = []
+        rows: list[dict] = []
         for e in i.get("edits") or []:
             if rows:
                 rows.append({"s": " ", "t": "⋯", "n": ""})
@@ -234,7 +234,8 @@ def apply_result(block, r, extra=None):
 def history(root, sid):
     """A past session as blocks, read from its transcript."""
     f = project_dir(root) / f"{sid}.jsonl"
-    blocks, tools = [], {}
+    blocks: list = []
+    tools: dict = {}
     try:
         fh = open(f, errors="ignore")  # noqa: SIM115  closed by the `with fh` below
     except OSError:
@@ -346,7 +347,7 @@ class Runner:
             )
             self.emit("busy", {"root": root, "sid": sid, "busy": False})
             return
-        for line in proc.stdout:
+        for line in proc.stdout or []:
             try:
                 ev = json.loads(line)
             except ValueError:

@@ -35,8 +35,8 @@ if MAC:
     import ctypes
     import ctypes.util
 
-    _sec = ctypes.cdll.LoadLibrary(ctypes.util.find_library("Security"))
-    _cf = ctypes.cdll.LoadLibrary(ctypes.util.find_library("CoreFoundation"))
+    _sec = ctypes.cdll.LoadLibrary(ctypes.util.find_library("Security") or "Security")
+    _cf = ctypes.cdll.LoadLibrary(ctypes.util.find_library("CoreFoundation") or "CoreFoundation")
     _vp = ctypes.c_void_p
     _cf.CFStringCreateWithCString.restype = _vp
     _cf.CFStringCreateWithCString.argtypes = [_vp, ctypes.c_char_p, ctypes.c_uint32]
@@ -125,7 +125,7 @@ else:
     gi.require_version("Secret", "1")
     from gi.repository import Secret
 
-    _schemas = {}
+    _schemas: dict = {}
 
     def _schema(service):
         if service not in _schemas:

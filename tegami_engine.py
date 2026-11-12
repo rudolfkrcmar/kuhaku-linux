@@ -31,7 +31,7 @@ class Engine:
     """The host: everything runs on one thread, like Kūhaku's GTK main loop."""
 
     def __init__(self):
-        self.jobs = queue.Queue()
+        self.jobs: queue.Queue = queue.Queue()
         self.lock = threading.Lock()
         self.mail = Mail(self)
 

@@ -143,7 +143,7 @@ class Mail:
     def counts(self):
         """Unread letters per category, for the side."""
         rows = self.store.q("SELECT cat, COUNT(*) FROM msg WHERE folder='inbox' AND seen=0 GROUP BY cat")
-        out = {c: 0 for c in CATS}
+        out: dict = {c: 0 for c in CATS}
         out.update({c: n for c, n in rows if c})
         out["inbox"] = sum(n for _, n in rows)
         out["spam"] = self.store.q("SELECT COUNT(*) FROM msg WHERE folder='spam' AND seen=0")[0][0]
@@ -399,7 +399,8 @@ class Mail:
             "SELECT i.acct, i.folder, i.uid, i.ev, m.sender_name, m.sender, m.date, m.seen FROM invites i JOIN msg m "
             "ON m.acct=i.acct AND m.folder=i.folder AND m.uid=i.uid WHERE i.ev != '' AND m.folder='inbox' ORDER BY m.date DESC"
         )
-        meetings, answers = {}, {}
+        meetings: dict = {}
+        answers: dict = {}
         for a, f, u, ev, name, sender, date, seen in rows:
             if acct != "all" and a != acct:
                 continue
@@ -467,7 +468,9 @@ class Mail:
         """Addresses for the To, Cc and Bcc suggestions: people written to count most, then people who wrote
         (machines left out), newest first among equals."""
         own = {a["email"].lower() for a in load_accounts()}
-        score, names, last = {}, {}, {}
+        score: dict = {}
+        names: dict = {}
+        last: dict = {}
         for rec, date in self.store.q(
             "SELECT recipients, date FROM msg WHERE folder='sent' ORDER BY date DESC LIMIT 3000"
         ):
@@ -1117,14 +1120,14 @@ class Mail:
         elif k == "check":
             text, token = msg.get("body", ""), msg.get("token")
 
-            def work():
+            def check_work():
                 try:
                     out = self.ai.check(text)
                 except Exception as e:
                     out = {"notes": [], "error": str(e)[:120]}
                 self.later(lambda: self.js("checked", {"token": token, "body": text, **out}) and False)
 
-            threading.Thread(target=work, daemon=True).start()
+            threading.Thread(target=check_work, daemon=True).start()
         elif k == "draftSave":
             d = {
                 x: msg.get(x, "")
@@ -1209,7 +1212,7 @@ class Mail:
         elif k == "translate":
             key, target = msg.get("key", ""), msg.get("into") or self.ai.languages()["into"]
 
-            def work():
+            def translate_work():
                 try:
                     acct, folder, uid = split_key(key)
                     m = self.read(key) or {}
@@ -1221,7 +1224,7 @@ class Mail:
                     out = {"error": str(e)[:140]}
                 self.later(lambda: self.js("translated", {"key": key, "into": target, **out}) and False)
 
-            threading.Thread(target=work, daemon=True).start()
+            threading.Thread(target=translate_work, daemon=True).start()
         elif k == "invitations":
             self.js("invitationsAre", self.invitations(msg.get("acct", "all")))
         elif k == "rsvp":

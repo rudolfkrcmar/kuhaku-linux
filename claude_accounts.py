@@ -65,7 +65,8 @@ def load():
         data["accounts"].append(
             {"id": LOCAL_ID, "name": "Local", "set": "", "kind": "local", "dir": str(ROOT / LOCAL_ID)}
         )
-    seen, keep = set(), []
+    seen: set = set()
+    keep = []
     for i, a in enumerate(data["accounts"]):
         if kind(a) == "local":
             if "local" not in seen:
@@ -143,7 +144,7 @@ def command(purpose=None):
     return exe(kind(pick(purpose=purpose)))
 
 
-_ollama = {"at": 0, "models": None}
+_ollama: dict = {"at": 0.0, "models": None}
 
 
 def ollama_models():

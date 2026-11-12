@@ -33,7 +33,7 @@ TOKEN = "https://oauth2.googleapis.com/token"
 USERINFO = "https://openidconnect.googleapis.com/v1/userinfo"
 CONSOLE = "https://console.cloud.google.com/auth/clients/create"
 
-_tokens = {}  # refresh token -> (access token, expiry)
+_tokens: dict = {}  # refresh token -> (access token, expiry)
 
 DONE_PAGE = (Path(__file__).resolve().parent / "mail/google-signed-in.html").read_text(encoding="utf-8")
 

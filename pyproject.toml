@@ -31,7 +31,12 @@ known-first-party = ["kuhaku_log", "kuhaku_config", "kuhaku_system", "kuhaku_pan
 
 [tool.mypy]
 python_version = "3.13"
-files = ["kuhaku_log.py", "kumo.py", "kuhaku-guard.py", "kuhaku_config.py", "jobs.py"]
+files = [
+    "kuhaku_log.py", "kumo.py", "kuhaku-guard.py", "kuhaku_config.py", "jobs.py",
+    "claude_accounts.py", "calendars.py", "invites.py", "keepawake.py",
+    "tegami_core.py", "tegami_store.py", "tegami_sync.py", "tegami_engine.py", "tegami_ai.py", "tegami_google.py",
+    "tsukuru.py", "tsukuru_chat.py", "desktop.py",
+]
 ignore_missing_imports = true
 check_untyped_defs = true
 warn_unused_ignores = true

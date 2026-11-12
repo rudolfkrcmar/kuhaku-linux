@@ -37,6 +37,8 @@ from kuhaku_system import (
 
 
 class Settings:
+    whisper: subprocess.Popen | None
+
     # --- Kūhaku settings page --------------------------------------------
     def read_prefs(self):
         _, sinks_json, _ = run(["pactl", "-f", "json", "list", "sinks"])

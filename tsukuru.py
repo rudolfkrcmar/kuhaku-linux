@@ -147,7 +147,7 @@ def gitlab_hosts():
 
 def connections():
     """Who is signed in to GitHub (gh), GitLab (glab) and Railway (railway)."""
-    out = {}
+    out: dict = {}
     code, raw, _ = run([RAILWAY, "whoami", "--json"], timeout=15) if Path(RAILWAY).exists() else (1, "", "")
     try:
         me = json.loads(raw) if code == 0 else {}
@@ -282,7 +282,7 @@ class Tsukuru:
         self.t = THEMES[theme()]
         self.night = theme() == "night"
         self.state = load_state()
-        self.root = None
+        self.root: Path | None = None
         self.monitors = {}
 
         self.win = Gtk.Window(title="Tsukuru")
@@ -439,6 +439,8 @@ class Tsukuru:
 
     def pages(self):
         root = self.root
+        if not root:
+            return
 
         def work():
             found = []
@@ -463,7 +465,8 @@ class Tsukuru:
             _, out, _ = run(
                 ["git", "diff", "HEAD" if has_head else "--cached", "--no-color", "-U2", "--", rel], cwd=root
             )
-            rows, n, inside = [], 0, False
+            rows: list[dict] = []
+            n, inside = 0, False
             if not out:
                 # not tracked yet: the whole file is new
                 try:
@@ -498,7 +501,7 @@ class Tsukuru:
         self.in_thread(work, lambda rows: self.js("diff", {"path": rel, "rows": rows}))
 
     def list_dir(self, folder):
-        out = []
+        out: list = []
         try:
             items = sorted(Path(folder).iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
         except OSError:
@@ -512,12 +515,15 @@ class Tsukuru:
         return out
 
     def all_files(self, limit=20000):
-        files = []
-        for dirpath, dirnames, filenames in os.walk(self.root):
+        files: list[str] = []
+        root = self.root
+        if not root:
+            return files
+        for dirpath, dirnames, filenames in os.walk(root):
             dirnames[:] = [d for d in dirnames if d not in SKIP and not d.startswith(".")]
             for f in filenames:
                 if not f.startswith("."):
-                    files.append(os.path.relpath(os.path.join(dirpath, f), self.root))
+                    files.append(os.path.relpath(os.path.join(dirpath, f), root))
                     if len(files) >= limit:
                         return files
         return sorted(files)
@@ -538,6 +544,8 @@ class Tsukuru:
         self.js("opened", {"path": str(p), "name": p.name, "text": text, "rel": self.rel(p)})
 
     def rel(self, p):
+        if not self.root:
+            return str(p)
         try:
             return str(Path(p).relative_to(self.root))
         except Exception:
@@ -974,7 +982,10 @@ class Tsukuru:
             self.state.setdefault("open", {})[str(self.root)] = msg.get("paths", [])[:20]
             save_state(self.state)
         elif kind == "newFile" or kind == "newFolder":
-            base = Path(msg.get("dir") or self.root)
+            folder = msg.get("dir") or self.root
+            if not folder:
+                return
+            base = Path(folder)
             target = base / msg["name"].strip()
             try:
                 if kind == "newFolder":
@@ -1050,7 +1061,7 @@ class Tsukuru:
 def claude_projects(skip=()):
     """Every folder Claude Code has worked in (any Claude account), newest first: Tsukuru takes them over
     as they are, with their conversations, the way Cursor imports projects."""
-    seen = {}
+    seen: dict = {}
     roots = [HOME / ".claude" / "projects"] + list((HOME / ".claude-accounts").glob("*/projects"))
     for base in roots:
         for d in base.glob("*") if base.is_dir() else []:

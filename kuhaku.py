@@ -115,8 +115,6 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         GLib.timeout_add_seconds(60, self.push_theme)
         self.recording = None
         threading.Thread(target=self.listen_fifo, daemon=True).start()
-        # The red dot over apps lives in the top bar now (corner.py), before the red line.
-        self.rundot = None
         try:
             from osd import Osd
 
@@ -180,7 +178,8 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             # stays on screen unless it was closed.
             answers = self.load_answers()[-300:]
             try:
-                booted = float(re.search(r"btime (\d+)", Path("/proc/stat").read_text()).group(1))
+                found = re.search(r"btime (\d+)", Path("/proc/stat").read_text())
+                booted = float(found.group(1)) if found else 0
             except Exception:
                 booted = 0
             fresh = bool(answers) and (answers[-1].get("time") or 0) > booted
@@ -223,8 +222,6 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
 
     def push_windows(self):
         wins = open_windows()
-        if getattr(self, "rundot", None):
-            self.rundot.update(wins)
         if wins != self.last_windows:
             self.last_windows = wins
             self.send("setWindows", wins)
@@ -531,7 +528,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             start_new_session=True,
         )
         log.close()
-        if accounts.kind(acct) == "gemini":
+        if accounts.kind(acct) == "gemini" and p.stdin:
             p.stdin.write(b"y\n")
             p.stdin.flush()
         procs[ident] = p
