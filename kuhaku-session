@@ -63,6 +63,7 @@ k=/commands/custom
 xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioRaiseVolume" -n -t string -s "$DIR/kuhaku-volume up" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioRaiseVolume" -s "$DIR/kuhaku-volume up"
 xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioLowerVolume" -n -t string -s "$DIR/kuhaku-volume down" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioLowerVolume" -s "$DIR/kuhaku-volume down"
 xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioMute" -n -t string -s "$DIR/kuhaku-volume mute" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioMute" -s "$DIR/kuhaku-volume mute"
+xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioMicMute" -n -t string -s "$DIR/kuhaku-volume mic" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioMicMute" -s "$DIR/kuhaku-volume mic"
 
 # Brightness keys and power notices: Kūhaku shows them in its own design.
 for kv in "XF86MonBrightnessUp up" "XF86MonBrightnessDown down"; do
@@ -73,16 +74,28 @@ for prop in handle-brightness-keys general-notification; do
   xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -n -t bool -s false 2>/dev/null || xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -s false
 done
 
+# The ThinkPad Fn row, the Kūhaku way: F7 display, F8 airplane mode, F9 notifications,
+# F10 talk with Claude, F11 lock, F12 (star) the browser. F9 to F11 arrive as Launch1-3
+# (remapped in /etc/udev/hwdb.d/61-kuhaku-thinkpad.hwdb; X cannot see their own codes).
+for kv in "<Super>p|$DIR/kuhaku-key display" "XF86Display|$DIR/kuhaku-key display" \
+          "XF86RFKill|$DIR/kuhaku-airplane" "XF86WLAN|$DIR/kuhaku-airplane" \
+          "XF86Launch1|$DIR/kuhaku-key notices" "XF86Launch2|$DIR/kuhaku-key talk" \
+          "XF86Launch3|python3 $DIR/kuhaku-lock.py lock" "XF86Favorites|$HOME/.local/bin/mado"; do
+  key=${kv%%|*}; cmd=${kv#*|}
+  xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$key" -n -t string -s "$cmd" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$key" -s "$cmd"
+done
+
 # The power key: Kūhaku's own menu, not the system's log-out dialog (holding it still forces power off).
 xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86PowerOff" -n -t string -s "$DIR/kuhaku-power" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86PowerOff" -s "$DIR/kuhaku-power"
 xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action -s 0 2>/dev/null
 
 # Mac-style capture keys. On a Mac, Cmd is Ctrl (ctrl:swap_lwin_lctl in kuhaku-start), so
-# Cmd+Shift+3/4/5 arrive as <Primary><Shift>; on other computers the same is Ctrl+Shift+3/4/5.
+# Cmd+Shift+3/4/5 arrive as <Primary><Shift>; on other computers the same is Ctrl+Shift+3/4/5, and
+# Win+Shift+3/4/5 too (as on Windows).
 # Both keysym spellings are bound (the shifted one differs between layouts).
 for kv in "numbersign full" "3 full" "dollar area" "4 area" "percent record" "5 record"; do
   set -- $kv
-  for mods in "<Primary><Shift>" "<Primary><Shift><Super>"; do
+  for mods in "<Primary><Shift>" "<Super><Shift>" "<Primary><Shift><Super>"; do
     act=$2; [ "$mods" = "<Primary><Shift><Super>" ] && { [ "$act" = record ] && continue; act="$act-clip"; }
     xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$mods$1" -n -t string -s "$DIR/kuhaku-capture $act" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$mods$1" -s "$DIR/kuhaku-capture $act"
   done

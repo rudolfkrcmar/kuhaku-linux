@@ -18,6 +18,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 BRIGHT_MARK = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "kuhaku-brightness-asked"
 W, H = 380, 104          # volume, brightness: label, number and a line
@@ -38,6 +39,16 @@ def read_volume():
                               capture_output=True, text=True, timeout=2).stdout
         levels = [int(x) for x in re.findall(r"(\d+)%", vol)]
         return (round(sum(levels) / len(levels)) if levels else 0, "yes" in mute)
+    except Exception:
+        report()
+        return None
+
+
+def read_mic_mute():
+    try:
+        out = subprocess.run(["pactl", "get-source-mute", "@DEFAULT_SOURCE@"],
+                             capture_output=True, text=True, timeout=2).stdout
+        return "yes" in out if out else None
     except Exception:
         report()
         return None
@@ -65,6 +76,7 @@ class Osd:
         self.win.input_shape_combine_region(cairo.Region())
 
         self.volume = read_volume()
+        self.mic_muted = read_mic_mute()
         threading.Thread(target=self.watch_volume, daemon=True).start()
         self.backlight = next(iter(sorted(Path("/sys/class/backlight").glob("*"))), None)
         self.bright = self.read_brightness()
@@ -90,6 +102,13 @@ class Osd:
                     self.volume = vol
                     if not first:
                         GLib.idle_add(self.show, "Volume", vol[0], vol[1])
+            if "on source #" in line or "on server" in line:
+                m = read_mic_mute()
+                if m is not None and m != self.mic_muted:
+                    first = self.mic_muted is None
+                    self.mic_muted = m
+                    if not first:
+                        GLib.idle_add(self.message, "Microphone", "Muted" if m else "On")
 
     def read_brightness(self):
         try:

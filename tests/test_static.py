@@ -51,6 +51,27 @@ class Static(unittest.TestCase):
             with self.subTest(file=f.name):
                 self.assertEqual(silent, [])
 
+    def test_no_undefined_names(self):
+        """Every name read somewhere is defined somewhere in its file (catches a deleted helper still in use)."""
+        import builtins
+        for f in SOURCES:
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+            known = set(dir(builtins)) | {"__file__"}
+            for n in ast.walk(tree):
+                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    known.add(n.name)
+                elif isinstance(n, (ast.Import, ast.ImportFrom)):
+                    known.update((a.asname or a.name).split(".")[0] for a in n.names)
+                elif isinstance(n, ast.Name) and not isinstance(n.ctx, ast.Load):
+                    known.add(n.id)
+                elif isinstance(n, ast.arg):
+                    known.add(n.arg)
+                elif isinstance(n, ast.ExceptHandler) and n.name:
+                    known.add(n.name)
+            used = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+            with self.subTest(file=f.name):
+                self.assertEqual(sorted(used - known), [])
+
     def test_pages_exist_and_are_used(self):
         for page, module in (("miru/miru.html", "miru.py"), ("browser/tls.html", "browser.py"),
                              ("browser/tls-webkit.html", "browser_webkit.py"),

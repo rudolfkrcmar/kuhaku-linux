@@ -24,6 +24,7 @@ from gi.repository import Gtk
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_accounts as accounts  # noqa: E402
 from kuhaku_log import report  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
@@ -637,3 +638,29 @@ def describe(ev):
             }.get(name, lambda: name.replace("mcp__", "").replace("__", " ").replace("_", " "))()
             steps.append({"kind": "tool", "text": short(text)})
     return steps
+
+
+# --- Notifications -------------------------------------------------------------
+NOTIFY_LOG = HOME / ".cache" / "xfce4" / "notifyd" / "log.sqlite"
+
+
+def notices(clear=False):
+    """The notifications that came in (xfce4-notifyd keeps them), newest first; seen once shown."""
+    import sqlite3
+    if not NOTIFY_LOG.exists():
+        return []
+    try:
+        db = sqlite3.connect(str(NOTIFY_LOG), timeout=2)
+        if clear:
+            db.execute("DELETE FROM notifications")
+        rows = db.execute("SELECT timestamp, app_name, summary, body, is_read FROM notifications "
+                          "ORDER BY timestamp DESC LIMIT 40").fetchall()
+        db.execute("UPDATE notifications SET is_read = 1 WHERE is_read = 0")
+        db.commit()
+        db.close()
+    except Exception:
+        report()
+        return []
+    # notifyd stores microseconds since the epoch
+    return [{"t": (t or 0) // 1_000_000 if (t or 0) > 10**12 else (t or 0), "app": a or "", "title": su or "",
+             "body": re.sub(r"<[^>]+>", "", b or "")[:400], "new": not r} for t, a, su, b, r in rows]

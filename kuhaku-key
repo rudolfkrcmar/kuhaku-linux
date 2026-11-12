@@ -1,0 +1,4 @@
+#!/bin/sh
+# Keys on the keyboard that Kūhaku answers itself: display (F7), notices (F9), talk (F10).
+f="${XDG_STATE_HOME:-$HOME/.local/state}/kuhaku/kuhaku.fifo"
+case "$1" in display|notices|talk) [ -p "$f" ] && echo "$1" > "$f" ;; esac

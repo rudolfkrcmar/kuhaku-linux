@@ -137,6 +137,7 @@ class Prompt:
         GLib.timeout_add(150, lambda: (self.grab(), False)[1])
         self.session = None
         self.retired = []
+        password_only(False)
         self.start()
 
     def grab(self):
@@ -154,13 +155,30 @@ class Prompt:
             self.retired.append(self.session)
         s = self.session = PolkitAgent.Session.new(self.identity, self.cookie)
         s.connect("request", self.on_request)
-        s.connect("show-error", lambda _s, text: (log("show-error", text), self.error.set_text(text)))
-        s.connect("show-info", lambda _s, text: log("show-info", text))
+        s.connect("show-error", self.on_error)
+        s.connect("show-info", self.on_info)
         log("session start")
         s.connect("completed", self.completed)
         s.initiate()
 
+    def on_info(self, s, text):
+        log("show-info", text)
+        if s is self.session and "finger" in text.lower():
+            self.fingering = True
+            self.hint.set_text("Password, or touch the reader")
+
+    def on_error(self, s, text):
+        log("show-error", text)
+        if s is not self.session:
+            return
+        if "finger" in text.lower():
+            self.error.set_text("Not a known finger, try again")
+        else:
+            self.error.set_text(text)
+
     def on_request(self, s, prompt, echo):
+        self.fingering = False
+        self.hint.set_text("Password")
         log("request", repr(prompt), "echo", echo, "current", s is self.session, "queued", self.typed is not None)
         if s is not self.session:
             return
@@ -182,6 +200,14 @@ class Prompt:
         if self.asked:
             self.asked = False
             self.session.response(text)
+        elif getattr(self, "fingering", False):
+            # Waiting for a finger, but the password was typed: ask again, for the password only.
+            self.fingering = False
+            password_only(True)
+            old = self.session
+            self.start()
+            self.typed = text
+            old.cancel()
         else:
             self.typed = text
 
@@ -218,10 +244,25 @@ class Prompt:
         if getattr(self, "finished", False):
             return
         self.finished = True
+        password_only(False)
         Gdk.Display.get_default().get_default_seat().ungrab()
         touchkeys.front(False)
         self.win.destroy()
         self.done(ok)
+
+
+# A finger works too: the system first waits for a known finger on the reader (pam_fprintd in
+# /etc/pam.d/polkit-1). Typing the password instead and pressing Enter skips that wait: this
+# file asks the system for the password only (/usr/local/lib/kuhaku/password-only checks it).
+def password_only(on):
+    path = os.path.join(GLib.get_user_runtime_dir(), "kuhaku-password-only")
+    try:
+        if on:
+            open(path, "w").close()
+        else:
+            os.unlink(path)
+    except OSError:
+        pass
 
 
 AGENT_PATH = "/org/freedesktop/PolicyKit1/AuthenticationAgent"
