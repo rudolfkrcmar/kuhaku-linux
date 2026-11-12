@@ -79,6 +79,14 @@ def main():
             print(f"adopted {f}")
         print("Review with git diff, run dev/check, commit, then dev/install." if changed else "Nothing to adopt.")
         return 0
+    if "--status" not in args and "--adopt" not in args:
+        # Never install a tree that cannot start: every import must be a tracked file.
+        r = subprocess.run([sys.executable, "-m", "unittest", "-q", "tests.test_static"], cwd=PROJECT,
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            print("Not installed: the project's static checks fail (dev/check shows why).")
+            print("\n".join(r.stderr.strip().splitlines()[-12:]))
+            return 1
     if changed and "--force" not in args:
         print("These were changed directly in the running copy and would be lost:" if not first else
               "First install: these differ in the running copy and would be replaced:")

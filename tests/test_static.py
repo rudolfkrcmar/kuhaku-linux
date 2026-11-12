@@ -72,6 +72,43 @@ class Static(unittest.TestCase):
             with self.subTest(file=f.name):
                 self.assertEqual(sorted(used - known), [])
 
+    def test_local_imports_are_tracked(self):
+        """Every module imported from this project is in git and defines what is imported from it,
+        so a commit or install can never leave the running copy importing a file it lacks."""
+        import subprocess
+        out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "*.py"], capture_output=True, text=True)
+        if out.returncode != 0:
+            self.skipTest("not a git checkout")
+        tracked = {Path(f).stem for f in out.stdout.split() if "/" not in f}
+        local = {f.stem for f in SOURCES} | {p.name for p in ROOT.iterdir() if p.is_dir()}
+        for f in SOURCES:
+            if f.stem not in tracked:
+                continue
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+            for n in ast.walk(tree):
+                if isinstance(n, ast.ImportFrom) and n.module and n.level == 0:
+                    mods = [(n.module.split(".")[0], [a.name for a in n.names])]
+                elif isinstance(n, ast.Import):
+                    mods = [(a.name.split(".")[0], []) for a in n.names]
+                else:
+                    continue
+                for mod, names in mods:
+                    if mod not in local or (ROOT / mod).is_dir():
+                        continue          # the standard library, an installed package, or a folder (lib/)
+                    with self.subTest(file=f.name, imports=mod):
+                        self.assertIn(mod, tracked, f"{f.name} imports {mod}, which git does not track")
+                        target = ast.parse((ROOT / f"{mod}.py").read_text(encoding="utf-8"))
+                        have = set()
+                        for t in ast.walk(target):
+                            if isinstance(t, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef)):
+                                have.add(t.name)
+                            elif isinstance(t, ast.Name) and isinstance(t.ctx, ast.Store):
+                                have.add(t.id)
+                            elif isinstance(t, (ast.Import, ast.ImportFrom)):
+                                have |= {(a.asname or a.name).split(".")[0] for a in t.names}
+                        missing = [x for x in names if x != "*" and x not in have]
+                        self.assertEqual(missing, [], f"{f.name} imports {missing} from {mod}")
+
     def test_pages_exist_and_are_used(self):
         for page, module in (("miru/miru.html", "miru.py"), ("browser/tls.html", "browser.py"),
                              ("browser/tls-webkit.html", "browser_webkit.py"),
