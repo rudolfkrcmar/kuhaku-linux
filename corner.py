@@ -221,7 +221,14 @@ class Corner:
             cr.set_source_rgb(*(c["accent"] if b["level"] <= 15 and not b["charging"] else hot("battery", c["muted"])))
             cr.rectangle(x - 18, mid - 3, max(1.5, 18 * b["level"] / 100), 6)
             cr.fill()
-            zones.append((x - 27, x + 9, "battery"))
+            if b["charging"]:  # plugged in: a small bolt before the bar, as on the home screen
+                cr.set_source_rgb(*hot("battery", c["muted"]))
+                bx, by = x - 29, mid - 4.5
+                for i, (px, py) in enumerate(((3.6, 0), (0, 5), (2.4, 5), (1.8, 9), (6, 3.8), (3.4, 3.8))):
+                    (cr.move_to if i == 0 else cr.line_to)(bx + px, by + py)
+                cr.close_path()
+                cr.fill()
+            zones.append((x - 31, x + 9, "battery"))
             x -= 36
         # Wi‑Fi: three flat lines, as on the home screen.
         on = self.wifi in ("on", "wired")

@@ -81,6 +81,7 @@ body.paged .quick { opacity:0; pointer-events:none; }
 .stat.open .time, .stat:hover .time { color:var(--fg); }
 .stat.open::after { content:''; position:absolute; }
 .icons .stat { padding:6px; margin:-6px; }
+#batteryWrap { gap:5px; }
 
 .rec { color:var(--fg); gap:10px; }
 .rdot { width:7px; height:7px; border-radius:9px; background:var(--accent); }

@@ -302,8 +302,13 @@ class Battery(TempDirCase):
 
     def test_against_todays_capacity(self):
         d = self.bat(energy_now="40000000", energy_full="50000000", capacity="60", status="Discharging")
-        with mock.patch.object(ks, "find_battery", return_value=d):
+        with mock.patch.object(ks, "find_battery", return_value=d), mock.patch.object(ks, "on_mains", return_value=False):
             self.assertEqual(ks.read_battery(), {"level": 80, "charging": False})
+
+    def test_plugged_in_at_a_charge_limit(self):
+        d = self.bat(capacity="80", status="Not charging")
+        with mock.patch.object(ks, "find_battery", return_value=d), mock.patch.object(ks, "on_mains", return_value=True):
+            self.assertEqual(ks.read_battery(), {"level": 80, "charging": True})
 
     def test_capacity_fallback_and_full(self):
         d = self.bat(capacity="104\n", status="Full\n")

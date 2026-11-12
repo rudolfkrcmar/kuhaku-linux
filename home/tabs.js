@@ -290,6 +290,7 @@ window.setStatus = ({ battery, wifi, bt: btIcon, signal }) => {
   $('batteryWrap').hidden = false;
   $('batteryFill').setAttribute('width', Math.max(1.5, 18 * battery.level / 100).toFixed(1));
   $('batteryFill').style.fill = battery.level <= 15 && !battery.charging ? 'var(--accent)' : '';
+  $('batteryBolt').hidden = !battery.charging;
   $('batteryWrap').title = battery.level + '%' + (battery.charging ? ', charging' : '');
 };
 

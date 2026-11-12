@@ -60,6 +60,17 @@ def find_battery():
     return None
 
 
+def on_mains():
+    """True when a charger (mains or USB-C) is plugged in."""
+    for p in Path("/sys/class/power_supply").glob("*"):
+        try:
+            if (p / "type").read_text().strip() != "Battery" and (p / "online").read_text().strip() == "1":
+                return True
+        except OSError:
+            pass
+    return False
+
+
 def read_battery():
     for bat in [b for b in [find_battery()] if b]:
         try:
@@ -74,7 +85,8 @@ def read_battery():
                 cap = int((bat / "capacity").read_text().strip())
             cap = min(100, cap)
             status = (bat / "status").read_text().strip()
-            return {"level": cap, "charging": status in ("Charging", "Full")}
+            # Plugged in counts too: a battery held at a charge limit says "Not charging".
+            return {"level": cap, "charging": status in ("Charging", "Full") or on_mains()}
         except Exception:
             report()
     return None
