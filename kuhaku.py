@@ -544,7 +544,12 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             if done or p.poll() is not None or time.time() - started > 900:
                 if p.poll() is None:
                     p.terminate()
+                # Reap it: a dead tool left as a zombie still looks alive to the sign-in window,
+                # which then never closes itself.
+                threading.Thread(target=p.wait, daemon=True).start()
                 self.signing.discard(ident)
+                if done:
+                    self.note("Signed in", accounts.label(acct))
                 if done and then_use:
                     self.switch_account(ident)
                 self.push_status()

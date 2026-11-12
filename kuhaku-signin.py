@@ -205,10 +205,13 @@ def main(url):
         # The tool finished (signed in, or gave up): nothing more to do here.
         try:
             os.kill(parent, 0)
-            return True
+            # A finished tool not yet reaped by Kūhaku is a zombie: it counts as gone.
+            if Path(f"/proc/{parent}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z":
+                return True
         except OSError:
-            done()
-            return False
+            pass
+        done()
+        return False
 
     view.connect("load-changed", loaded)
     if parent > 1:
