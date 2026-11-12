@@ -11,6 +11,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import gi
 
@@ -22,12 +23,13 @@ from gi.repository import GLib
 import claude_accounts as accounts
 import jobs
 import keepawake
+from kuhaku_base import Home
 from kuhaku_config import ANSWERS_FILE, HOME, LOG_FILE, SYSTEM_PROMPT, VOICE_PROMPT
 from kuhaku_log import report
 from kuhaku_system import _limits_cache, describe, note_limits, plan_limits, spawn
 
 
-class ClaudeJobs:
+class ClaudeJobs(Home):
     def ask_new_tab(self, text):
         """A job from another app: a new tab of its own, started at once, with Kūhaku in front."""
         cur = self.tabs.get(self.tabs.current)
@@ -238,7 +240,7 @@ class ClaudeJobs:
             except ValueError:
                 pass
         note = {"plan": "Waiting for your Claude plan" + back, "memory": "Waiting for memory", "busy": "In line"}.get(
-            why
+            why or ""
         )
         for tab in waiting[room:]:
             tab["note"] = note
@@ -319,7 +321,7 @@ class ClaudeJobs:
         env["PATH"] = f"{HOME}/.local/bin:" + env.get("PATH", "/usr/bin:/bin")
         result, error, session_id, lost = None, None, None, False
         keepawake.hold()  # no idle sleep while Claude works; released when the answer is in
-        tokens = {"context": 0, "out": {}, "steps": 0}
+        tokens: dict[str, Any] = {"context": 0, "out": {}, "steps": 0}
         live = self.live.setdefault(tab_id, {"activity": [], "tokens": None})
         threading.Thread(target=lambda: GLib.idle_add(self.send, "setLimits", plan_limits()), daemon=True).start()
         tab = self.tabs.get(tab_id) or {}
@@ -333,7 +335,8 @@ class ClaudeJobs:
             "start": time.time(),
             "outcome": "stopped",
         }
-        cpu, watts, watts_at, peak = None, [], 0, 0
+        cpu, watts_at, peak = None, 0.0, 0.0
+        watts: list[float] = []
         anon = bool(tab.get("anon"))  # anonymous: no log, no line in Kiroku, no saved answer
         with open(os.devnull if anon else LOG_FILE, "a") as log:
             log.write(f"\n=== {time.strftime('%Y-%m-%d %H:%M:%S')}  [tab {tab_id}]  {question}\n")
@@ -349,7 +352,7 @@ class ClaudeJobs:
                     stdin=subprocess.DEVNULL,
                     start_new_session=True,
                 )
-                for line in proc.stdout:
+                for line in proc.stdout or []:
                     log.write(line)
                     cpu = jobs.cpu_seconds(proc.pid) or cpu
                     if time.time() - watts_at > 5:

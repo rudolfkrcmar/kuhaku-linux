@@ -143,7 +143,7 @@ def bluetooth_state(scan=False):
     if on and scan:
         run(["bluetoothctl", "--timeout", "8", "scan", "on"], timeout=12)
     _, listed, _ = run(["bluetoothctl", "devices"], timeout=5)
-    devices = []
+    devices: list[dict] = []
     for line in listed.splitlines():
         m = re.match(r"Device ([0-9A-F:]{17}) (.+)", line.strip())
         if not m:
@@ -200,7 +200,7 @@ def wifi_networks(rescan):
         ],
         timeout=25,
     )
-    best = {}
+    best: dict = {}
     for line in out.splitlines():
         parts = [p.replace("\x00", ":") for p in line.replace("\\:", "\x00").split(":")]
         if len(parts) < 5 or not parts[1]:
@@ -254,7 +254,7 @@ def battery_details():
     if not path:
         return None
     _, out, _ = run(["upower", "-i", path])
-    info = {}
+    info: dict = {}
     for line in out.splitlines():
         if ":" in line and not line.startswith("    1"):
             k, v = line.split(":", 1)
@@ -309,12 +309,13 @@ def battery_details():
 
 
 # --- Claude usage: tokens per day from Claude Code's transcripts, plan limits --
-_token_cache = {}
+_token_cache: dict = {}
 
 
 def daily_tokens():
     """{"YYYY-MM-DD": {"written", "fresh", "cached", "replies"}} in local time."""
-    days, seen = {}, set()
+    days: dict = {}
+    seen: set = set()
     for f in (accounts.config_dir() / "projects").glob("**/*.jsonl"):
         try:
             mtime = f.stat().st_mtime
@@ -361,7 +362,7 @@ def daily_tokens():
     return days
 
 
-_limits_cache = [0, None]
+_limits_cache: list = [0.0, None]  # [when asked, the plan's numbers]
 _limits_lock = threading.Lock()
 _limits_wait = [0]  # no new asks before this time (after a failure or rate limit)
 LIMITS_FILE = STATE_DIR / "plan-limits.json"
@@ -542,7 +543,8 @@ def write_time(key, value):
 
 def read_displays():
     _, out, _ = run(["xrandr", "--query"])
-    outs, cur = [], None
+    outs: list[dict] = []
+    cur: dict | None = None
     for line in out.splitlines():
         m = re.match(r"^(\S+) (connected|disconnected)( primary)?\s*(\d+x\d+\+\d+\+\d+)?", line)
         if m:
@@ -651,7 +653,7 @@ def app_index():
     from gi.repository import Gio
 
     theme = Gtk.IconTheme.get_default()
-    index = {}
+    index: dict = {}
     for a in Gio.AppInfo.get_all():
         try:
             icon_uri = ""

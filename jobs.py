@@ -32,8 +32,8 @@ def mem_available_mb() -> int:
     return 4096
 
 
-def plan_room(limits: dict | None) -> tuple[str, float | None]:
-    """(level, resets): "open", "tight" (only first jobs, one at a time) or "closed" until resets."""
+def plan_room(limits: dict | None) -> tuple[str, str | None]:
+    """(level, resets, an ISO time): "open", "tight" (only first jobs, one at a time) or "closed" until resets."""
     s = (limits or {}).get("session") or {}
     w = (limits or {}).get("week") or {}
     worst = max(s.get("percent") or 0, w.get("percent") or 0)
@@ -45,7 +45,7 @@ def plan_room(limits: dict | None) -> tuple[str, float | None]:
     return "open", resets
 
 
-def slots(running: int, max_jobs: int, limits: dict | None) -> tuple[int, str | None, float | None]:
+def slots(running: int, max_jobs: int, limits: dict | None) -> tuple[int, str | None, str | None]:
     """How many more jobs may start now, and why not, if none."""
     level, resets = plan_room(limits)
     if level == "closed":

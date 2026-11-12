@@ -17,6 +17,7 @@ gi.require_version("WebKit2", "4.1")
 from gi.repository import GLib
 
 import claude_accounts as accounts
+from kuhaku_base import Home
 from kuhaku_config import CONFIG_FILE, HERE, HOME
 from kuhaku_log import report
 from kuhaku_system import (
@@ -36,9 +37,7 @@ from kuhaku_system import (
 )
 
 
-class Settings:
-    whisper: subprocess.Popen | None
-
+class Settings(Home):
     # --- Kūhaku settings page --------------------------------------------
     def read_prefs(self):
         _, sinks_json, _ = run(["pactl", "-f", "json", "list", "sinks"])
@@ -73,7 +72,8 @@ class Settings:
         _, profile, _ = run(["powerprofilesctl", "get"])
         mem = disk = None
         try:
-            mem = round(int(re.search(r"MemTotal:\s+(\d+)", Path("/proc/meminfo").read_text()).group(1)) / 1048576)
+            total = re.search(r"MemTotal:\s+(\d+)", Path("/proc/meminfo").read_text())
+            mem = round(int(total.group(1)) / 1048576) if total else None
             st = os.statvfs(str(HOME))
             disk = [round(st.f_bavail * st.f_frsize / 1e9), round(st.f_blocks * st.f_frsize / 1e9)]
         except Exception:
@@ -146,7 +146,7 @@ class Settings:
             write_power(key, value)
         elif key in ("time_auto", "time_zone", "time_set"):
             write_time(key, value)
-            GLib.idle_add(lambda: self.push_status() and False)
+            GLib.idle_add(self.push_status)
         elif key in PAD_KEYS:
             write_trackpad(key, value)
         elif key == "account":
@@ -161,7 +161,7 @@ class Settings:
         elif key == "theme":
             self.state["theme"] = None if value == "auto" else value
             self.save_state()
-            GLib.idle_add(lambda: self.push_theme() and False)
+            GLib.idle_add(self.push_theme)
         elif key == "update-now":
             self.update_now()
         elif key in ("permission_mode", "model", "dictation_model", "mic_button"):

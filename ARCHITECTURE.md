@@ -75,6 +75,7 @@ class is assembled from mixins kept by subject:
 | `kuhaku_panels.py` | The panels' actions, one small handler each. |
 | `kuhaku_system.py` | Plain functions that read and change the computer through its own tools (`nmcli`, `bluetoothctl`, `xfconf-query`, `xrandr`, `wmctrl`). No window code. |
 | `kuhaku_config.py` | Where things live, the defaults, and the instructions Claude is given. |
+| `kuhaku_base.py` | `Home`, the base of every mixin: the state and methods they share, declared once so the type checker and the reader both know them. |
 
 Claude runs with the permissions chosen in Settings ("Anything, without asking" by default).
 Underneath sits **`kuhaku-guard.py`**, a Claude Code `PreToolUse` hook installed into
@@ -96,7 +97,7 @@ computer, not only the home screen's.
 
 ## Checks
 
-`dev/check` runs, in order: compile, `ruff format --check`, `ruff check`, `mypy` (core modules),
+`dev/check` runs, in order: compile, `ruff format --check`, `ruff check`, `mypy` (the modules listed in `pyproject.toml`),
 the unit tests in `tests/` (logic, the guard, cloud sync against a real rclone if present, static
 rules for the whole project), every page loaded off-screen for script errors, and `uitests/`, which
 drive the pages with clicks and keys and compare screenshots. `dev/check quick` (no pages) runs

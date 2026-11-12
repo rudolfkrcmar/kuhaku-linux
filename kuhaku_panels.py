@@ -20,6 +20,7 @@ gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
 import claude_accounts as accounts
+from kuhaku_base import Home
 from kuhaku_config import HERE, HOME, MENU
 from kuhaku_log import note
 from kuhaku_system import (
@@ -48,7 +49,7 @@ def later(fn, *args):
     GLib.idle_add(lambda: fn(*args) and False)
 
 
-class Panels:
+class Panels(Home):
     def panel(self, msg):
         action = msg.get("action")
         handler = PANEL.get(action)

@@ -110,8 +110,8 @@ class RunDot:
     # Called every 1.5 s by Kūhaku with the open app windows.
     def update(self, windows):
         self.windows = windows
-        active = re.search(r"0x[0-9a-f]+", x(["xprop", "-root", "_NET_ACTIVE_WINDOW"]))
-        active = int(active.group(0), 16) if active else 0
+        found = re.search(r"0x[0-9a-f]+", x(["xprop", "-root", "_NET_ACTIVE_WINDOW"]))
+        active = int(found.group(0), 16) if found else 0
         full = active and "FULLSCREEN" in x(["xprop", "-id", hex(active), "_NET_WM_STATE"])
         on_home = active in (0, self.home_xid()) or not any(int(w["xid"], 16) == active for w in windows)
         show = bool(windows) and not on_home and not full

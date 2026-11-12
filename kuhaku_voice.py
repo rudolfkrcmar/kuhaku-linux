@@ -16,16 +16,12 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import GLib
 
+from kuhaku_base import Home
 from kuhaku_config import DICTATION_FILE, HERE, STATE_DIR, VOICE_IN, VOICE_MODEL, VOICE_OUT
 from kuhaku_log import report
 
 
-class Voice:
-    recorder: subprocess.Popen | None
-    speaker: subprocess.Popen | None
-    voice_proc: subprocess.Popen | None
-    whisper: subprocess.Popen | None
-
+class Voice(Home):
     # --- dictation: record with PipeWire, transcribe offline with Whisper --
     def dictate(self, on):
         if on and not self.recorder:
@@ -68,6 +64,7 @@ class Voice:
                 stderr=subprocess.DEVNULL,
                 text=True,
             )
+            assert self.whisper.stdout  # a pipe: asked for above
             self.whisper.stdout.readline()  # {"ready": true}
             return self.whisper
 
@@ -126,7 +123,10 @@ class Voice:
             self.convo = 0
             return
         self.voice_proc = rec
-        chunk, frames, floor, spoke, quiet, waited = 3200, [], [], False, 0, 0  # 100 ms chunks
+        chunk, spoke, quiet, waited = 3200, False, 0, 0  # 100 ms chunks
+        frames: list[bytes] = []
+        floor: list[float] = []
+        assert rec.stdout
         while self.convo == conv:
             data = rec.stdout.read(chunk)
             if not data:
@@ -196,6 +196,7 @@ class Voice:
                 stderr=subprocess.DEVNULL,
                 text=True,
             )
+            assert self.speaker.stdout
             self.speaker.stdout.readline()  # {"ready": true}
             return self.speaker
 

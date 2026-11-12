@@ -122,7 +122,7 @@ class Osd:
             proc = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE, text=True)
         except FileNotFoundError:
             return
-        for line in proc.stdout:
+        for line in proc.stdout or []:
             if "on sink #" in line or "on server" in line:
                 vol = read_volume()
                 if vol and vol != self.volume:
@@ -139,8 +139,10 @@ class Osd:
                         GLib.idle_add(self.message, "Microphone", "Muted" if m else "On")
 
     def read_brightness(self):
+        b = self.backlight
+        if not b:
+            return None
         try:
-            b = self.backlight
             return round(100 * int((b / "brightness").read_text()) / int((b / "max_brightness").read_text()))
         except Exception:
             report()
@@ -162,6 +164,8 @@ class Osd:
         return True
 
     def read_plugged(self):
+        if not self.mains:
+            return None
         try:
             return (self.mains / "online").read_text().strip() == "1"
         except Exception:
@@ -170,6 +174,8 @@ class Osd:
 
     def battery_level(self):
         b = self.battery
+        if not b:
+            return 0
         try:
             for now, full in (("energy_now", "energy_full"), ("charge_now", "charge_full")):
                 if (b / now).exists():
