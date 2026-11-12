@@ -5,22 +5,30 @@ list to switch to an app, close it, or go home.
 Hidden on the home screen itself (the page draws the same dot in the same place)
 and while a window is full screen.
 """
+
 import re
 import subprocess
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkX11", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk  # noqa: F401 (GdkX11 gives windows their XID)
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
-SIZE = 44            # same box as .rundot on the home screen: left 44, bottom 36
+SIZE = 44  # same box as .rundot on the home screen: left 44, bottom 36
 LEFT, BOTTOM = 44, 36
 THEMES = {
-    "day":   {"bg": "#f7f4f1", "fg": "#111111", "muted": "#666666", "faint": "rgba(17,17,17,.07)", "accent": "#e0301e"},
-    "night": {"bg": "#1b1b1b", "fg": "#ececec", "muted": "#9a9a9a", "faint": "rgba(236,236,236,.08)", "accent": "#f0705a"},
+    "day": {"bg": "#f7f4f1", "fg": "#111111", "muted": "#666666", "faint": "rgba(17,17,17,.07)", "accent": "#e0301e"},
+    "night": {
+        "bg": "#1b1b1b",
+        "fg": "#ececec",
+        "muted": "#9a9a9a",
+        "faint": "rgba(236,236,236,.08)",
+        "accent": "#f0705a",
+    },
 }
-DOT = (0.898, 0.282, 0.302)   # #e5484d, as on the home screen
+DOT = (0.898, 0.282, 0.302)  # #e5484d, as on the home screen
 
 
 def overview():
@@ -28,6 +36,7 @@ def overview():
     False when it is not running, so the caller can fall back to the list."""
     import os
     import signal
+
     try:
         path = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "kuhaku-gestures.pid")
         pid = int(open(path).read().strip())
@@ -49,8 +58,8 @@ def x(cmd):
 
 class RunDot:
     def __init__(self, theme, home_xid):
-        self.theme = theme              # callable -> "day" | "night"
-        self.home_xid = home_xid        # callable -> int, the home screen's window
+        self.theme = theme  # callable -> "day" | "night"
+        self.home_xid = home_xid  # callable -> int, the home screen's window
         self.windows = []
         self.list = None
         self.win = Gtk.Window(type=Gtk.WindowType.POPUP)
@@ -62,7 +71,9 @@ class RunDot:
         if visual:
             self.win.set_visual(visual)
         self.win.set_default_size(SIZE, SIZE)
-        self.win.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK)
+        self.win.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
+        )
         self.hover = False
         self.win.connect("draw", self.draw)
         self.win.connect("button-press-event", lambda *a: overview() or self.toggle())
@@ -89,9 +100,9 @@ class RunDot:
         cr.arc(SIZE / 2, SIZE / 2, r, 0, 6.2832)
         cr.fill()
         # A hairline ring keeps it visible on red or busy pages.
-        cr.set_source_rgba(1, 1, 1, .55)
+        cr.set_source_rgba(1, 1, 1, 0.55)
         cr.set_line_width(1)
-        cr.arc(SIZE / 2, SIZE / 2, r + .8, 0, 6.2832)
+        cr.arc(SIZE / 2, SIZE / 2, r + 0.8, 0, 6.2832)
         cr.stroke()
 
     # Called every 1.5 s by Kūhaku with the open app windows.
@@ -115,7 +126,8 @@ class RunDot:
             return self.close()
         t = THEMES.get(self.theme(), THEMES["day"])
         css = Gtk.CssProvider()
-        css.load_from_data(f"""
+        css.load_from_data(
+            f"""
           .runlist, .runlist * {{ font-family:Inter; }}
           .runlist {{ background:{t['bg']}; border-radius:18px; border:1px solid {t['faint']}; padding:18px 14px 14px; }}
           .runlist .h {{ color:{t['muted']}; font-size:9pt; letter-spacing:1.5px; margin:0 0 8px 12px; }}
@@ -126,7 +138,8 @@ class RunDot:
           .runlist button.x label {{ color:{t['muted']}; font-size:13pt; }}
           .runlist button.x:hover label {{ color:#e5484d; }}
           .runlist button.home label {{ color:{t['muted']}; }}
-        """.encode())
+        """.encode()
+        )
         win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
         win.set_decorated(False)
         win.set_keep_above(True)

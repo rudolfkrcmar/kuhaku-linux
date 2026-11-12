@@ -1,4 +1,5 @@
 """The home screen's message tables: every action has a handler, and replies go out the right way."""
+
 import re
 import unittest
 from pathlib import Path
@@ -71,8 +72,7 @@ class PanelTable(unittest.TestCase):
         self.assertEqual(self.k.sent, [])
 
     def test_bluetooth_only_takes_real_addresses(self):
-        with mock.patch.object(panels, "run") as run, \
-                mock.patch.object(panels, "bluetooth_state", return_value={}):
+        with mock.patch.object(panels, "run") as run, mock.patch.object(panels, "bluetooth_state", return_value={}):
             self.k.panel({"action": "bt-forget", "mac": "$(reboot)"})
             run.assert_not_called()
             self.k.panel({"action": "bt-forget", "mac": "AA:BB:CC:DD:EE:FF"})
@@ -101,10 +101,17 @@ if __name__ == "__main__":
 class MiruMessages(unittest.TestCase):
     def test_every_message_miru_posts_has_a_listener(self):
         import miru
+
         js = (ROOT / "miru" / "miru.js").read_text(encoding="utf-8")
         posted = set(re.findall(r"send\(\{\s*type:\s*'([A-Za-z-]+)'", js))
-        menu = set(re.findall(r"\['([a-z]+)', '[^']*'(?:, 'bad')?\]", js)) - {"open", "openapp", "rename", "newfolder",
-                                                                               "terminal", "hidden"}
+        menu = set(re.findall(r"\['([a-z]+)', '[^']*'(?:, 'bad')?\]", js)) - {
+            "open",
+            "openapp",
+            "rename",
+            "newfolder",
+            "terminal",
+            "hidden",
+        }
         self.assertTrue(posted)
         missing = {p for p in posted | menu if p not in miru.MESSAGES and not p.startswith("cloud-")}
         self.assertEqual(missing, set())

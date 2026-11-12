@@ -1,4 +1,5 @@
 """The touch keyboard and X11: typing and clicking (XTest), struts, the pen (XInput2), the hinge and tablet switch."""
+
 import ctypes
 import ctypes.util
 import fcntl
@@ -13,6 +14,7 @@ import time
 from pathlib import Path
 
 import gi  # noqa: E402
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
@@ -23,17 +25,34 @@ from tablet_base import HOME, X11, load_json, log
 
 # --- X11: typing, clicking, struts, the pen -------------------------------------------------
 
+
 class XEventCookie(ctypes.Structure):
-    _fields_ = [("type", ctypes.c_int), ("serial", ctypes.c_ulong), ("send_event", ctypes.c_int),
-                ("display", ctypes.c_void_p), ("extension", ctypes.c_int), ("evtype", ctypes.c_int),
-                ("cookie", ctypes.c_uint), ("data", ctypes.c_void_p)]
+    _fields_ = [
+        ("type", ctypes.c_int),
+        ("serial", ctypes.c_ulong),
+        ("send_event", ctypes.c_int),
+        ("display", ctypes.c_void_p),
+        ("extension", ctypes.c_int),
+        ("evtype", ctypes.c_int),
+        ("cookie", ctypes.c_uint),
+        ("data", ctypes.c_void_p),
+    ]
 
 
 class XIRawEvent(ctypes.Structure):
-    _fields_ = [("type", ctypes.c_int), ("serial", ctypes.c_ulong), ("send_event", ctypes.c_int),
-                ("display", ctypes.c_void_p), ("extension", ctypes.c_int), ("evtype", ctypes.c_int),
-                ("time", ctypes.c_ulong), ("deviceid", ctypes.c_int), ("sourceid", ctypes.c_int),
-                ("detail", ctypes.c_int), ("flags", ctypes.c_int)]
+    _fields_ = [
+        ("type", ctypes.c_int),
+        ("serial", ctypes.c_ulong),
+        ("send_event", ctypes.c_int),
+        ("display", ctypes.c_void_p),
+        ("extension", ctypes.c_int),
+        ("evtype", ctypes.c_int),
+        ("time", ctypes.c_ulong),
+        ("deviceid", ctypes.c_int),
+        ("sourceid", ctypes.c_int),
+        ("detail", ctypes.c_int),
+        ("flags", ctypes.c_int),
+    ]
 
 
 class XIEventMask(ctypes.Structure):
@@ -41,16 +60,30 @@ class XIEventMask(ctypes.Structure):
 
 
 class XIDeviceInfo(ctypes.Structure):
-    _fields_ = [("deviceid", ctypes.c_int), ("name", ctypes.c_char_p), ("use", ctypes.c_int),
-                ("attachment", ctypes.c_int), ("enabled", ctypes.c_int), ("num_classes", ctypes.c_int),
-                ("classes", ctypes.c_void_p)]
+    _fields_ = [
+        ("deviceid", ctypes.c_int),
+        ("name", ctypes.c_char_p),
+        ("use", ctypes.c_int),
+        ("attachment", ctypes.c_int),
+        ("enabled", ctypes.c_int),
+        ("num_classes", ctypes.c_int),
+        ("classes", ctypes.c_void_p),
+    ]
 
 
 class XFixesCursorImage(ctypes.Structure):
-    _fields_ = [("x", ctypes.c_short), ("y", ctypes.c_short), ("width", ctypes.c_ushort),
-                ("height", ctypes.c_ushort), ("xhot", ctypes.c_ushort), ("yhot", ctypes.c_ushort),
-                ("cursor_serial", ctypes.c_ulong), ("pixels", ctypes.c_void_p), ("atom", ctypes.c_ulong),
-                ("name", ctypes.c_char_p)]
+    _fields_ = [
+        ("x", ctypes.c_short),
+        ("y", ctypes.c_short),
+        ("width", ctypes.c_ushort),
+        ("height", ctypes.c_ushort),
+        ("xhot", ctypes.c_ushort),
+        ("yhot", ctypes.c_ushort),
+        ("cursor_serial", ctypes.c_ulong),
+        ("pixels", ctypes.c_void_p),
+        ("atom", ctypes.c_ulong),
+        ("name", ctypes.c_char_p),
+    ]
 
 
 VP = ctypes.c_void_p
@@ -71,8 +104,16 @@ X11.XChangeKeyboardMapping.argtypes = [VP, ctypes.c_int, ctypes.c_int, ctypes.PO
 X11.XFree.argtypes = [VP]
 X11.XInternAtom.restype = ctypes.c_ulong
 X11.XInternAtom.argtypes = [VP, ctypes.c_char_p, ctypes.c_int]
-X11.XChangeProperty.argtypes = [VP, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_int, ctypes.c_int,
-                                ctypes.c_void_p, ctypes.c_int]
+X11.XChangeProperty.argtypes = [
+    VP,
+    ctypes.c_ulong,
+    ctypes.c_ulong,
+    ctypes.c_ulong,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_void_p,
+    ctypes.c_int,
+]
 X11.XQueryExtension.argtypes = [VP, ctypes.c_char_p] + [ctypes.POINTER(ctypes.c_int)] * 3
 X11.XNextEvent.argtypes = [VP, ctypes.c_void_p]
 X11.XGetEventData.argtypes = [VP, ctypes.POINTER(XEventCookie)]
@@ -97,9 +138,23 @@ try:
 except OSError:
     XFIXES = None
 
-KS = {"BackSpace": 0xff08, "Tab": 0xff09, "Return": 0xff0d, "Escape": 0xff1b, "Delete": 0xffff,
-      "Left": 0xff51, "Up": 0xff52, "Right": 0xff53, "Down": 0xff54, "Home": 0xff50, "End": 0xff57,
-      "Shift_L": 0xffe1, "Control_L": 0xffe3, "Alt_L": 0xffe9, "Super_L": 0xffeb}
+KS = {
+    "BackSpace": 0xFF08,
+    "Tab": 0xFF09,
+    "Return": 0xFF0D,
+    "Escape": 0xFF1B,
+    "Delete": 0xFFFF,
+    "Left": 0xFF51,
+    "Up": 0xFF52,
+    "Right": 0xFF53,
+    "Down": 0xFF54,
+    "Home": 0xFF50,
+    "End": 0xFF57,
+    "Shift_L": 0xFFE1,
+    "Control_L": 0xFFE3,
+    "Alt_L": 0xFFE9,
+    "Super_L": 0xFFEB,
+}
 TEXT_CURSORS = {"xterm", "text", "ibeam", "IBeam"}
 POINTER_CURSORS = {"left_ptr", "default", "arrow", "top_left_arrow", "hand1", "hand2", "pointer"}
 
@@ -110,7 +165,7 @@ def keysym_for(ch):
     if ch == "\t":
         return KS["Tab"]
     cp = ord(ch)
-    if 0x20 <= cp <= 0x7e or 0xa0 <= cp <= 0xff:
+    if 0x20 <= cp <= 0x7E or 0xA0 <= cp <= 0xFF:
         return cp
     return 0x01000000 | cp
 
@@ -121,8 +176,8 @@ class Typer:
     def __init__(self):
         self.q = queue.Queue()
         self.dpy = X11.XOpenDisplay(None)
-        self.spare = []          # keycodes with nothing on them: borrowed for characters the layout lacks
-        self.borrowed = {}       # keysym -> keycode
+        self.spare = []  # keycodes with nothing on them: borrowed for characters the layout lacks
+        self.borrowed = {}  # keysym -> keycode
         self.last = 0
         threading.Thread(target=self.run, daemon=True).start()
 
@@ -154,8 +209,9 @@ class Typer:
         if ks in self.borrowed:
             return self.borrowed[ks], False
         if not self.spare:
-            self.spare = [kc for kc, syms in sorted(table.items(), reverse=True)
-                          if kc > 8 and all(s == 0 for s in syms)][:24]
+            self.spare = [
+                kc for kc, syms in sorted(table.items(), reverse=True) if kc > 8 and all(s == 0 for s in syms)
+            ][:24]
         if not self.spare:
             return None, False
         used = set(self.borrowed.values())
@@ -168,7 +224,7 @@ class Typer:
         X11.XChangeKeyboardMapping(self.dpy, kc, 2, arr, 1)
         X11.XSync(self.dpy, 0)
         self._table = None
-        time.sleep(0.04)   # let apps take in the new key before it is pressed
+        time.sleep(0.04)  # let apps take in the new key before it is pressed
         self.borrowed[ks] = kc
         return kc, False
 
@@ -268,14 +324,16 @@ class Props:
         cardinal = 6
         partial = (ctypes.c_long * 12)(0, 0, 0, bottom, 0, 0, 0, 0, 0, 0, x0 if bottom else 0, x1 if bottom else 0)
         plain = (ctypes.c_long * 4)(0, 0, 0, bottom)
-        X11.XChangeProperty(self.dpy, xid, X11.XInternAtom(self.dpy, b"_NET_WM_STRUT_PARTIAL", 0), cardinal, 32, 0,
-                            partial, 12)
+        X11.XChangeProperty(
+            self.dpy, xid, X11.XInternAtom(self.dpy, b"_NET_WM_STRUT_PARTIAL", 0), cardinal, 32, 0, partial, 12
+        )
         X11.XChangeProperty(self.dpy, xid, X11.XInternAtom(self.dpy, b"_NET_WM_STRUT", 0), cardinal, 32, 0, plain, 4)
         X11.XFlush(self.dpy)
 
 
 class PenWatcher:
     """Notices the pen near the screen (it reports while it hovers), from XInput2 raw events."""
+
     RAW_KEY, RAW_PRESS, RAW_RELEASE, RAW_MOTION, HIERARCHY = 13, 15, 16, 17, 11
 
     def __init__(self, on_event):
@@ -288,8 +346,7 @@ class PenWatcher:
         ids = set()
         for i in range(n.value):
             name = (info[i].name or b"").decode(errors="ignore").lower()
-            if ("pen" in name or "stylus" in name or "eraser" in name) and "finger" not in name \
-                    and "xtest" not in name:
+            if ("pen" in name or "stylus" in name or "eraser" in name) and "finger" not in name and "xtest" not in name:
                 ids.add(info[i].deviceid)
         self.keyboards = set()
         for i in range(n.value):
@@ -357,9 +414,10 @@ class Hinge:
     the hinge, follows how far the screen is opened. The angle while the built-in keyboard
     is being typed on is "laptop" (learned and kept); folded far from it is "tablet".
     """
+
     STATE = HOME / ".local/state/kuhaku/tablet-hinge.json"
-    FOLD = 80        # degrees from the laptop angle that count as folded back
-    BACK = 55        # and back under this is a laptop again
+    FOLD = 80  # degrees from the laptop angle that count as folded back
+    BACK = 55  # and back under this is a laptop again
 
     def __init__(self, on_change):
         self.on_change = on_change
@@ -391,7 +449,7 @@ class Hinge:
         # the hinge is each sensor's x axis: only the y/z part turns with the screen
         for v in (a, b):
             if math.hypot(v[1], v[2]) < 0.6 * math.sqrt(sum(c * c for c in v)) or not any(v):
-                return None     # standing on its side: the hinge points down, no reading
+                return None  # standing on its side: the hinge points down, no reading
         return math.degrees(math.atan2(a[1], a[2]) - math.atan2(b[1], b[2])) % 360
 
     @staticmethod
@@ -420,13 +478,13 @@ class Hinge:
             return True
         self.last = ang
         if self.ref is None:
-            self.ref = ang          # it starts life as a laptop
+            self.ref = ang  # it starts life as a laptop
             return True
         d = self.apart(ang, self.ref)
         want = d > self.FOLD if not self.tablet else d > self.BACK
         if want != bool(self.tablet):
             self.votes += 1
-            if self.votes >= 2:      # the same for well over a second, not a bump
+            if self.votes >= 2:  # the same for well over a second, not a bump
                 self.tablet, self.votes = want, 0
                 self.on_change(want)
         else:
@@ -436,6 +494,7 @@ class Hinge:
 
 class TabletSwitch:
     """Laptop or tablet: SW_TABLET_MODE from the hinge switch, read straight from the device."""
+
     EV_SW, SW_TABLET_MODE = 5, 1
     settle_id = None
 
@@ -448,6 +507,7 @@ class TabletSwitch:
             self.settle_id = None
             self.on_change(value)
             return False
+
         self.settle_id = GLib.timeout_add(600, now)
         return False
 
@@ -473,7 +533,7 @@ class TabletSwitch:
         try:
             with open(self.path, "rb", buffering=0) as f:
                 state = (ctypes.c_ubyte * 8)()
-                eviocgsw = (2 << 30) | (8 << 16) | (ord("E") << 8) | 0x1b
+                eviocgsw = (2 << 30) | (8 << 16) | (ord("E") << 8) | 0x1B
                 fcntl.ioctl(f, eviocgsw, state)
                 GLib.idle_add(self.on_change, bool(state[0] & (1 << self.SW_TABLET_MODE)))
                 while True:

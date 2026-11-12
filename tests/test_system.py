@@ -1,5 +1,6 @@
 """kuhaku_system.py: the readers of nmcli, bluetoothctl, xrandr, upower, xfconf-query and timedatectl,
 with every command's output mocked, and the pure helpers (describe, short, note_limits, daily_tokens)."""
+
 import json
 import os
 import unittest
@@ -36,26 +37,35 @@ def with_run(table):
 
 class Wifi(unittest.TestCase):
     SAVED = "Home:802-11-wireless\nWired connection 1:802-3-ethernet\nCafe\\:Guest:802-11-wireless\n"
-    LIST = ("*:Home:70:WPA2:6\n"
-            " :Home:40:WPA2:44\n"
-            " :Cafe\\:Guest:55::11\n"
-            " :Neighbour 5G:80:WPA1 WPA2:149\n"
-            " :Neighbour 5G:30:WPA1 WPA2:1\n"
-            " ::90:WPA2:6\n"
-            " :Open:20:--:3\n"
-            "garbage\n")
+    LIST = (
+        "*:Home:70:WPA2:6\n"
+        " :Home:40:WPA2:44\n"
+        " :Cafe\\:Guest:55::11\n"
+        " :Neighbour 5G:80:WPA1 WPA2:149\n"
+        " :Neighbour 5G:30:WPA1 WPA2:1\n"
+        " ::90:WPA2:6\n"
+        " :Open:20:--:3\n"
+        "garbage\n"
+    )
 
     def test_networks(self):
-        p, fake = with_run({"nmcli radio wifi": "enabled\n", "nmcli -t -f NAME,TYPE connection show": self.SAVED,
-                            "nmcli -t -e yes -f IN-USE,SSID,SIGNAL,SECURITY,CHAN device wifi list": self.LIST})
+        p, fake = with_run(
+            {
+                "nmcli radio wifi": "enabled\n",
+                "nmcli -t -f NAME,TYPE connection show": self.SAVED,
+                "nmcli -t -e yes -f IN-USE,SSID,SIGNAL,SECURITY,CHAN device wifi list": self.LIST,
+            }
+        )
         with p:
             out = ks.wifi_networks(rescan=False)
         self.assertTrue(out["enabled"])
         nets = {n["ssid"]: n for n in out["networks"]}
         self.assertEqual([n["ssid"] for n in out["networks"]], ["Home", "Neighbour 5G", "Cafe:Guest", "Open"])
-        self.assertEqual(nets["Home"], {"ssid": "Home", "signal": 70, "secure": True, "active": True,
-                                        "known": True, "band": "2.4 GHz"})       # the one in use wins
-        self.assertEqual(nets["Neighbour 5G"]["signal"], 80)                     # else the strongest
+        self.assertEqual(
+            nets["Home"],
+            {"ssid": "Home", "signal": 70, "secure": True, "active": True, "known": True, "band": "2.4 GHz"},
+        )  # the one in use wins
+        self.assertEqual(nets["Neighbour 5G"]["signal"], 80)  # else the strongest
         self.assertEqual(nets["Neighbour 5G"]["band"], "5 GHz")
         self.assertFalse(nets["Neighbour 5G"]["known"])
         self.assertTrue(nets["Cafe:Guest"]["known"])
@@ -80,24 +90,41 @@ class Wifi(unittest.TestCase):
             self.assertFalse(ks.wifi_saved("Wired connection 1"))
 
     def test_connect(self):
-        p, fake = with_run({"nmcli -t -f NAME,TYPE connection show": self.SAVED, "nmcli connection up": "ok",
-                            "nmcli connection modify": "ok"})
+        p, fake = with_run(
+            {
+                "nmcli -t -f NAME,TYPE connection show": self.SAVED,
+                "nmcli connection up": "ok",
+                "nmcli connection modify": "ok",
+            }
+        )
         with p:
             self.assertEqual(ks.wifi_connect("Home", "newpass"), {"ok": True})
-        self.assertEqual(fake.calls[1][:4], ["nmcli", "connection", "modify", "id"])    # never a second copy
-        p, fake = with_run({"nmcli -t -f NAME,TYPE connection show": "", "nmcli device wifi connect":
-                            (4, "", "Error: Secrets were required, but not provided.")})
+        self.assertEqual(fake.calls[1][:4], ["nmcli", "connection", "modify", "id"])  # never a second copy
+        p, fake = with_run(
+            {
+                "nmcli -t -f NAME,TYPE connection show": "",
+                "nmcli device wifi connect": (4, "", "Error: Secrets were required, but not provided."),
+            }
+        )
         with p:
             self.assertEqual(ks.wifi_connect("New", "bad"), {"ok": False, "needPassword": True})
-        p, fake = with_run({"nmcli connection up": (10, "", "no such connection"),
-                            "nmcli device wifi connect": (10, "", "No network with SSID 'x' found.")})
+        p, fake = with_run(
+            {
+                "nmcli connection up": (10, "", "no such connection"),
+                "nmcli device wifi connect": (10, "", "No network with SSID 'x' found."),
+            }
+        )
         with p:
             self.assertEqual(ks.wifi_connect("x", ""), {"ok": False, "error": "Could not connect."})
         self.assertEqual(fake.calls[-1], ["nmcli", "device", "wifi", "connect", "x"])
 
     def test_read_wifi_and_signal(self):
-        for out, want in [("wifi:connected\nethernet:unavailable\n", "on"), ("wifi:disconnected\nethernet:connected\n",
-                          "wired"), ("wifi:disconnected\nloopback:connected (externally)\n", "off"), ("", "off")]:
+        for out, want in [
+            ("wifi:connected\nethernet:unavailable\n", "on"),
+            ("wifi:disconnected\nethernet:connected\n", "wired"),
+            ("wifi:disconnected\nloopback:connected (externally)\n", "off"),
+            ("", "off"),
+        ]:
             with self.subTest(out=out), mock.patch.object(ks.subprocess, "run", return_value=fake_completed(out)):
                 self.assertEqual(ks.read_wifi(), want)
         with mock.patch.object(ks.subprocess, "run", side_effect=FileNotFoundError("nmcli")):
@@ -110,21 +137,28 @@ class Wifi(unittest.TestCase):
 
 class Bluetooth(unittest.TestCase):
     SHOW = "Controller 11:22:33:44:55:66 (public)\n\tName: laptop\n\tPowered: yes\n"
-    DEVICES = ("Device AA:BB:CC:DD:EE:01 Keyboard\n"
-               "Device AA:BB:CC:DD:EE:02 AA-BB-CC-DD-EE-02\n"
-               "Device AA:BB:CC:DD:EE:03 Headphones\n"
-               "Device AA:BB:CC:DD:EE:04 AA-BB-CC-DD-EE-04\n"
-               "Device AA:BB:CC:DD:EE:05 Phone\n"
-               "garbage line\n")
-    INFO = {"01": "Paired: yes\nConnected: no\nIcon: input-keyboard\n",
-            "02": "Paired: no\nConnected: no\n",
-            "03": "Paired: yes\nConnected: yes\nIcon: audio-headphones\n",
-            "04": "Paired: yes\nConnected: no\n",
-            "05": "Paired: no\nConnected: no\nIcon: phone\n"}
+    DEVICES = (
+        "Device AA:BB:CC:DD:EE:01 Keyboard\n"
+        "Device AA:BB:CC:DD:EE:02 AA-BB-CC-DD-EE-02\n"
+        "Device AA:BB:CC:DD:EE:03 Headphones\n"
+        "Device AA:BB:CC:DD:EE:04 AA-BB-CC-DD-EE-04\n"
+        "Device AA:BB:CC:DD:EE:05 Phone\n"
+        "garbage line\n"
+    )
+    INFO = {
+        "01": "Paired: yes\nConnected: no\nIcon: input-keyboard\n",
+        "02": "Paired: no\nConnected: no\n",
+        "03": "Paired: yes\nConnected: yes\nIcon: audio-headphones\n",
+        "04": "Paired: yes\nConnected: no\n",
+        "05": "Paired: no\nConnected: no\nIcon: phone\n",
+    }
 
     def table(self, show=SHOW):
-        t = {"bluetoothctl show": show, "bluetoothctl devices": self.DEVICES,
-             "bluetoothctl devices Connected": "Device AA:BB:CC:DD:EE:03 Headphones\n"}
+        t = {
+            "bluetoothctl show": show,
+            "bluetoothctl devices": self.DEVICES,
+            "bluetoothctl devices Connected": "Device AA:BB:CC:DD:EE:03 Headphones\n",
+        }
         for k, v in self.INFO.items():
             t[f"bluetoothctl info AA:BB:CC:DD:EE:{k}"] = v
         return t
@@ -139,8 +173,16 @@ class Bluetooth(unittest.TestCase):
         # connected first, then paired, then by name; a nameless stranger is left out
         self.assertEqual(names, ["Headphones", "AA:BB:CC:DD:EE:04", "Keyboard", "Phone"])
         hp = st["devices"][0]
-        self.assertEqual(hp, {"mac": "AA:BB:CC:DD:EE:03", "name": "Headphones", "paired": True, "connected": True,
-                              "kind": "audio-headphones"})
+        self.assertEqual(
+            hp,
+            {
+                "mac": "AA:BB:CC:DD:EE:03",
+                "name": "Headphones",
+                "paired": True,
+                "connected": True,
+                "kind": "audio-headphones",
+            },
+        )
         self.assertEqual(st["devices"][1]["kind"], "")
         self.assertNotIn(["bluetoothctl", "--timeout", "8", "scan", "on"], fake.calls)
 
@@ -209,12 +251,12 @@ class Displays(unittest.TestCase):
         e = outs["eDP-1"]
         self.assertTrue(e["primary"] and e["active"] and e["builtin"])
         self.assertEqual(e["current"], "2560x1600")
-        self.assertEqual(e["modes"], ["2560x1600", "1920x1200", "1680x1050", "1280x800"])   # same shape, >= 1280
+        self.assertEqual(e["modes"], ["2560x1600", "1920x1200", "1680x1050", "1280x800"])  # same shape, >= 1280
         h = outs["HDMI-1"]
         self.assertFalse(h["primary"] or h["builtin"])
         self.assertEqual(h["x"], 2560)
         self.assertEqual(h["current"], "1920x1080")
-        self.assertEqual(h["modes"], ["1920x1080", "1280x720"])                 # 1920x1080i is the same size
+        self.assertEqual(h["modes"], ["1920x1080", "1280x720"])  # 1920x1080i is the same size
         off = outs["HDMI-2"]
         self.assertFalse(off["active"])
         self.assertIsNone(off["current"])
@@ -230,8 +272,21 @@ class Displays(unittest.TestCase):
         p, fake = with_run({"xrandr --query": XRANDR, "xfconf-query": "96"})
         with p:
             ks.write_display({"arrange": "left"})
-        self.assertEqual(fake.calls[-1], ["xrandr", "--output", "eDP-1", "--auto", "--primary", "--output", "HDMI-1",
-                                          "--auto", "--left-of", "eDP-1"])
+        self.assertEqual(
+            fake.calls[-1],
+            [
+                "xrandr",
+                "--output",
+                "eDP-1",
+                "--auto",
+                "--primary",
+                "--output",
+                "HDMI-1",
+                "--auto",
+                "--left-of",
+                "eDP-1",
+            ],
+        )
         p, fake = with_run({"xrandr --query": XRANDR, "xfconf-query": "96"})
         with p:
             ks.write_display({"arrange": "sideways"})
@@ -247,8 +302,13 @@ class Displays(unittest.TestCase):
 class Power(unittest.TestCase):
     def test_read_power(self):
         base = "xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/"
-        p, _ = with_run({base + "dpms-on-battery-off": "15\n", base + "inactivity-on-battery": "10\n",
-                         base + "lid-action-on-battery": "oops"})
+        p, _ = with_run(
+            {
+                base + "dpms-on-battery-off": "15\n",
+                base + "inactivity-on-battery": "10\n",
+                base + "lid-action-on-battery": "oops",
+            }
+        )
         with p:
             self.assertEqual(ks.read_power(), {"screen_off": 15, "sleep_after": 0, "lid": 1})
         p, _ = with_run({base + "inactivity-on-battery": "30\n"})
@@ -266,7 +326,7 @@ class Power(unittest.TestCase):
         p, fake = with_run({"xfconf-query": "ok"})
         with p:
             ks.write_power("screen_off", -5)
-        self.assertEqual(fake.calls[0][-1], "false")     # clamped to 0: screen never turns off
+        self.assertEqual(fake.calls[0][-1], "false")  # clamped to 0: screen never turns off
         self.assertTrue(all(c[-1] in ("0", "false") for c in fake.calls))
 
 
@@ -286,10 +346,15 @@ class Time(unittest.TestCase):
             ks.write_time("time_set", "2026-11-12T08:30")
             ks.write_time("time_set", "tomorrow")
             ks.write_time("time_auto", "true")
-        self.assertEqual(fake.calls, [
-            ["timedatectl", "set-timezone", "America/Argentina/Buenos_Aires"],
-            ["timedatectl", "set-ntp", "false"], ["timedatectl", "set-time", "2026-11-12 08:30:00"],
-            ["timedatectl", "set-ntp", "true"]])
+        self.assertEqual(
+            fake.calls,
+            [
+                ["timedatectl", "set-timezone", "America/Argentina/Buenos_Aires"],
+                ["timedatectl", "set-ntp", "false"],
+                ["timedatectl", "set-time", "2026-11-12 08:30:00"],
+                ["timedatectl", "set-ntp", "true"],
+            ],
+        )
 
 
 class Battery(TempDirCase):
@@ -302,12 +367,18 @@ class Battery(TempDirCase):
 
     def test_against_todays_capacity(self):
         d = self.bat(energy_now="40000000", energy_full="50000000", capacity="60", status="Discharging")
-        with mock.patch.object(ks, "find_battery", return_value=d), mock.patch.object(ks, "on_mains", return_value=False):
+        with (
+            mock.patch.object(ks, "find_battery", return_value=d),
+            mock.patch.object(ks, "on_mains", return_value=False),
+        ):
             self.assertEqual(ks.read_battery(), {"level": 80, "charging": False})
 
     def test_plugged_in_at_a_charge_limit(self):
         d = self.bat(capacity="80", status="Not charging")
-        with mock.patch.object(ks, "find_battery", return_value=d), mock.patch.object(ks, "on_mains", return_value=True):
+        with (
+            mock.patch.object(ks, "find_battery", return_value=d),
+            mock.patch.object(ks, "on_mains", return_value=True),
+        ):
             self.assertEqual(ks.read_battery(), {"level": 80, "charging": True})
 
     def test_capacity_fallback_and_full(self):
@@ -341,12 +412,16 @@ class Battery(TempDirCase):
   History (charge):
     1700000000	68.000	discharging
 """
-        p, _ = with_run({"upower -e": "/org/freedesktop/UPower/devices/line_power_AC\n"
-                                      "/org/freedesktop/UPower/devices/battery_BAT0\n"
-                                      "/org/freedesktop/UPower/devices/DisplayDevice\n",
-                         "upower -i /org/freedesktop/UPower/devices/battery_BAT0": info,
-                         "powerprofilesctl list": "  performance:\n    Driver: x\n\n* balanced:\n    Driver: x\n\n"
-                                                  "  power-saver:\n    Driver: x\n"})
+        p, _ = with_run(
+            {
+                "upower -e": "/org/freedesktop/UPower/devices/line_power_AC\n"
+                "/org/freedesktop/UPower/devices/battery_BAT0\n"
+                "/org/freedesktop/UPower/devices/DisplayDevice\n",
+                "upower -i /org/freedesktop/UPower/devices/battery_BAT0": info,
+                "powerprofilesctl list": "  performance:\n    Driver: x\n\n* balanced:\n    Driver: x\n\n"
+                "  power-saver:\n    Driver: x\n",
+            }
+        )
         with p:
             d = ks.battery_details()
         self.assertEqual(d["level"], 68.0)
@@ -377,18 +452,35 @@ class Describe(unittest.TestCase):
         self.assertEqual(len(ks.short("y" * 500)), 140)
 
     def test_steps(self):
-        ev = {"type": "assistant", "message": {"content": [
-            {"type": "text", "text": "  Let me look.  "}, {"type": "text", "text": "   "},
-            {"type": "tool_use", "name": "Bash", "input": {"command": "ls -la", "description": "List files"}},
-            {"type": "tool_use", "name": "Bash", "input": {"command": "ls"}},
-            {"type": "tool_use", "name": "Read", "input": {"file_path": "/a/b/notes.txt"}},
-            {"type": "tool_use", "name": "Grep", "input": {"pattern": "TODO"}},
-            {"type": "tool_use", "name": "Glob", "input": {}},
-            {"type": "tool_use", "name": "mcp__claude_ai_Gmail__search_threads", "input": {}},
-            {"type": "tool_use", "name": "Agent", "input": {}}]}}
-        self.assertEqual([s["text"] for s in ks.describe(ev)], [
-            "Let me look.", "List files", "ls", "Reading notes.txt", "Searching for “TODO”", "Looking for files",
-            "claude ai Gmail search threads", "Asking a helper"])
+        ev = {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {"type": "text", "text": "  Let me look.  "},
+                    {"type": "text", "text": "   "},
+                    {"type": "tool_use", "name": "Bash", "input": {"command": "ls -la", "description": "List files"}},
+                    {"type": "tool_use", "name": "Bash", "input": {"command": "ls"}},
+                    {"type": "tool_use", "name": "Read", "input": {"file_path": "/a/b/notes.txt"}},
+                    {"type": "tool_use", "name": "Grep", "input": {"pattern": "TODO"}},
+                    {"type": "tool_use", "name": "Glob", "input": {}},
+                    {"type": "tool_use", "name": "mcp__claude_ai_Gmail__search_threads", "input": {}},
+                    {"type": "tool_use", "name": "Agent", "input": {}},
+                ]
+            },
+        }
+        self.assertEqual(
+            [s["text"] for s in ks.describe(ev)],
+            [
+                "Let me look.",
+                "List files",
+                "ls",
+                "Reading notes.txt",
+                "Searching for “TODO”",
+                "Looking for files",
+                "claude ai Gmail search threads",
+                "Asking a helper",
+            ],
+        )
         self.assertEqual(ks.describe(ev)[0]["kind"], "thought")
         self.assertEqual(ks.describe({"type": "user"}), [])
         self.assertEqual(ks.describe({"type": "assistant"}), [])
@@ -405,16 +497,23 @@ class Limits(TempDirCase):
         self.addCleanup(p.stop)
 
     def test_note_and_read_back(self):
-        out = ks.note_limits({"unifiedWindows": {"five_hour": {"utilization": 0.25, "resetsAt": 1800000000},
-                                                 "seven_day": {"utilization": 63}, "other": {"utilization": 1},
-                                                 "seven_day_opus": {"utilization": None}}})
+        out = ks.note_limits(
+            {
+                "unifiedWindows": {
+                    "five_hour": {"utilization": 0.25, "resetsAt": 1800000000},
+                    "seven_day": {"utilization": 63},
+                    "other": {"utilization": 1},
+                    "seven_day_opus": {"utilization": None},
+                }
+            }
+        )
         self.assertEqual(out["session"]["percent"], 25)
         self.assertEqual(out["session"]["resets"], datetime.fromtimestamp(1800000000, timezone.utc).isoformat())
         self.assertEqual(out["week"], {"percent": 63, "resets": None})
         self.assertEqual(set(out), {"session", "week"})
         self.assertEqual(json.loads((self.tmp / "plan-limits.json").read_text()), out)
         ks._limits_cache[:] = [0, None]
-        self.assertEqual(ks.plan_limits(), out)                     # after a restart, from the file
+        self.assertEqual(ks.plan_limits(), out)  # after a restart, from the file
 
     def test_nothing_to_note(self):
         self.assertIsNone(ks.note_limits(None))
@@ -428,19 +527,43 @@ class Tokens(TempDirCase):
         proj.mkdir(parents=True)
 
         def line(mid, rid, ts, out, inp, created, read):
-            return json.dumps({"type": "assistant", "timestamp": ts, "requestId": rid, "message": {
-                "id": mid, "usage": {"output_tokens": out, "input_tokens": inp,
-                                     "cache_creation_input_tokens": created, "cache_read_input_tokens": read}}})
-        (proj / "a.jsonl").write_text("\n".join([
-            line("m1", "r1", "2026-11-10T12:00:00Z", 10, 5, 1, 100),
-            line("m1", "r1", "2026-11-10T12:00:00Z", 10, 5, 1, 100),     # the same reply twice: once
-            line("m2", "r2", "2026-11-10T13:00:00Z", 20, 0, 0, 0),
-            '{"type": "assistant", "usage": "broken"',
-            '{"type": "user", "message": {"content": "hi"}}']))
-        (proj / "b.jsonl").write_text(line("m1", "r1", "2026-11-10T12:00:00Z", 10, 5, 1, 100) + "\n" +
-                                      line("m3", "r3", "2026-11-11T12:00:00Z", 1, 1, 1, 1))
-        with mock.patch.object(ks.accounts, "config_dir", return_value=self.tmp), \
-                mock.patch.dict(ks._token_cache, clear=True):
+            return json.dumps(
+                {
+                    "type": "assistant",
+                    "timestamp": ts,
+                    "requestId": rid,
+                    "message": {
+                        "id": mid,
+                        "usage": {
+                            "output_tokens": out,
+                            "input_tokens": inp,
+                            "cache_creation_input_tokens": created,
+                            "cache_read_input_tokens": read,
+                        },
+                    },
+                }
+            )
+
+        (proj / "a.jsonl").write_text(
+            "\n".join(
+                [
+                    line("m1", "r1", "2026-11-10T12:00:00Z", 10, 5, 1, 100),
+                    line("m1", "r1", "2026-11-10T12:00:00Z", 10, 5, 1, 100),  # the same reply twice: once
+                    line("m2", "r2", "2026-11-10T13:00:00Z", 20, 0, 0, 0),
+                    '{"type": "assistant", "usage": "broken"',
+                    '{"type": "user", "message": {"content": "hi"}}',
+                ]
+            )
+        )
+        (proj / "b.jsonl").write_text(
+            line("m1", "r1", "2026-11-10T12:00:00Z", 10, 5, 1, 100)
+            + "\n"
+            + line("m3", "r3", "2026-11-11T12:00:00Z", 1, 1, 1, 1)
+        )
+        with (
+            mock.patch.object(ks.accounts, "config_dir", return_value=self.tmp),
+            mock.patch.dict(ks._token_cache, clear=True),
+        ):
             days = ks.daily_tokens()
         day1 = datetime.fromisoformat("2026-11-10T12:00:00+00:00").astimezone().strftime("%Y-%m-%d")
         day3 = datetime.fromisoformat("2026-11-11T12:00:00+00:00").astimezone().strftime("%Y-%m-%d")

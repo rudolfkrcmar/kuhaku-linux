@@ -1,5 +1,6 @@
 """claude_accounts.py: sets of accounts, the active one, per-purpose choices, env and commands.
 Ollama is never asked (ollama_models is mocked): no network."""
+
 import json
 import os
 import unittest
@@ -16,8 +17,11 @@ class AccountsCase(TempDirCase):
         super().setUp()
         self.home = self.tmp / "home"
         self.home.mkdir()
-        for name, value in {"HOME": self.home, "FILE": self.home / ".config/kuhaku/claude-accounts.json",
-                            "ROOT": self.home / ".claude-accounts"}.items():
+        for name, value in {
+            "HOME": self.home,
+            "FILE": self.home / ".config/kuhaku/claude-accounts.json",
+            "ROOT": self.home / ".claude-accounts",
+        }.items():
             p = mock.patch.object(acc, name, value)
             p.start()
             self.addCleanup(p.stop)
@@ -32,8 +36,9 @@ class AccountsCase(TempDirCase):
     def sign_in(self, ident):
         a = next(a for a in acc.load()["accounts"] if a["id"] == ident)
         d = acc.config_dir(a)
-        f = {"claude": d / ".credentials.json", "codex": d / "auth.json",
-             "gemini": d / ".gemini/oauth_creds.json"}[acc.kind(a)]
+        f = {"claude": d / ".credentials.json", "codex": d / "auth.json", "gemini": d / ".gemini/oauth_creds.json"}[
+            acc.kind(a)
+        ]
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text("{}")
 
@@ -49,15 +54,24 @@ class Load(AccountsCase):
         self.assertEqual(acc.config_dir(), self.home / ".claude")
 
     def test_old_file_gets_sets_and_dedups(self):
-        acc.save({"active": "b", "accounts": [
-            {"id": "a", "name": "Me", "dir": None}, {"id": "b", "name": "Job", "dir": "/x/b"},
-            {"id": "c", "name": "Job", "dir": "/x/c"}, {"id": "g", "name": "G", "kind": "gemini", "dir": "/x/g"},
-            {"id": "l1", "kind": "local", "name": "Local", "set": ""}, {"id": "l2", "kind": "local", "name": "Local", "set": ""}]})
+        acc.save(
+            {
+                "active": "b",
+                "accounts": [
+                    {"id": "a", "name": "Me", "dir": None},
+                    {"id": "b", "name": "Job", "dir": "/x/b"},
+                    {"id": "c", "name": "Job", "dir": "/x/c"},
+                    {"id": "g", "name": "G", "kind": "gemini", "dir": "/x/g"},
+                    {"id": "l1", "kind": "local", "name": "Local", "set": ""},
+                    {"id": "l2", "kind": "local", "name": "Local", "set": ""},
+                ],
+            }
+        )
         data = acc.load()
         self.assertEqual([a["id"] for a in data["accounts"]], ["a", "b", "g", "l1"])
         sets = {a["id"]: a.get("set") for a in data["accounts"]}
         self.assertEqual(sets["a"], "Personal")
-        self.assertEqual(sets["b"], "Job")           # an older second Claude becomes its own set
+        self.assertEqual(sets["b"], "Job")  # an older second Claude becomes its own set
         self.assertEqual(sets["g"], "Personal")
         self.assertIn("Job", data["sets"])
         self.assertEqual(acc.active()["id"], "b")
@@ -83,7 +97,7 @@ class AddAndRemove(AccountsCase):
         self.assertEqual((acc.ROOT / g / ".gemini/GEMINI.md").read_text(), "notes about this computer")
         o = acc.add("Work Stuff!", "codex")
         self.assertTrue((acc.ROOT / o / "AGENTS.md").exists())
-        self.assertEqual(acc.add("  ", "nonsense"), "work")     # blank name: Work; unknown kind: Claude
+        self.assertEqual(acc.add("  ", "nonsense"), "work")  # blank name: Work; unknown kind: Claude
         self.assertIn("Work Stuff!", acc.load()["sets"])
 
     def test_ensure_finds_before_adding(self):
@@ -104,12 +118,12 @@ class AddAndRemove(AccountsCase):
         self.sign_in(w)
         self.assertTrue(acc.use(w))
         acc.set_for("mail", w)
-        self.assertFalse(acc.remove("private"))       # the first account stays
+        self.assertFalse(acc.remove("private"))  # the first account stays
         self.assertTrue(acc.remove(w))
         data = acc.load()
         self.assertEqual(data["active"], "private")
         self.assertEqual(acc.uses(), {"mail": "", "dev": ""})
-        self.assertTrue((acc.ROOT / w).is_dir())       # its folder stays
+        self.assertTrue((acc.ROOT / w).is_dir())  # its folder stays
 
     def test_sets(self):
         acc.add_set("  Side   project ")
@@ -120,7 +134,7 @@ class AddAndRemove(AccountsCase):
         self.sign_in(w)
         acc.use(w)
         acc.set_for("dev", w)
-        acc.remove_set("Personal")                     # the first set cannot go
+        acc.remove_set("Personal")  # the first set cannot go
         self.assertIn("Personal", acc.load()["sets"])
         acc.remove_set("Work")
         data = acc.load()
@@ -152,7 +166,7 @@ class UseAndPick(AccountsCase):
         self.assertFalse(acc.use("nope"))
 
     def test_cycle(self):
-        self.assertEqual(acc.cycle()["id"], "private")      # none signed in: stays
+        self.assertEqual(acc.cycle()["id"], "private")  # none signed in: stays
         self.sign_in("private")
         w = acc.add("Work")
         self.sign_in(w)
@@ -162,7 +176,7 @@ class UseAndPick(AccountsCase):
     def test_pick_for_purpose(self):
         w = acc.ensure("Work", "codex")
         acc.set_for("mail", w)
-        self.assertEqual(acc.pick(purpose="mail")["id"], "private")    # not signed in: not picked
+        self.assertEqual(acc.pick(purpose="mail")["id"], "private")  # not signed in: not picked
         self.sign_in(w)
         self.assertEqual(acc.pick(purpose="mail")["id"], w)
         self.assertEqual(acc.pick(purpose="dev")["id"], "private")
@@ -186,7 +200,7 @@ class UseAndPick(AccountsCase):
         e = acc.env(base)
         self.assertEqual(e["CLAUDE_CONFIG_DIR"], str(acc.ROOT / w))
         self.assertEqual(acc.shell_prefix(), f"CLAUDE_CONFIG_DIR={acc.ROOT / w} ")
-        self.assertEqual(base["CLAUDE_CONFIG_DIR"], "/stale")       # the given env is not changed
+        self.assertEqual(base["CLAUDE_CONFIG_DIR"], "/stale")  # the given env is not changed
 
     def test_login_commands(self):
         a = {"id": "x", "kind": "claude", "dir": "/a b/x"}
@@ -216,7 +230,7 @@ class Local(AccountsCase):
         self.assertEqual(acc.flags(acct=local), " --oss --local-provider ollama -m qwen")
         self.assertEqual(acc.flags(acct={"kind": "claude"}), "")
         self.models = []
-        self.assertEqual(acc.local_model(), "qwen")         # the choice is kept while Ollama is off
+        self.assertEqual(acc.local_model(), "qwen")  # the choice is kept while Ollama is off
         with mock.patch("shutil.which", return_value=None):
             self.assertEqual(acc.local_status()["running"], False)
 
@@ -240,6 +254,7 @@ class Ask(AccountsCase):
             self.assertIn("read-only", argv)
             self.assertEqual(kw["env"]["CODEX_HOME"], str(acc.ROOT / o))
             return mock.Mock(stdout="", stderr="")
+
         with mock.patch("subprocess.run", side_effect=fake_run):
             self.assertEqual(acc.ask("q", "sys", purpose="mail", schema={"type": "object"}), {"ok": True})
 

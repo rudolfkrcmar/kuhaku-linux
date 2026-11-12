@@ -2,6 +2,7 @@
 
 An answer is a small iCalendar REPLY mailed to the organizer, the way Google Calendar, Outlook and
 Apple Mail answer, so the organizer's calendar shows Yes, Maybe or No."""
+
 import email.utils
 import re
 import time
@@ -43,7 +44,14 @@ def when(value, params):
 
 
 def text(v):
-    return v.replace("\\n", "\n").replace("\\N", "\n").replace("\\,", ",").replace("\\;", ";").replace("\\\\", "\\").strip()
+    return (
+        v.replace("\\n", "\n")
+        .replace("\\N", "\n")
+        .replace("\\,", ",")
+        .replace("\\;", ";")
+        .replace("\\\\", "\\")
+        .strip()
+    )
 
 
 def parse(ics, mine):
@@ -78,17 +86,32 @@ def parse(ics, mine):
                 ev["ME"] = addr
     if not ev.get("UID") or "DTSTART" not in ev:
         return None
-    return {"method": method or "REQUEST", "uid": ev["UID"], "title": ev.get("SUMMARY", "(no title)"),
-            "start": ev["DTSTART"], "end": ev.get("DTEND", ev["DTSTART"]), "allday": ev.get("DTSTART_DAY", False),
-            "place": ev.get("LOCATION", ""), "organizer": ev.get("ORGANIZER", ""), "organizerName": ev.get("ORGANIZER_NAME", ""),
-            "status": "CANCELLED" if method == "CANCEL" or ev.get("STATUS", "").upper() == "CANCELLED" else ev.get("MINE", "NEEDS-ACTION"),
-            "me": ev.get("ME", ""), "sequence": ev.get("SEQUENCE", "0"), "repeats": bool(ev.get("RRULE")), "raw": raw}
+    return {
+        "method": method or "REQUEST",
+        "uid": ev["UID"],
+        "title": ev.get("SUMMARY", "(no title)"),
+        "start": ev["DTSTART"],
+        "end": ev.get("DTEND", ev["DTSTART"]),
+        "allday": ev.get("DTSTART_DAY", False),
+        "place": ev.get("LOCATION", ""),
+        "organizer": ev.get("ORGANIZER", ""),
+        "organizerName": ev.get("ORGANIZER_NAME", ""),
+        "status": "CANCELLED"
+        if method == "CANCEL" or ev.get("STATUS", "").upper() == "CANCELLED"
+        else ev.get("MINE", "NEEDS-ACTION"),
+        "me": ev.get("ME", ""),
+        "sequence": ev.get("SEQUENCE", "0"),
+        "repeats": bool(ev.get("RRULE")),
+        "raw": raw,
+    }
 
 
 def calendar_of(m):
     """The iCalendar text inside a letter, if it carries one."""
     for part in m.walk():
-        if part.get_content_type() in ("text/calendar", "application/ics") or (part.get_filename() or "").lower().endswith(".ics"):
+        if part.get_content_type() in ("text/calendar", "application/ics") or (
+            part.get_filename() or ""
+        ).lower().endswith(".ics"):
             try:
                 c = part.get_content()
                 return c.decode("utf-8", "replace") if isinstance(c, bytes) else c
@@ -102,8 +125,22 @@ def reply(ev, me, name, answer):
     """The iCalendar REPLY that tells the organizer the owner's answer."""
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     cn = f';CN="{name}"' if name else ""
-    lines = ["BEGIN:VCALENDAR", "PRODID:-//Kuhaku//Tegami//EN", "VERSION:2.0", "CALSCALE:GREGORIAN", "METHOD:REPLY", "BEGIN:VEVENT",
-             ev["raw"].get("DTSTART", ""), ev["raw"].get("DTEND", ""), f"DTSTAMP:{stamp}", ev["raw"].get("ORGANIZER", ""),
-             f"UID:{ev['uid']}", f"ATTENDEE;PARTSTAT={ANSWER[answer]}{cn}:mailto:{me}", f"SEQUENCE:{ev.get('sequence', '0')}",
-             f"SUMMARY:{ev['title']}", "END:VEVENT", "END:VCALENDAR"]
+    lines = [
+        "BEGIN:VCALENDAR",
+        "PRODID:-//Kuhaku//Tegami//EN",
+        "VERSION:2.0",
+        "CALSCALE:GREGORIAN",
+        "METHOD:REPLY",
+        "BEGIN:VEVENT",
+        ev["raw"].get("DTSTART", ""),
+        ev["raw"].get("DTEND", ""),
+        f"DTSTAMP:{stamp}",
+        ev["raw"].get("ORGANIZER", ""),
+        f"UID:{ev['uid']}",
+        f"ATTENDEE;PARTSTAT={ANSWER[answer]}{cn}:mailto:{me}",
+        f"SEQUENCE:{ev.get('sequence', '0')}",
+        f"SUMMARY:{ev['title']}",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
     return "\r\n".join(l for l in lines if l) + "\r\n"

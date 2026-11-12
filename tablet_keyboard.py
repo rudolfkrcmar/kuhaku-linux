@@ -1,4 +1,5 @@
 """The touch keyboard itself: layouts, key drawings, the Keyboard window and the folded-away pill."""
+
 import math
 import os
 import sys
@@ -7,6 +8,7 @@ import time
 
 import cairo  # noqa: E402
 import gi  # noqa: E402
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
@@ -24,7 +26,8 @@ from tablet_base import (
     pressure,
     recognize,
     rounded,
-    save_settings)
+    save_settings,
+)
 
 
 def text_at(cr, s, px, color, cx, cy, weight=Pango.Weight.LIGHT, alpha=1.0, align="center"):
@@ -46,22 +49,62 @@ def text_at(cr, s, px, color, cx, cy, weight=Pango.Weight.LIGHT, alpha=1.0, alig
 # --- the keyboard ------------------------------------------------------------------------
 
 ALTS = {
-    "q": "1", "w": "2", "e": "3éěèêë", "r": "4ř", "t": "5ť", "y": "6ýÿ", "u": "7úůüûù", "i": "8íìîï",
-    "o": "9óöôòøœ", "p": "0", "a": "áäàâåæ", "s": "šßś", "d": "ď", "f": "", "g": "ğ", "h": "", "j": "",
-    "k": "", "l": "ľłĺ", "z": "žźż", "x": "", "c": "čçć", "v": "", "b": "", "n": "ňñń", "m": "",
-    ".": "…!?;:", ",": "\"'„“”", "-": "–—_", "'": "‘’`\"", "?": "¿", "!": "¡", "€": "$£¥¢", "\"": "„“”«»",
+    "q": "1",
+    "w": "2",
+    "e": "3éěèêë",
+    "r": "4ř",
+    "t": "5ť",
+    "y": "6ýÿ",
+    "u": "7úůüûù",
+    "i": "8íìîï",
+    "o": "9óöôòøœ",
+    "p": "0",
+    "a": "áäàâåæ",
+    "s": "šßś",
+    "d": "ď",
+    "f": "",
+    "g": "ğ",
+    "h": "",
+    "j": "",
+    "k": "",
+    "l": "ľłĺ",
+    "z": "žźż",
+    "x": "",
+    "c": "čçć",
+    "v": "",
+    "b": "",
+    "n": "ňñń",
+    "m": "",
+    ".": "…!?;:",
+    ",": "\"'„“”",
+    "-": "–—_",
+    "'": "‘’`\"",
+    "?": "¿",
+    "!": "¡",
+    "€": "$£¥¢",
+    "\"": "„“”«»",
 }
 
 
 def K(label, w=1.0, act=None, alts=None):
-    return {"label": label, "w": w, "act": act or ("char", label),
-            "alts": ALTS.get(label, "") if alts is None else alts}
+    return {
+        "label": label,
+        "w": w,
+        "act": act or ("char", label),
+        "alts": ALTS.get(label, "") if alts is None else alts,
+    }
 
 
 def row_bottom(layer_key):
-    return [K("123" if layer_key == "abc" else "abc", 1.5, ("layer", "123" if layer_key == "abc" else "abc")),
-            K("ctrl", 1, ("mod", "Control_L")), K("lang", 1, ("lang",)), K("space", 5, ("space",)),
-            K("left", 1, ("key", "Left")), K("right", 1, ("key", "Right")), K("hide", 1, ("hide",))]
+    return [
+        K("123" if layer_key == "abc" else "abc", 1.5, ("layer", "123" if layer_key == "abc" else "abc")),
+        K("ctrl", 1, ("mod", "Control_L")),
+        K("lang", 1, ("lang",)),
+        K("space", 5, ("space",)),
+        K("left", 1, ("key", "Left")),
+        K("right", 1, ("key", "Right")),
+        K("hide", 1, ("hide",)),
+    ]
 
 
 def layout(layer):
@@ -180,17 +223,17 @@ class Keyboard:
     def __init__(self, app):
         self.app = app
         self.layer = "abc"
-        self.shift = 0              # 0 off, 1 next letter, 2 caps
+        self.shift = 0  # 0 off, 1 next letter, 2 caps
         self.shift_tap = 0.0
         self.mods = set()
-        self.mode = "keys"          # or "write": the pad
+        self.mode = "keys"  # or "write": the pad
         self.touches = {}
-        self.anims = []             # (kind, x, y, start)
-        self.bubble = None          # (key, start, ending)
-        self.alts = None            # {"key","items","rects","sel","touch"}
-        self.last_chars = []        # (char, time), what this keyboard typed lately
+        self.anims = []  # (kind, x, y, start)
+        self.bubble = None  # (key, start, ending)
+        self.alts = None  # {"key","items","rects","sel","touch"}
+        self.last_chars = []  # (char, time), what this keyboard typed lately
         self.visible = False
-        self.slide = 0.0            # 0 hidden .. 1 shown
+        self.slide = 0.0  # 0 hidden .. 1 shown
         self.slide_from = 0.0
         self.slide_to = 0.0
         self.slide_t0 = 0.0
@@ -214,8 +257,12 @@ class Keyboard:
         if visual:
             self.win.set_visual(visual)
         self.area = Gtk.DrawingArea()
-        self.area.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK |
-                             Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.TOUCH_MASK)
+        self.area.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK
+            | Gdk.EventMask.BUTTON_RELEASE_MASK
+            | Gdk.EventMask.POINTER_MOTION_MASK
+            | Gdk.EventMask.TOUCH_MASK
+        )
         self.area.connect("draw", self.draw)
         self.area.connect("button-press-event", self.on_button)
         self.area.connect("button-release-event", self.on_button)
@@ -236,7 +283,7 @@ class Keyboard:
         self.gap = round(self.kh * 0.13)
         self.strip = round(self.kh * 0.74)
         self.body = self.strip + 4 * self.kh + 5 * self.gap
-        self.margin = round(self.kh * 1.55)      # room above the keys for previews and accents
+        self.margin = round(self.kh * 1.55)  # room above the keys for previews and accents
         self.W, self.H = g.width, self.body + self.margin
         self.keys_w = min(g.width - 2 * self.gap, round(self.kh * 22.5))
         self.keys_x = (g.width - self.keys_w) / 2
@@ -265,8 +312,9 @@ class Keyboard:
         self.pad_rect = (px, top, self.keys_w - col - self.gap, 4 * self.kh + 3 * self.gap)
         cx = px + self.keys_w - col
         self.pad_keys = []
-        for i, (lab, act) in enumerate((("back", ("back",)), ("space", ("space",)), ("return", ("key", "Return")),
-                                       ("keys", ("mode", "keys")))):
+        for i, (lab, act) in enumerate(
+            (("back", ("back",)), ("space", ("space",)), ("return", ("key", "Return")), ("keys", ("mode", "keys")))
+        ):
             self.pad_keys.append((K(lab, 1, act, ""), cx, top + i * (self.kh + self.gap), col, self.kh))
         # the strip: Keys / Write on the left, pen and hide on the right
         sy = self.margin
@@ -412,7 +460,7 @@ class Keyboard:
         on = (act == "shift" and self.shift) or (act == "mod" and k["act"][1] in self.mods)
         fill = t["key"] if act in ("char", "space") else t["fn"]
         r = self.kh * 0.2
-        if fill[3] > 0.3:   # paper keys lift a little off the paper
+        if fill[3] > 0.3:  # paper keys lift a little off the paper
             cr.set_source_rgba(*t["shadow"])
             rounded(cr, x, y + 1.2, w, h, r)
             cr.fill()
@@ -429,17 +477,23 @@ class Keyboard:
         if act == "char":
             text_at(cr, self.key_label(k), self.kh * 0.36, color, cx, cy)
             if k["alts"] and len(lab) == 1 and lab.isalpha() and k["alts"][0].isdigit():
-                text_at(cr, k["alts"][0], self.kh * 0.16, t["muted"], x + w - self.kh * 0.2, y + self.kh * 0.22,
-                        alpha=0.55)
+                text_at(
+                    cr, k["alts"][0], self.kh * 0.16, t["muted"], x + w - self.kh * 0.2, y + self.kh * 0.22, alpha=0.55
+                )
         elif act == "space":
             lang = self.app.settings["language"]
             text_at(cr, LANGS.get(lang, lang), self.kh * 0.2, t["muted"], cx, cy, alpha=0.75)
         elif act == "lang":
-            text_at(cr, self.app.settings["language"].upper(), self.kh * 0.2, color, cx, cy,
-                    weight=Pango.Weight.NORMAL)
+            text_at(cr, self.app.settings["language"].upper(), self.kh * 0.2, color, cx, cy, weight=Pango.Weight.NORMAL)
         elif act == "shift":
-            icon(cr, "caps" if self.shift == 2 else ("shift-on" if self.shift else "shift"), cx, cy, self.kh * 0.42,
-                 color)
+            icon(
+                cr,
+                "caps" if self.shift == 2 else ("shift-on" if self.shift else "shift"),
+                cx,
+                cy,
+                self.kh * 0.42,
+                color,
+            )
         elif act in ("back",) or lab in ("return", "tab", "left", "right", "hide", "keys"):
             icon(cr, lab if act != "back" else "back", cx, cy, self.kh * 0.42, color)
         else:
@@ -452,8 +506,15 @@ class Keyboard:
             if name.startswith("mode-"):
                 mine = name[5:]
                 on = self.mode == mine
-                tw = text_at(cr, "Keys" if mine == "keys" else "Write", s * 0.34,
-                             t["fg"] if on else t["muted"], x + w / 2, cy, alpha=1 if on else 0.8)
+                tw = text_at(
+                    cr,
+                    "Keys" if mine == "keys" else "Write",
+                    s * 0.34,
+                    t["fg"] if on else t["muted"],
+                    x + w / 2,
+                    cy,
+                    alpha=1 if on else 0.8,
+                )
                 if on:
                     cr.set_source_rgb(*t["accent"])
                     cr.arc(x + w / 2 - tw / 2 - s * 0.2, cy, 2.6, 0, 2 * math.pi)
@@ -474,8 +535,15 @@ class Keyboard:
                 cw = (x1 - x0) / max(3, len(cands))
                 for i, c in enumerate(cands):
                     cx = x0 + cw * (i + 0.5)
-                    text_at(cr, c, s * (0.4 if i == 0 else 0.34), t["fg"] if i == 0 else t["muted"], cx, cy,
-                            weight=Pango.Weight.LIGHT)
+                    text_at(
+                        cr,
+                        c,
+                        s * (0.4 if i == 0 else 0.34),
+                        t["fg"] if i == 0 else t["muted"],
+                        cx,
+                        cy,
+                        weight=Pango.Weight.LIGHT,
+                    )
                     self.cand_rects.append((c, (x0 + cw * i, self.margin, cw, s)))
 
     def draw_pad(self, cr, t):
@@ -488,8 +556,15 @@ class Keyboard:
         cr.rectangle(x + self.kh * 0.6, base, w - self.kh * 1.2, 1)
         cr.fill()
         if not self.pad["strokes"] and not self.pad["cur"]:
-            text_at(cr, "Write here, with the pen or a finger", self.kh * 0.24, t["muted"], x + w / 2, y + h * 0.4,
-                    alpha=0.55)
+            text_at(
+                cr,
+                "Write here, with the pen or a finger",
+                self.kh * 0.24,
+                t["muted"],
+                x + w / 2,
+                y + h * 0.4,
+                alpha=0.55,
+            )
         strokes = self.pad["strokes"] + ([self.pad["cur"]] if self.pad["cur"] else [])
         draw_ink(cr, strokes, t["accent"] if self.pad["busy"] else t["fg"], 0.9, max(2.2, self.kh * 0.045))
         for k, kx, ky, kw, kh in self.pad_keys:
@@ -515,8 +590,16 @@ class Keyboard:
         cr.set_line_width(1)
         rounded(cr, bx + 0.5, by + 0.5, bw - 1, bh - 1, self.kh * 0.28)
         cr.stroke()
-        text_at(cr, self.key_label(k), self.kh * 0.62, t["fg"], bx + bw / 2, by + bh * 0.46,
-                weight=Pango.Weight.ULTRALIGHT, alpha=a)
+        text_at(
+            cr,
+            self.key_label(k),
+            self.kh * 0.62,
+            t["fg"],
+            bx + bw / 2,
+            by + bh * 0.46,
+            weight=Pango.Weight.ULTRALIGHT,
+            alpha=a,
+        )
         cr.set_source_rgba(*t["accent"], a)
         cr.arc(bx + bw / 2, by + bh * 0.84, 2.4, 0, 2 * math.pi)
         cr.fill()
@@ -540,8 +623,14 @@ class Keyboard:
                 cr.set_source_rgba(*t["accent"], 0.14)
                 rounded(cr, cx0 + 3, cy0 + 3, cw - 6, chh - 6, self.kh * 0.18)
                 cr.fill()
-            text_at(cr, ch.upper() if self.shift else ch, self.kh * 0.38, t["accent"] if sel else t["fg"],
-                    cx0 + cw / 2, cy0 + chh / 2)
+            text_at(
+                cr,
+                ch.upper() if self.shift else ch,
+                self.kh * 0.38,
+                t["accent"] if sel else t["fg"],
+                cx0 + cw / 2,
+                cy0 + chh / 2,
+            )
 
     # --- input -----------------------------------------------------------------------------
     def on_touch(self, _w, ev):
@@ -549,7 +638,7 @@ class Keyboard:
         x, y = ev.x, ev.y - (1 - self.slide) * (self.body + 8)
         if ev.type == Gdk.EventType.TOUCH_BEGIN:
             if self.app.pen_recent(1.2):
-                return True     # a hand resting while the pen writes: not a finger on a key
+                return True  # a hand resting while the pen writes: not a finger on a key
             self.press(seq, x, y, ev)
         elif ev.type == Gdk.EventType.TOUCH_UPDATE:
             self.move(seq, x, y, ev)
@@ -715,8 +804,12 @@ class Keyboard:
             bx = max(4, x + w - bw)
         by = y - self.kh * 1.25 - self.gap * 0.5
         bh = self.kh * 1.25
-        self.alts = {"items": items, "rects": [(bx + i * cw, by, cw, bh) for i in range(len(items))],
-                     "box": (bx, by, bw, bh), "sel": 0 if digit else 1}
+        self.alts = {
+            "items": items,
+            "rects": [(bx + i * cw, by, cw, bh) for i in range(len(items))],
+            "box": (bx, by, bw, bh),
+            "sel": 0 if digit else 1,
+        }
         tc["mode"] = "alts"
         self.bubble = None
         self.set_input()
@@ -736,12 +829,13 @@ class Keyboard:
                 return False
             held = time.monotonic() - tc["repeat_t0"]
             if held > 1.8:
-                self.app.typer.put("key", "BackSpace", ("Control_L",))   # a word at a time
+                self.app.typer.put("key", "BackSpace", ("Control_L",))  # a word at a time
             else:
                 self.backspace()
             self.anims.append(("ring", tc["x0"], tc["y0"], time.monotonic()))
             self.start_tick()
             return True
+
         self.repeat_id = GLib.timeout_add(75, again)
         return False
 
@@ -894,6 +988,7 @@ class Keyboard:
                 p["committed"] = text
             self.area.queue_draw()
             return False
+
         threading.Thread(target=work, daemon=True).start()
         self.area.queue_draw()
         return False
@@ -910,6 +1005,7 @@ class Keyboard:
 
 
 # --- the pill: the keyboard, folded away -------------------------------------------------
+
 
 class Pill:
     def __init__(self, app):

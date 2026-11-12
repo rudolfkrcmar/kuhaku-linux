@@ -8,6 +8,7 @@ waits for the reset). A job can also wait for a time of day: "at 7:00 …".
 
 Kept in ~/.local/state/kuhaku/tabs.json, so the line survives a restart.
 """
+
 import json
 import re
 import time
@@ -17,7 +18,7 @@ from kuhaku_log import report  # faults go to the log instead of vanishing
 
 PER_JOB_MB = 450
 RESERVE_MB = 1200
-FIRST, NORMAL, LATER = 2, 1, 0   # priorities: put first, normal, whenever there is room
+FIRST, NORMAL, LATER = 2, 1, 0  # priorities: put first, normal, whenever there is room
 
 
 def mem_available_mb():
@@ -50,7 +51,7 @@ def slots(running, max_jobs, limits):
         return 0, "plan", resets
     by_memory = (mem_available_mb() - RESERVE_MB) // PER_JOB_MB
     if running == 0:
-        by_memory = max(by_memory, 1)   # one job always runs, however full the memory is
+        by_memory = max(by_memory, 1)  # one job always runs, however full the memory is
     cap = 1 if level == "tight" else max_jobs
     room = max(0, min(cap - running, by_memory))
     why = None if room else ("plan" if level == "tight" and running else "memory" if by_memory <= 0 else "busy")
@@ -61,7 +62,7 @@ WHEN = re.compile(r"^(?:at|@)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?[,:]?\s+", r
 
 
 def parse_when(text):
-    """"at 7:00 sort my mail" -> (timestamp of the next 7:00, "sort my mail")."""
+    """ "at 7:00 sort my mail" -> (timestamp of the next 7:00, "sort my mail")."""
     m = WHEN.match(text)
     if not m:
         return None, text
@@ -76,7 +77,7 @@ def parse_when(text):
     at = now.replace(hour=h, minute=mins, second=0, microsecond=0)
     if at <= now:
         at += timedelta(days=1)
-    return int(at.timestamp()), text[m.end():].strip() or text
+    return int(at.timestamp()), text[m.end() :].strip() or text
 
 
 def model_label(model_id):
@@ -106,14 +107,25 @@ class Tabs:
             if t["status"] == "running":
                 t["status"] = "queued"
                 if t.get("session_id") and not t["question"].startswith("Kūhaku restarted"):
-                    t["question"] = "Kūhaku restarted while you were working on this. Continue where you stopped: " + t["question"]
+                    t["question"] = (
+                        "Kūhaku restarted while you were working on this. Continue where you stopped: " + t["question"]
+                    )
         if not self.get(self.current):
             self.current = self.tabs[0]["id"]
 
     def blank(self, session=None):
         n = 1 + max([int(t["id"]) for t in getattr(self, "tabs", [])] or [0])
-        return {"id": str(n), "title": "", "session_id": session, "status": "idle", "priority": NORMAL,
-                "question": "", "at": None, "queued": 0, "unseen": False}
+        return {
+            "id": str(n),
+            "title": "",
+            "session_id": session,
+            "status": "idle",
+            "priority": NORMAL,
+            "question": "",
+            "at": None,
+            "queued": 0,
+            "unseen": False,
+        }
 
     def get(self, ident):
         return next((t for t in self.tabs if t["id"] == ident), None)
@@ -165,11 +177,16 @@ class Tabs:
 
 # --- What each job cost: kept for Kiroku, the history of jobs ---------------
 RUNS_FILE = Path.home() / ".local/state/kuhaku/jobs.jsonl"
-TICK = 100   # clock ticks per second in /proc (os.sysconf("SC_CLK_TCK") on this kernel)
-BATTERY = next((p for p in sorted(Path("/sys/class/power_supply").glob("*"))
-                if (p / "type").exists() and (p / "type").read_text().strip() == "Battery"),
-               Path("/sys/class/power_supply/BAT0"))
-CHIP_WATTS = 4.5   # the Core M's whole design power, used when the battery cannot say
+TICK = 100  # clock ticks per second in /proc (os.sysconf("SC_CLK_TCK") on this kernel)
+BATTERY = next(
+    (
+        p
+        for p in sorted(Path("/sys/class/power_supply").glob("*"))
+        if (p / "type").exists() and (p / "type").read_text().strip() == "Battery"
+    ),
+    Path("/sys/class/power_supply/BAT0"),
+)
+CHIP_WATTS = 4.5  # the Core M's whole design power, used when the battery cannot say
 
 
 def cpu_seconds(pid):
@@ -186,6 +203,7 @@ def memory_mb(pid):
     """What a program and everything it started hold in memory now."""
     try:
         import psutil
+
         p = psutil.Process(pid)
         return sum(x.memory_info().rss for x in [p] + p.children(recursive=True)) / 2**20
     except Exception:
@@ -196,11 +214,18 @@ def memory_mb(pid):
 def erase_session(config_dir, session_id):
     """An anonymous conversation leaves nothing behind on this computer once its tab closes."""
     import shutil
+
     if not session_id or not re.fullmatch(r"[0-9a-f-]{36}", session_id):
         return
     root = Path(config_dir)
-    for pattern in (f"projects/*/{session_id}.jsonl", f"projects/*/{session_id}", f"todos/{session_id}*",
-                    f"file-history/{session_id}", f"session-env/{session_id}", f"debug/{session_id}*"):
+    for pattern in (
+        f"projects/*/{session_id}.jsonl",
+        f"projects/*/{session_id}",
+        f"todos/{session_id}*",
+        f"file-history/{session_id}",
+        f"session-env/{session_id}",
+        f"debug/{session_id}*",
+    ):
         for f in root.glob(pattern):
             try:
                 shutil.rmtree(f) if f.is_dir() else f.unlink()

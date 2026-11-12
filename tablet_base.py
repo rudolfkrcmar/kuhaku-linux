@@ -1,4 +1,5 @@
 """The touch keyboard's shared ground: settings, theme, small drawing helpers and handwriting."""
+
 import ctypes
 import json
 import math
@@ -12,6 +13,7 @@ X11.XInitThreads()  # before GTK opens its own connection
 
 import cairo  # noqa: E402
 import gi  # noqa: E402
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
@@ -25,21 +27,37 @@ CONFIG_DIR = HOME / ".config" / "kuhaku"
 TABLET_CONFIG = CONFIG_DIR / "tablet.json"
 RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 PID_FILE = RUN / "kuhaku-tablet.pid"
-MODE_FILE = RUN / "kuhaku-tablet-mode"        # "1" while folded: the bars offer Notes then
+MODE_FILE = RUN / "kuhaku-tablet-mode"  # "1" while folded: the bars offer Notes then
 NOTES_FRONT = RUN / "kuhaku-notes-front"
-PASSWORD_FRONT = RUN / "kuhaku-password-front"   # the lock or the password window is up (its pid)      # Notes is in front: its paper takes the pen itself
+PASSWORD_FRONT = (
+    RUN / "kuhaku-password-front"
+)  # the lock or the password window is up (its pid)      # Notes is in front: its paper takes the pen itself
 FONT = "Inter Variable"
 
 DEFAULTS = {"language": "en", "pen_writing": True, "keyboard_in_laptop_mode": False}
 LANGS = {"en": "English", "cs": "Čeština"}
 
 THEMES = {
-    "day": {"bg": (0.969, 0.957, 0.945), "fg": (0.067, 0.067, 0.067), "muted": (0.42, 0.42, 0.42),
-            "key": (1, 1, 1, 0.78), "fn": (0.067, 0.067, 0.067, 0.05), "line": (0.067, 0.067, 0.067, 0.09),
-            "accent": (0.878, 0.188, 0.118), "shadow": (0, 0, 0, 0.06)},
-    "night": {"bg": (0.071, 0.071, 0.071), "fg": (0.925, 0.925, 0.925), "muted": (0.6, 0.6, 0.6),
-              "key": (1, 1, 1, 0.075), "fn": (1, 1, 1, 0.035), "line": (1, 1, 1, 0.09),
-              "accent": (0.941, 0.439, 0.353), "shadow": (0, 0, 0, 0.35)},
+    "day": {
+        "bg": (0.969, 0.957, 0.945),
+        "fg": (0.067, 0.067, 0.067),
+        "muted": (0.42, 0.42, 0.42),
+        "key": (1, 1, 1, 0.78),
+        "fn": (0.067, 0.067, 0.067, 0.05),
+        "line": (0.067, 0.067, 0.067, 0.09),
+        "accent": (0.878, 0.188, 0.118),
+        "shadow": (0, 0, 0, 0.06),
+    },
+    "night": {
+        "bg": (0.071, 0.071, 0.071),
+        "fg": (0.925, 0.925, 0.925),
+        "muted": (0.6, 0.6, 0.6),
+        "key": (1, 1, 1, 0.075),
+        "fn": (1, 1, 1, 0.035),
+        "line": (1, 1, 1, 0.09),
+        "accent": (0.941, 0.439, 0.353),
+        "shadow": (0, 0, 0, 0.35),
+    },
 }
 
 
@@ -103,15 +121,25 @@ def rounded(cr, x, y, w, h, r):
 
 # --- handwriting -------------------------------------------------------------------------
 
+
 def recognize(strokes, width, height, lang):
     """Candidates for some ink: strokes are lists of (x, y, t_ms)."""
     ink = [[[round(p[0]) for p in s], [round(p[1]) for p in s], [int(p[2]) for p in s]] for s in strokes if s]
-    body = {"options": "enable_pre_space", "requests": [{
-        "writing_guide": {"writing_area_width": int(width), "writing_area_height": int(height)},
-        "ink": ink, "language": lang}]}
+    body = {
+        "options": "enable_pre_space",
+        "requests": [
+            {
+                "writing_guide": {"writing_area_width": int(width), "writing_area_height": int(height)},
+                "ink": ink,
+                "language": lang,
+            }
+        ],
+    }
     req = urllib.request.Request(
         "https://inputtools.google.com/request?ime=handwriting&app=kuhaku&cs=1&oe=UTF-8",
-        json.dumps(body).encode(), {"Content-Type": "application/json", "User-Agent": "Kuhaku"})
+        json.dumps(body).encode(),
+        {"Content-Type": "application/json", "User-Agent": "Kuhaku"},
+    )
     with urllib.request.urlopen(req, timeout=6) as r:
         data = json.loads(r.read())
     if data[0] != "SUCCESS":

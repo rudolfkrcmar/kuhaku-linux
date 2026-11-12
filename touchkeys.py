@@ -4,16 +4,18 @@ Those screens hold the keyboard and the mouse, so the touch keyboard (kuhaku-tab
 cannot reach them. When the computer is folded into a tablet they show these keys
 themselves, typing straight into their password line.
 """
+
 import os
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk  # noqa: E402
 
 RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 MODE_FILE = RUN / "kuhaku-tablet-mode"
-FRONT = RUN / "kuhaku-password-front"   # tells the touch keyboard to step away meanwhile
+FRONT = RUN / "kuhaku-password-front"  # tells the touch keyboard to step away meanwhile
 
 
 def front(on):
@@ -24,6 +26,7 @@ def front(on):
             FRONT.unlink()
     except OSError:
         pass
+
 
 ROWS = {
     "abc": ["qwertyuiop", "asdfghjkl", "⇧zxcvbnm⌫", "#⎵⏎"],
@@ -69,7 +72,7 @@ class TouchKeys(Gtk.Box):
                 if ch == "a" and self.layer == "123":
                     label = "abc"
                 b = Gtk.Button(label=label)
-                b.set_can_focus(False)          # the password line keeps the focus
+                b.set_can_focus(False)  # the password line keeps the focus
                 if ch in "⇧⌫⎵⏎#a" and (len(row) <= 4 or ch in "⇧⌫"):
                     b.get_style_context().add_class("fn")
                 if ch == "⇧" and self.shift:

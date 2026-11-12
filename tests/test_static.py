@@ -1,5 +1,6 @@
 """Whole-project checks: everything compiles, nothing runs a shell from a string, every
 report() call has its import, and the pages moved out of Python are where their apps look."""
+
 import ast
 import re
 import unittest
@@ -45,15 +46,21 @@ class Static(unittest.TestCase):
             if f.name in ("kuhaku_log.py", "transcribe.py"):
                 continue
             tree = ast.parse(f.read_text(encoding="utf-8"))
-            silent = [h.lineno for h in ast.walk(tree) if isinstance(h, ast.ExceptHandler)
-                      and isinstance(h.type, ast.Name) and h.type.id in ("Exception", "BaseException")
-                      and all(isinstance(b, (ast.Pass, ast.Continue, ast.Return)) for b in h.body)]
+            silent = [
+                h.lineno
+                for h in ast.walk(tree)
+                if isinstance(h, ast.ExceptHandler)
+                and isinstance(h.type, ast.Name)
+                and h.type.id in ("Exception", "BaseException")
+                and all(isinstance(b, (ast.Pass, ast.Continue, ast.Return)) for b in h.body)
+            ]
             with self.subTest(file=f.name):
                 self.assertEqual(silent, [])
 
     def test_no_undefined_names(self):
         """Every name read somewhere is defined somewhere in its file (catches a deleted helper still in use)."""
         import builtins
+
         for f in SOURCES:
             tree = ast.parse(f.read_text(encoding="utf-8"))
             known = set(dir(builtins)) | {"__file__"}
@@ -76,6 +83,7 @@ class Static(unittest.TestCase):
         """Every module imported from this project is in git and defines what is imported from it,
         so a commit or install can never leave the running copy importing a file it lacks."""
         import subprocess
+
         out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "*.py"], capture_output=True, text=True)
         if out.returncode != 0:
             self.skipTest("not a git checkout")
@@ -94,7 +102,7 @@ class Static(unittest.TestCase):
                     continue
                 for mod, names in mods:
                     if mod not in local or (ROOT / mod).is_dir():
-                        continue          # the standard library, an installed package, or a folder (lib/)
+                        continue  # the standard library, an installed package, or a folder (lib/)
                     with self.subTest(file=f.name, imports=mod):
                         self.assertIn(mod, tracked, f"{f.name} imports {mod}, which git does not track")
                         target = ast.parse((ROOT / f"{mod}.py").read_text(encoding="utf-8"))
@@ -110,9 +118,12 @@ class Static(unittest.TestCase):
                         self.assertEqual(missing, [], f"{f.name} imports {missing} from {mod}")
 
     def test_pages_exist_and_are_used(self):
-        for page, module in (("miru/miru.html", "miru.py"), ("browser/tls.html", "browser.py"),
-                             ("browser/tls-webkit.html", "browser_webkit.py"),
-                             ("mail/google-signed-in.html", "tegami_google.py")):
+        for page, module in (
+            ("miru/miru.html", "miru.py"),
+            ("browser/tls.html", "browser.py"),
+            ("browser/tls-webkit.html", "browser_webkit.py"),
+            ("mail/google-signed-in.html", "tegami_google.py"),
+        ):
             with self.subTest(page=page):
                 self.assertTrue((ROOT / page).is_file())
                 self.assertIn(page, (ROOT / module).read_text(encoding="utf-8"))

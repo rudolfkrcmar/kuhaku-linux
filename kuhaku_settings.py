@@ -1,6 +1,7 @@
 """Kūhaku's Settings page: reading every preference for the page, writing one back, and updating the system.
 
 A part of the Kuhaku window class (kuhaku.py), kept here by subject."""
+
 import json
 import os
 import subprocess
@@ -9,6 +10,7 @@ import re
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
@@ -17,7 +19,21 @@ from gi.repository import GLib
 import claude_accounts as accounts
 from kuhaku_log import report
 from kuhaku_config import CONFIG_FILE, HERE, HOME
-from kuhaku_system import PAD_KEYS, POWER_KEYS, read_battery, read_displays, read_power, read_time, read_trackpad, read_unlock, run, write_display, write_power, write_time, write_trackpad
+from kuhaku_system import (
+    PAD_KEYS,
+    POWER_KEYS,
+    read_battery,
+    read_displays,
+    read_power,
+    read_time,
+    read_trackpad,
+    read_unlock,
+    run,
+    write_display,
+    write_power,
+    write_time,
+    write_trackpad,
+)
 
 
 class Settings:
@@ -30,9 +46,13 @@ class Settings:
             for k in json.loads(sinks_json):
                 if "Raw" in k.get("description", "") or k["name"] in ("mb81_speakers", "mb81_speakers_eq_out"):
                     continue
-                outputs.append({"id": k["name"], "name": k.get("description", k["name"])
-                                .replace(" (EQ)", "").replace("Built-in Audio ", ""),
-                                "active": k["name"] == default_sink.strip()})
+                outputs.append(
+                    {
+                        "id": k["name"],
+                        "name": k.get("description", k["name"]).replace(" (EQ)", "").replace("Built-in Audio ", ""),
+                        "active": k["name"] == default_sink.strip(),
+                    }
+                )
         except Exception:
             report()
 
@@ -40,6 +60,7 @@ class Settings:
             _, out, _ = run(cmd)
             nums = [int(x) for x in re.findall(r"(\d+)%", out)]
             return round(sum(nums) / len(nums)) if nums else 0
+
         bright = None
         bl = next(iter(sorted(Path("/sys/class/backlight").glob("*"))), None)
         if bl:
@@ -69,12 +90,17 @@ class Settings:
             except OSError:
                 pass
         return {
-            "updates": {"auto": Path("/etc/apt/apt.conf.d/52kuhaku-unattended").exists(), "checked": updated,
-                        "running": bool(getattr(self, "updating", None))},
+            "updates": {
+                "auto": Path("/etc/apt/apt.conf.d/52kuhaku-unattended").exists(),
+                "checked": updated,
+                "running": bool(getattr(self, "updating", None)),
+            },
             "theme": self.state.get("theme") or "auto",
             "volume": percent(["pactl", "get-sink-volume", "@DEFAULT_SINK@"]),
             "mic": percent(["pactl", "get-source-volume", "@DEFAULT_SOURCE@"]),
-            "outputs": outputs, "brightness": bright, "profile": profile.strip() or None,
+            "outputs": outputs,
+            "brightness": bright,
+            "profile": profile.strip() or None,
             "permission_mode": self.config.get("permission_mode") or "default",
             "model": self.config.get("model") or "default",
             "dictation_model": self.config.get("dictation_model") or "auto",
@@ -89,10 +115,15 @@ class Settings:
             "ai_local": accounts.local_status(),
             "trackpad": read_trackpad(),
             "unlock": read_unlock(),
-            "about": {"computer": model, "system": os_name.group(1) if os_name else "Linux",
-                      "processor": re.sub(r"\s+", " ", cpu.group(1)).replace("(TM)", "").replace("(R)", "") if cpu else "",
-                      "memory": mem, "disk": disk, "kernel": os.uname().release,
-                      "battery": bat["level"] if bat else None},
+            "about": {
+                "computer": model,
+                "system": os_name.group(1) if os_name else "Linux",
+                "processor": re.sub(r"\s+", " ", cpu.group(1)).replace("(TM)", "").replace("(R)", "") if cpu else "",
+                "memory": mem,
+                "disk": disk,
+                "kernel": os.uname().release,
+                "battery": bat["level"] if bat else None,
+            },
         }
 
     def write_pref(self, key, value):
@@ -146,12 +177,25 @@ class Settings:
             return
 
         def work():
-            r = subprocess.run(["pkexec", "sh", "-c", "DEBIAN_FRONTEND=noninteractive apt-get update -q && "
-                                "DEBIAN_FRONTEND=noninteractive apt-get -y -q full-upgrade && apt-get -y -q autoremove"],
-                               capture_output=True, text=True)
+            r = subprocess.run(
+                [
+                    "pkexec",
+                    "sh",
+                    "-c",
+                    "DEBIAN_FRONTEND=noninteractive apt-get update -q && "
+                    "DEBIAN_FRONTEND=noninteractive apt-get -y -q full-upgrade && apt-get -y -q autoremove",
+                ],
+                capture_output=True,
+                text=True,
+            )
             self.updating = None
-            msg = "Up to date" if r.returncode == 0 else ("Cancelled" if r.returncode in (126, 127) else "Could not finish")
+            msg = (
+                "Up to date"
+                if r.returncode == 0
+                else ("Cancelled" if r.returncode in (126, 127) else "Could not finish")
+            )
             GLib.idle_add(self.note, "Updates", msg)
+
         self.updating = threading.Thread(target=work, daemon=True)
         self.updating.start()
         self.note("Updates", "Updating…")

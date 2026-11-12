@@ -12,6 +12,7 @@ place and kind of error in each run, so a check that repeats every second cannot
     except Exception:
         report()          # inside an except block: notes what went wrong, and where
 """
+
 import logging
 import logging.handlers
 import os
@@ -38,8 +39,9 @@ def logger():
         _logger.propagate = False
         try:
             LOG_DIR.mkdir(parents=True, exist_ok=True)
-            handler = logging.handlers.RotatingFileHandler(LOG_DIR / f"{app_name()}.log",
-                                                           maxBytes=500_000, backupCount=1, encoding="utf-8")
+            handler = logging.handlers.RotatingFileHandler(
+                LOG_DIR / f"{app_name()}.log", maxBytes=500_000, backupCount=1, encoding="utf-8"
+            )
         except OSError:
             handler = logging.NullHandler()
         handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S"))

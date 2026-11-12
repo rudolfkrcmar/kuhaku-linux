@@ -1,5 +1,6 @@
 """Kūhaku's dictation worker: loads Whisper once, then turns each 16 kHz mono WAV
 path read from stdin into one line of JSON text on stdout. Fully offline."""
+
 import json
 import sys
 import wave
@@ -24,8 +25,12 @@ def pick(choice):
     cores = len(os.sched_getaffinity(0))
     try:  # physical cores: hyperthreads only slow Whisper down
         with open("/proc/cpuinfo") as f:
-            ids = {(b.split("physical id")[1][:6] if "physical id" in b else "", line) for b in f.read().split("\n\n")
-                   for line in b.splitlines() if line.startswith("core id")}
+            ids = {
+                (b.split("physical id")[1][:6] if "physical id" in b else "", line)
+                for b in f.read().split("\n\n")
+                for line in b.splitlines()
+                if line.startswith("core id")
+            }
         cores = max(1, len(ids)) or cores
     except OSError:
         pass

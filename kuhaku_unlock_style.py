@@ -1,6 +1,8 @@
 """The look shared by Kūhaku's unlock windows (fingers, face): the lock screen's colours,
 Inter in light weights, and the red line."""
+
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa: E402
 
@@ -10,7 +12,8 @@ COLORS = {"night": ("#121212", "#ececec", "#9a9a9a", "#f0705a"), "day": ("#f7f4f
 def window_css():
     bg, fg, muted, accent = COLORS["night"]  # password screens stay dark, day or night
     css = Gtk.CssProvider()
-    css.load_from_data(f"""
+    css.load_from_data(
+        f"""
         window {{ background: {bg}; }}
         label {{ font-family: "Inter", sans-serif; color: {fg}; font-size: 34px; font-weight: 200; }}
         #small {{ color: {muted}; font-size: 15px; font-weight: 300; }}
@@ -21,5 +24,6 @@ def window_css():
         button label {{ font-size: 16px; font-weight: 300; color: {muted}; }}
         button:hover label, button.primary label {{ color: {fg}; }}
         button.primary {{ border-bottom: 1px solid {accent}; }}
-    """.encode())
+    """.encode()
+    )
     return css

@@ -15,6 +15,7 @@ Space or Esc goes back (or closes), Cmd+plus/minus/0 zoom pictures.
 
     miru [FOLDER | FILE]
 """
+
 import html
 import json
 import mimetypes
@@ -31,6 +32,7 @@ from datetime import datetime
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
@@ -43,11 +45,30 @@ from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 TEXT_LIMIT = 1_000_000
-WEB_IMAGES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "image/bmp", "image/x-icon",
-              "image/vnd.microsoft.icon"}
-TEXT_TYPES = {"application/json", "application/xml", "application/javascript", "application/x-shellscript",
-              "application/x-yaml", "application/toml", "application/x-desktop", "application/sql",
-              "application/x-python", "application/x-perl", "application/x-ruby", "application/x-php"}
+WEB_IMAGES = {
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+    "image/bmp",
+    "image/x-icon",
+    "image/vnd.microsoft.icon",
+}
+TEXT_TYPES = {
+    "application/json",
+    "application/xml",
+    "application/javascript",
+    "application/x-shellscript",
+    "application/x-yaml",
+    "application/toml",
+    "application/x-desktop",
+    "application/sql",
+    "application/x-python",
+    "application/x-perl",
+    "application/x-ruby",
+    "application/x-php",
+}
 
 
 def usb_drives():
@@ -55,9 +76,19 @@ def usb_drives():
     others as mount:/dev/... so a click opens them through udisks, without a password.
     Each knows what it is (stick, hard drive, SSD, SD card) and, once open, how full it is."""
     try:
-        out = subprocess.run(["lsblk", "-J", "-p", "-b", "-o",
-                              "NAME,LABEL,MOUNTPOINT,RM,HOTPLUG,TYPE,FSTYPE,SIZE,TRAN,ROTA,MODEL,VENDOR"],
-                             capture_output=True, text=True, timeout=3).stdout
+        out = subprocess.run(
+            [
+                "lsblk",
+                "-J",
+                "-p",
+                "-b",
+                "-o",
+                "NAME,LABEL,MOUNTPOINT,RM,HOTPLUG,TYPE,FSTYPE,SIZE,TRAN,ROTA,MODEL,VENDOR",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        ).stdout
         tree = json.loads(out).get("blockdevices", [])
     except Exception:
         report()
@@ -107,18 +138,21 @@ def usb_drives():
                     item.update(path="mount:" + d["name"], mount=True)
                 found.append(item)
             walk(d.get("children") or [], rem, top)
+
     walk(tree, False, None)
     return found
 
 
 def theme():
     """Follow Kūhaku: its saved choice, else the clock."""
+
     def load(p):
         try:
             return json.loads(p.read_text())
         except Exception:
             report()
             return {}
+
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
     choice = st.get("theme") or cfg.get("theme", "auto")
@@ -184,7 +218,7 @@ def pdf_pages(path):
 
 
 MESH_TYPES = {".stl", ".3mf", ".obj"}
-MESH_LIMIT = 3_000_000   # triangles
+MESH_LIMIT = 3_000_000  # triangles
 
 
 def load_mesh(path):
@@ -192,6 +226,7 @@ def load_mesh(path):
     import numpy as np
     import zipfile
     import xml.etree.ElementTree as ET
+
     path = Path(path)
     ext = path.suffix.lower()
     if ext == ".stl":
@@ -244,10 +279,14 @@ def load_mesh(path):
             return
         mesh = obj.find(ns + "mesh")
         if mesh is not None:
-            v = np.array([[float(e.get("x")), float(e.get("y")), float(e.get("z"))]
-                          for e in mesh.find(ns + "vertices")], dtype=np.float64)
-            t = np.array([[int(e.get("v1")), int(e.get("v2")), int(e.get("v3"))]
-                          for e in mesh.find(ns + "triangles")], dtype=np.int64)
+            v = np.array(
+                [[float(e.get("x")), float(e.get("y")), float(e.get("z"))] for e in mesh.find(ns + "vertices")],
+                dtype=np.float64,
+            )
+            t = np.array(
+                [[int(e.get("v1")), int(e.get("v2")), int(e.get("v3"))] for e in mesh.find(ns + "triangles")],
+                dtype=np.int64,
+            )
             if len(v) and len(t):
                 v = v @ m[:3, :3].T + m[:3, 3]
                 chunks.append(v[t].reshape(-1).astype(np.float32))
@@ -258,7 +297,7 @@ def load_mesh(path):
                 emit(p2, c.get("objectid"), m @ mat(c.get("transform")), depth + 1)
 
     build = models[main].find(ns + "build")
-    for item in (build if build is not None else []):
+    for item in build if build is not None else []:
         emit(main, item.get("objectid"), mat(item.get("transform")))
     return np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.float32)
 
@@ -296,9 +335,9 @@ class Miru:
 
         self.path = Path(path).expanduser().resolve()
         self.files = []
-        self.folder = None          # the folder being browsed, if Miru is the Files app
+        self.folder = None  # the folder being browsed, if Miru is the Files app
         self.hidden = False
-        self.cloud_mode = None      # the cloud whose setup page is showing
+        self.cloud_mode = None  # the cloud whose setup page is showing
         self.drives = [d["path"] for d in usb_drives()]
         self.clouds = self.cloud_places()
         self.cloud_last = self.cloud_syncs()
@@ -322,12 +361,14 @@ class Miru:
     def places(self):
         out = [("Home", HOME)]
         for name in ("Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music"):
-            special = {"Desktop": GLib.UserDirectory.DIRECTORY_DESKTOP,
-                       "Documents": GLib.UserDirectory.DIRECTORY_DOCUMENTS,
-                       "Downloads": GLib.UserDirectory.DIRECTORY_DOWNLOAD,
-                       "Pictures": GLib.UserDirectory.DIRECTORY_PICTURES,
-                       "Videos": GLib.UserDirectory.DIRECTORY_VIDEOS,
-                       "Music": GLib.UserDirectory.DIRECTORY_MUSIC}[name]
+            special = {
+                "Desktop": GLib.UserDirectory.DIRECTORY_DESKTOP,
+                "Documents": GLib.UserDirectory.DIRECTORY_DOCUMENTS,
+                "Downloads": GLib.UserDirectory.DIRECTORY_DOWNLOAD,
+                "Pictures": GLib.UserDirectory.DIRECTORY_PICTURES,
+                "Videos": GLib.UserDirectory.DIRECTORY_VIDEOS,
+                "Music": GLib.UserDirectory.DIRECTORY_MUSIC,
+            }[name]
             d = GLib.get_user_special_dir(special)
             if d and Path(d).is_dir() and Path(d) != HOME:
                 out.append((name, Path(d)))
@@ -349,8 +390,14 @@ class Miru:
         out = []
         for key, p in kumo.accounts().items():
             ready = kumo.connected(key) and kumo.folders(key) and p["local"].is_dir()
-            out.append({"name": p["name"], "cloud": key, "what": kumo.describe(key),
-                        "path": str(p["local"]) if ready else "cloud:" + key})
+            out.append(
+                {
+                    "name": p["name"],
+                    "cloud": key,
+                    "what": kumo.describe(key),
+                    "path": str(p["local"]) if ready else "cloud:" + key,
+                }
+            )
         return out
 
     def cloud_syncs(self):
@@ -371,6 +418,7 @@ class Miru:
             self.watch_due = 0
             self.watch_drives()
             return False
+
         dev = Gio.File.new_for_path("/dev").monitor_directory(Gio.FileMonitorFlags.NONE, None)
         dev.connect("changed", lambda _m, f, _o, _e: f.get_basename().startswith(("sd", "nvme", "mmcblk")) and soon())
         self.monitors.append(dev)
@@ -392,8 +440,10 @@ class Miru:
             self.cloud_last = self.cloud_syncs()
             if self.folder is not None and self.cloud_mode is None:
                 key, _ = kumo.which_cloud(self.folder)
-                self.js("cloudTick", {"places": self.places(), "reload": bool(key) and
-                                      self.cloud_last.get(key) != was.get(key)})
+                self.js(
+                    "cloudTick",
+                    {"places": self.places(), "reload": bool(key) and self.cloud_last.get(key) != was.get(key)},
+                )
         now = [d["path"] for d in usb_drives()]
         if now != self.drives:
             self.drives = now
@@ -404,8 +454,7 @@ class Miru:
         return True
 
     def mount(self, dev):
-        r = subprocess.run(["udisksctl", "mount", "-b", dev, "--no-user-interaction"],
-                           capture_output=True, text=True)
+        r = subprocess.run(["udisksctl", "mount", "-b", dev, "--no-user-interaction"], capture_output=True, text=True)
         point = next((d["path"] for d in usb_drives() if d.get("dev") == dev and not d.get("mount")), None)
         if point:
             self.drives = [d["path"] for d in usb_drives()]
@@ -417,8 +466,7 @@ class Miru:
         here = self.folder
         mp = next((d["path"] for d in usb_drives() if d.get("dev") == dev), "")
         subprocess.run(["sync"])
-        r = subprocess.run(["udisksctl", "unmount", "-b", dev, "--no-user-interaction"],
-                           capture_output=True, text=True)
+        r = subprocess.run(["udisksctl", "unmount", "-b", dev, "--no-user-interaction"], capture_output=True, text=True)
         if r.returncode != 0:
             self.js("toast", "Could not eject: close anything using the drive. " + r.stderr.strip())
             return
@@ -473,9 +521,19 @@ class Miru:
         self.win.set_title(f"{folder.name or folder} — Miru")
         key, _ = kumo.which_cloud(folder)
         cloud = {"key": key, "name": kumo.account(key)["name"], "status": kumo.describe(key)} if key else None
-        self.js("browse", {"cloud": cloud, "path": str(folder), "crumbs": crumbs[::-1], "entries": entries,
-                           "places": self.places(), "select": select, "hidden": self.hidden,
-                           "trash": folder == HOME / ".local/share/Trash/files"})
+        self.js(
+            "browse",
+            {
+                "cloud": cloud,
+                "path": str(folder),
+                "crumbs": crumbs[::-1],
+                "entries": entries,
+                "places": self.places(),
+                "select": select,
+                "hidden": self.hidden,
+                "trash": folder == HOME / ".local/share/Trash/files",
+            },
+        )
 
     def trash(self, paths):
         done = 0
@@ -561,8 +619,11 @@ class Miru:
             if kind in ("copy", "cut"):
                 self.held = (kind, [str(p) for p in paths])
                 Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text("\n".join(map(str, paths)), -1)
-                return self.js("toast", f"{'Copied' if kind == 'copy' else 'Ready to move'} {what}. "
-                                        f"Paste {'it' if len(paths) == 1 else 'them'} in any folder.")
+                return self.js(
+                    "toast",
+                    f"{'Copied' if kind == 'copy' else 'Ready to move'} {what}. "
+                    f"Paste {'it' if len(paths) == 1 else 'them'} in any folder.",
+                )
             if kind == "paste":
                 if not getattr(self, "held", None):
                     return self.js("toast", "Nothing to paste")
@@ -597,8 +658,10 @@ class Miru:
                 self.js("toast", "Deleted for good" if kind == "forget" else "The Trash is empty")
                 return self.browse(self.folder)
             if kind == "markup":
-                return subprocess.Popen([sys.executable, str(Path(__file__).resolve().parent / "kuhaku-shot.py"), "edit", str(path)],
-                                        start_new_session=True)
+                return subprocess.Popen(
+                    [sys.executable, str(Path(__file__).resolve().parent / "kuhaku-shot.py"), "edit", str(path)],
+                    start_new_session=True,
+                )
         except Exception as e:
             self.js("toast", f"Could not do that: {getattr(e, 'strerror', None) or e}"[:140])
 
@@ -627,11 +690,23 @@ class Miru:
             size, modified = 0, None
         when = ""
         if modified:
-            when = modified.strftime("%-d %b %Y, %H:%M") if modified.year != datetime.now().year \
+            when = (
+                modified.strftime("%-d %b %Y, %H:%M")
+                if modified.year != datetime.now().year
                 else modified.strftime("%-d %b, %H:%M")
-        item = {"name": path.name, "uri": path.as_uri(), "kind": kind, "mime": mime,
-                "type": desc[:1].upper() + desc[1:] if desc else mime, "size": human_size(size),
-                "when": when, "index": i + 1, "count": len(self.files), "inFolder": self.folder is not None}
+            )
+        item = {
+            "name": path.name,
+            "uri": path.as_uri(),
+            "kind": kind,
+            "mime": mime,
+            "type": desc[:1].upper() + desc[1:] if desc else mime,
+            "size": human_size(size),
+            "when": when,
+            "index": i + 1,
+            "count": len(self.files),
+            "inFolder": self.folder is not None,
+        }
         if path.suffix.lower() in MESH_TYPES:
             kind = item["kind"] = "model"
             self.load_model(path)
@@ -699,7 +774,9 @@ class Miru:
         self.browse(self.folder)
 
     def open_terminal(self):
-        subprocess.Popen([str(HOME / ".local/bin/kuhaku-terminal")], cwd=str(self.folder or HOME), start_new_session=True)
+        subprocess.Popen(
+            [str(HOME / ".local/bin/kuhaku-terminal")], cwd=str(self.folder or HOME), start_new_session=True
+        )
 
     # --- Dropbox and Google Drive ----------------------------------------------------
     def cloud_page(self, key, phase=None, error=None):
@@ -712,10 +789,22 @@ class Miru:
         phase = phase or ("choose" if kumo.connected(key) else "connect")
         self.win.set_title(f"{p['name']} — Miru")
         kind = kumo.KINDS[p["kind"]]["name"]
-        self.js("cloud", {"key": key, "name": p["name"] if p["first"] or kumo.connected(key) else f"Another {kind}",
-                          "kind": kind, "first": p["first"], "email": p["email"], "phase": phase, "error": error,
-                          "local": str(p["local"]).replace(str(HOME), "~", 1), "folders": kumo.folders(key),
-                          "places": self.places(), "gdocs": p["kind"] == "drive"})
+        self.js(
+            "cloud",
+            {
+                "key": key,
+                "name": p["name"] if p["first"] or kumo.connected(key) else f"Another {kind}",
+                "kind": kind,
+                "first": p["first"],
+                "email": p["email"],
+                "phase": phase,
+                "error": error,
+                "local": str(p["local"]).replace(str(HOME), "~", 1),
+                "folders": kumo.folders(key),
+                "places": self.places(),
+                "gdocs": p["kind"] == "drive",
+            },
+        )
 
     def cloud_msg(self, what, msg):
         if what == "add":
@@ -728,6 +817,7 @@ class Miru:
         if not acct:
             return
         if what == "connect":
+
             def opened(url):
                 # A further account signs in in a private Mado window: no cookies from the first
                 # account, so the other one can be chosen.
@@ -740,7 +830,9 @@ class Miru:
                     if self.cloud_mode == key:
                         self.cloud_page(key, None if not err else "connect", err)
                     return False
+
                 GLib.idle_add(back)
+
             self.cloud_page(key, "waiting")
             kumo.connect(key, opened, done, label=str(msg.get("label") or "")[:40])
         elif what == "list":
@@ -752,6 +844,7 @@ class Miru:
                 except Exception as e:
                     payload = {"key": key, "path": path, "error": str(e)[:160]}
                 GLib.idle_add(lambda: self.js("cloudList", payload) and False)
+
             threading.Thread(target=work, daemon=True).start()
         elif what == "save":
             chosen = kumo.tidy(msg.get("folders") or [])
@@ -764,7 +857,10 @@ class Miru:
                 (base / f).mkdir(parents=True, exist_ok=True)
             kumo.ensure_daemon()
             self.clouds = self.cloud_places()
-            self.js("toast", f"Syncing {len(chosen)} folder{'s' if len(chosen) != 1 else ''} with {kumo.account(key)['name']}")
+            self.js(
+                "toast",
+                f"Syncing {len(chosen)} folder{'s' if len(chosen) != 1 else ''} with {kumo.account(key)['name']}",
+            )
             self.browse(base)
         elif what == "now":
             kumo.nudge()
@@ -792,8 +888,10 @@ class Miru:
 
     def load_model(self, path):
         """Reads the mesh off the main thread, then hands it to the page's viewer."""
+
         def work():
             import base64
+
             try:
                 arr = load_mesh(path)
                 tris = len(arr) // 9
@@ -810,7 +908,9 @@ class Miru:
                 if self.path == path:
                     self.js("showModel", payload)
                 return False
+
             GLib.idle_add(done)
+
         threading.Thread(target=work, daemon=True).start()
 
     def on_scheme(self, request):
@@ -826,10 +926,27 @@ class Miru:
                     n = int(q.get("n", ["1"])[0])
                     width = max(200, min(3000, int(q.get("w", ["1200"])[0])))
                     import tempfile
+
                     with tempfile.TemporaryDirectory() as tmp:
-                        subprocess.run(["pdftoppm", "-f", str(n), "-l", str(n), "-scale-to-x", str(width),
-                                        "-scale-to-y", "-1", "-png", "-singlefile", path, f"{tmp}/page"],
-                                       capture_output=True, timeout=60)
+                        subprocess.run(
+                            [
+                                "pdftoppm",
+                                "-f",
+                                str(n),
+                                "-l",
+                                str(n),
+                                "-scale-to-x",
+                                str(width),
+                                "-scale-to-y",
+                                "-1",
+                                "-png",
+                                "-singlefile",
+                                path,
+                                f"{tmp}/page",
+                            ],
+                            capture_output=True,
+                            timeout=60,
+                        )
                         data = Path(f"{tmp}/page.png").read_bytes()
                     mime = "image/png"
                 else:
@@ -846,14 +963,17 @@ class Miru:
                     stream = Gio.MemoryInputStream.new_from_bytes(GLib.Bytes.new(result[0]))
                     request.finish(stream, len(result[0]), result[1])
                 else:
-                    request.finish_error(GLib.Error.new_literal(Gio.io_error_quark(), "cannot show",
-                                                                Gio.IOErrorEnum.FAILED))
+                    request.finish_error(
+                        GLib.Error.new_literal(Gio.io_error_quark(), "cannot show", Gio.IOErrorEnum.FAILED)
+                    )
                 return False
+
             GLib.idle_add(done)
+
         threading.Thread(target=work, daemon=True).start()
 
 
-PAGE_URI = (Path(__file__).resolve().parent / "miru/miru.html").as_uri()   # its CSS and script sit beside it
+PAGE_URI = (Path(__file__).resolve().parent / "miru/miru.html").as_uri()  # its CSS and script sit beside it
 PAGE = (Path(__file__).resolve().parent / "miru/miru.html").read_text(encoding="utf-8")
 
 
@@ -863,13 +983,15 @@ MESSAGES = {
     "next": lambda m, msg: m.step(1),
     "prev": lambda m, msg: m.step(-1),
     "open": lambda m, msg: m.open_in_app(msg.get("path")),
-    "folder": lambda m, msg: m.browse(m.path.parent, select=m.path.name),   # from a preview: back, the file chosen
+    "folder": lambda m, msg: m.browse(m.path.parent, select=m.path.name),  # from a preview: back, the file chosen
     "nav": lambda m, msg: m.nav(msg),
     "eject": lambda m, msg: m.eject(msg.get("dev", "")),
     "preview": lambda m, msg: m.show(Path(msg["path"])),
     "trash": lambda m, msg: m.trash(msg.get("paths") or [msg["path"]]),
-    **{k: (lambda m, msg: m.file_op(msg)) for k in ("duplicate", "copy", "cut", "paste", "copypath", "restore",
-                                                     "forget", "emptytrash", "markup")},
+    **{
+        k: (lambda m, msg: m.file_op(msg))
+        for k in ("duplicate", "copy", "cut", "paste", "copypath", "restore", "forget", "emptytrash", "markup")
+    },
     "rename": lambda m, msg: m.rename(msg["path"], msg.get("name", "")),
     "mkdir": lambda m, msg: m.mkdir(msg.get("name", "")),
     "hidden": lambda m, msg: m.toggle_hidden(),

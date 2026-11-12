@@ -17,6 +17,7 @@ the sidebar, Cmd+` terminal, Cmd+Shift+G changes, Cmd+Shift+K connections.
 
     tsukuru [FOLDER]
 """
+
 import json
 import os
 import re
@@ -29,6 +30,7 @@ import time
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Vte", "2.91")
@@ -42,8 +44,25 @@ import tsukuru_chat as chat  # noqa: E402
 
 HOME = Path.home()
 STATE = HOME / ".local/state/kuhaku/tsukuru.json"
-SKIP = {".git", "node_modules", "__pycache__", ".venv", "venv", ".mypy_cache", ".pytest_cache", "dist", "build",
-        ".next", ".cache", "target", ".idea", ".vscode", ".tox", "browser-data", ".gradle"}
+SKIP = {
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    "dist",
+    "build",
+    ".next",
+    ".cache",
+    "target",
+    ".idea",
+    ".vscode",
+    ".tox",
+    "browser-data",
+    ".gradle",
+}
 MAX_FILE = 4_000_000
 
 sys.path.insert(0, str(HERE))
@@ -70,8 +89,13 @@ RAILWAY = shutil.which("railway") or str(HOME / ".local/bin/railway")
 def install_railway():
     """Railway's CLI, straight from its GitHub releases, into ~/.local/bin (no root needed)."""
     import tarfile, tempfile, urllib.request
-    rel = json.loads(urllib.request.urlopen("https://api.github.com/repos/railwayapp/cli/releases/latest", timeout=20).read())
-    url = next(a["browser_download_url"] for a in rel["assets"] if a["name"].endswith("x86_64-unknown-linux-musl.tar.gz"))
+
+    rel = json.loads(
+        urllib.request.urlopen("https://api.github.com/repos/railwayapp/cli/releases/latest", timeout=20).read()
+    )
+    url = next(
+        a["browser_download_url"] for a in rel["assets"] if a["name"].endswith("x86_64-unknown-linux-musl.tar.gz")
+    )
     with tempfile.TemporaryDirectory() as d:
         tgz = Path(d) / "railway.tgz"
         urllib.request.urlretrieve(url, tgz)
@@ -90,6 +114,7 @@ GLAB = shutil.which("glab") or str(HOME / ".local/bin/glab")
 def install_glab():
     """GitLab's CLI, straight from its releases, into ~/.local/bin (no root needed)."""
     import tarfile, tempfile, urllib.request
+
     req = urllib.request.Request("https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest", method="HEAD")
     tag = urllib.request.urlopen(req, timeout=20).url.rstrip("/").split("/")[-1]
     v = tag.lstrip("v")
@@ -145,19 +170,25 @@ def write_claude_notes(conn):
     """Tell Claude Code what is connected, in its own memory file."""
     lines = [NOTE_START, "## Connected services (kept up to date by Kūhaku's Tsukuru)", ""]
     if conn.get("github"):
-        lines.append(f"- GitHub: signed in as `{conn['github']}` with the `gh` CLI. Use `gh` for repositories, "
-                     "issues, pull requests, Actions and releases (for example `gh pr create`, `gh issue list`).")
+        lines.append(
+            f"- GitHub: signed in as `{conn['github']}` with the `gh` CLI. Use `gh` for repositories, "
+            "issues, pull requests, Actions and releases (for example `gh pr create`, `gh issue list`)."
+        )
     else:
         lines.append("- GitHub: not connected. The user can connect it in Tsukuru's Connections (Cmd+Shift+K).")
     if conn.get("gitlab"):
-        lines.append(f"- GitLab: signed in as `{conn['gitlab']}` with the `glab` CLI. Use `glab` for projects, "
-                     "issues, merge requests and pipelines (for example `glab mr create`, `glab ci status`).")
+        lines.append(
+            f"- GitLab: signed in as `{conn['gitlab']}` with the `glab` CLI. Use `glab` for projects, "
+            "issues, merge requests and pipelines (for example `glab mr create`, `glab ci status`)."
+        )
     else:
         lines.append("- GitLab: not connected. The user can connect it in Tsukuru's Connections (Cmd+Shift+K).")
     if conn.get("railway"):
-        lines.append(f"- Railway: signed in as `{conn['railway']}` with the `railway` CLI (~/.local/bin/railway). Use it to "
-                     "deploy and run things on Railway (for example `railway link`, `railway up --detach`, `railway logs`, "
-                     "`railway variables`, `railway domain`, `railway status`).")
+        lines.append(
+            f"- Railway: signed in as `{conn['railway']}` with the `railway` CLI (~/.local/bin/railway). Use it to "
+            "deploy and run things on Railway (for example `railway link`, `railway up --detach`, `railway logs`, "
+            "`railway variables`, `railway domain`, `railway status`)."
+        )
     else:
         lines.append("- Railway: not connected. The user can connect it in Tsukuru's Connections (Cmd+Shift+K).")
     lines += ["- Projects are usually cloned into ~/Projects.", NOTE_END]
@@ -192,7 +223,15 @@ def git_info(root):
     changes = []
     for line in status.splitlines()[:300]:
         code, path = line[:2], line[3:]
-        kind = "new" if code == "??" or "A" in code else "deleted" if "D" in code else "renamed" if "R" in code else "changed"
+        kind = (
+            "new"
+            if code == "??" or "A" in code
+            else "deleted"
+            if "D" in code
+            else "renamed"
+            if "R" in code
+            else "changed"
+        )
         path = path.split(" -> ")[-1].strip('"')
         add, dele = counts.get(path, (0, 0))
         if code == "??":
@@ -201,15 +240,26 @@ def git_info(root):
                 add = f.read_bytes().count(b"\n") if f.stat().st_size < 2_000_000 else 0
             except OSError:
                 pass
-        changes.append({"path": path, "kind": kind, "mark": {"new": "A", "deleted": "D"}.get(kind, "M"),
-                        "add": add, "del": dele})
+        changes.append(
+            {"path": path, "kind": kind, "mark": {"new": "A", "deleted": "D"}.get(kind, "M"), "add": add, "del": dele}
+        )
     ahead = behind = 0
     code, ab, _ = run(["git", "rev-list", "--left-right", "--count", "@{upstream}...HEAD"], cwd=root)
     if code == 0 and ab:
         behind, ahead = (int(x) for x in ab.split()[:2])
     _, last, _ = run(["git", "log", "-1", "--format=%s · %cr"], cwd=root)
-    return {"repo": True, "root": str(root), "branch": branch or "(detached)", "remote": remote, "host": host, "changes": changes,
-            "ahead": ahead, "behind": behind, "upstream": code == 0, "last": last}
+    return {
+        "repo": True,
+        "root": str(root),
+        "branch": branch or "(detached)",
+        "remote": remote,
+        "host": host,
+        "changes": changes,
+        "ahead": ahead,
+        "behind": behind,
+        "upstream": code == 0,
+        "last": last,
+    }
 
 
 def load_state():
@@ -271,11 +321,13 @@ class Tsukuru:
         self.term_started = False
 
         css = Gtk.CssProvider()
-        css.load_from_data(f"""
+        css.load_from_data(
+            f"""
             .termwrap {{ background: {self.t['bg']}; border-top: 1px solid alpha({self.t['fg']}, 0.08); }}
             .claudewrap {{ background: {self.t['bg']}; border-left: 1px solid alpha({self.t['fg']}, 0.08); }}
             paned > separator {{ background: alpha({self.t['fg']}, 0.08); min-height: 1px; }}
-        """.encode())
+        """.encode()
+        )
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.termbox = Gtk.Box()
         self.termbox.get_style_context().add_class("termwrap")
@@ -293,8 +345,10 @@ class Tsukuru:
 
         self.win.add(self.paned)
         # Claude Code runs headless per session; its steps arrive as chat blocks in the page.
-        self.runner = chat.Runner(lambda kind, d: GLib.idle_add(self.on_chat, kind, d),
-                                  claude=shutil_which("claude") or str(HOME / ".local/bin/claude"))
+        self.runner = chat.Runner(
+            lambda kind, d: GLib.idle_add(self.on_chat, kind, d),
+            claude=shutil_which("claude") or str(HOME / ".local/bin/claude"),
+        )
 
         page = (HERE / "ide" / "tsukuru.html").as_uri() + f"?theme={'night' if self.night else 'day'}"
         self.pending = folder
@@ -313,14 +367,22 @@ class Tsukuru:
     def on_ready(self):
         acct = chat.account()
         import getpass
-        self.js("init", {"home": str(HOME), "user": getpass.getuser(), "account": accounts.label(acct) if len(accounts.ready("claude") or []) > 1 else "Claude",
-                         "model": self.state.get("model") or ""})
+
+        self.js(
+            "init",
+            {
+                "home": str(HOME),
+                "user": getpass.getuser(),
+                "account": accounts.label(acct) if len(accounts.ready("claude") or []) > 1 else "Claude",
+                "model": self.state.get("model") or "",
+            },
+        )
         self.js("connections", self.conn)
         self.send_projects()
         folder = self.pending or (self.state.get("recent") or [None])[0]
         if folder and Path(folder).is_dir():
             self.open_project(folder)
-        if os.environ.get("TSUKURU_OPEN"):       # for testing: open a file
+        if os.environ.get("TSUKURU_OPEN"):  # for testing: open a file
             GLib.timeout_add(900, lambda: self.read(os.environ["TSUKURU_OPEN"]) or False)
 
     def send_projects(self):
@@ -331,7 +393,9 @@ class Tsukuru:
         def work():
             more, seen = [], set(recent)
             for c in claude_projects(recent):
-                if c["path"] not in seen and not c["path"].startswith(("/tmp/", str(HOME / ".config"), str(HOME / ".cache"))):
+                if c["path"] not in seen and not c["path"].startswith(
+                    ("/tmp/", str(HOME / ".config"), str(HOME / ".cache"))
+                ):
                     seen.add(c["path"])
                     more.append({"root": c["path"], "name": Path(c["path"]).name})
             for base in (HOME / "Projects", HOME / "projects", HOME / "code", HOME / "src", HOME / "Documents", HOME):
@@ -343,6 +407,7 @@ class Tsukuru:
                 except OSError:
                     pass
             return more[:40]
+
         self.in_thread(work, lambda more: self.js("morePlaces", more))
 
     def open_project(self, folder):
@@ -385,6 +450,7 @@ class Tsukuru:
             # index pages first, shallow before deep
             found.sort(key=lambda r: (r.count("/"), not os.path.basename(r).startswith("index"), r))
             return found[:40]
+
         self.in_thread(work, lambda found: self.js("pages", {"root": str(root), "list": found}))
 
     def diff(self, rel):
@@ -392,7 +458,9 @@ class Tsukuru:
 
         def work():
             has_head = run(["git", "rev-parse", "--verify", "-q", "HEAD"], cwd=root)[0] == 0
-            _, out, _ = run(["git", "diff", "HEAD" if has_head else "--cached", "--no-color", "-U2", "--", rel], cwd=root)
+            _, out, _ = run(
+                ["git", "diff", "HEAD" if has_head else "--cached", "--no-color", "-U2", "--", rel], cwd=root
+            )
             rows, n, inside = [], 0, False
             if not out:
                 # not tracked yet: the whole file is new
@@ -424,6 +492,7 @@ class Tsukuru:
                 if len(rows) > 3000:
                     break
             return rows
+
         self.in_thread(work, lambda rows: self.js("diff", {"path": rel, "rows": rows}))
 
     def list_dir(self, folder):
@@ -491,6 +560,7 @@ class Tsukuru:
                 self.js("changedOnDisk", {"path": str(p), "text": text})
             elif event == Gio.FileMonitorEvent.DELETED:
                 self.js("deletedOnDisk", {"path": str(p)})
+
         mon.connect("changed", changed)
         self.monitors[str(p)] = mon
 
@@ -511,6 +581,7 @@ class Tsukuru:
         def go():
             result = work()
             GLib.idle_add(lambda: then(result) or False)
+
         threading.Thread(target=go, daemon=True).start()
 
     def refresh_connections(self):
@@ -518,6 +589,7 @@ class Tsukuru:
             self.conn = conn
             write_claude_notes(conn)
             self.js("connections", conn)
+
         self.in_thread(connections, done)
 
     def refresh_git(self):
@@ -536,25 +608,43 @@ class Tsukuru:
             self.refresh_git()
             if after and code == 0:
                 after(out)
+
         self.in_thread(lambda: run(argv, cwd=root, timeout=120), done)
 
     def list_repos(self):
         def work():
             repos = []
             if self.conn.get("github"):
-                code, out, _ = run(["gh", "repo", "list", "--limit", "60", "--json", "nameWithOwner,description,updatedAt"], timeout=30)
+                code, out, _ = run(
+                    ["gh", "repo", "list", "--limit", "60", "--json", "nameWithOwner,description,updatedAt"], timeout=30
+                )
                 if code == 0:
                     for r in json.loads(out or "[]"):
-                        repos.append({"host": "github", "name": r["nameWithOwner"], "about": r.get("description") or "",
-                                      "url": f"https://github.com/{r['nameWithOwner']}.git"})
+                        repos.append(
+                            {
+                                "host": "github",
+                                "name": r["nameWithOwner"],
+                                "about": r.get("description") or "",
+                                "url": f"https://github.com/{r['nameWithOwner']}.git",
+                            }
+                        )
             for host in self.conn.get("gitlab_hosts") or []:
-                code, out, _ = run([GLAB, "api", "--hostname", host,
-                                    "projects?membership=true&per_page=60&order_by=last_activity_at"], timeout=30)
+                code, out, _ = run(
+                    [GLAB, "api", "--hostname", host, "projects?membership=true&per_page=60&order_by=last_activity_at"],
+                    timeout=30,
+                )
                 if code == 0:
                     for r in json.loads(out or "[]"):
-                        repos.append({"host": "gitlab", "name": r["path_with_namespace"], "about": r.get("description") or "",
-                                      "url": r["http_url_to_repo"]})
+                        repos.append(
+                            {
+                                "host": "gitlab",
+                                "name": r["path_with_namespace"],
+                                "about": r.get("description") or "",
+                                "url": r["http_url_to_repo"],
+                            }
+                        )
             return repos
+
         self.in_thread(work, lambda repos: self.js("repos", repos))
 
     def clone(self, url):
@@ -568,9 +658,13 @@ class Tsukuru:
         self.js("toast", f"Cloning {name}…")
         gl = ["gitlab"] + (self.conn.get("gitlab_hosts") or [])
         host = "github" if "github.com" in url else "gitlab" if any(h in url for h in gl) else ""
-        argv = (["gh", "repo", "clone", url, str(target)] if host == "github" and self.conn.get("github")
-                else [GLAB, "repo", "clone", url, str(target)] if host == "gitlab" and self.conn.get("gitlab")
-                else ["git", "clone", url, str(target)])
+        argv = (
+            ["gh", "repo", "clone", url, str(target)]
+            if host == "github" and self.conn.get("github")
+            else [GLAB, "repo", "clone", url, str(target)]
+            if host == "gitlab" and self.conn.get("gitlab")
+            else ["git", "clone", url, str(target)]
+        )
 
         def done(res):
             code, out, err = res
@@ -579,6 +673,7 @@ class Tsukuru:
                 self.js("toast", f"Cloned {name}")
             else:
                 self.js("toast", (err or out or "Could not clone").splitlines()[-1][:160])
+
         self.in_thread(lambda: run(argv, timeout=600), done)
 
     def new_project(self, name):
@@ -601,6 +696,7 @@ class Tsukuru:
                 if isinstance(res, Exception):
                     return self.js("toast", f"Could not get Railway's tool: {res}"[:140])
                 self.on_git_message(msg)
+
             self.in_thread(lambda: self._try(install_railway), done)
         elif kind == "connect" and msg["service"] == "gitlab" and not Path(GLAB).exists():
             self.js("toast", "Getting GitLab's tool…")
@@ -609,22 +705,28 @@ class Tsukuru:
                 if isinstance(res, Exception):
                     return self.js("toast", f"Could not get GitLab's tool: {res}"[:140])
                 self.on_git_message(msg)
+
             self.in_thread(lambda: self._try(install_glab), done)
         elif kind == "connect":
             rw = GLib.shell_quote(RAILWAY)
             # Sign-in pages open in Kūhaku's own sign-in window (signin-bin), which closes itself afterwards.
             shim = GLib.shell_quote(str(HERE / "signin-bin"))
             web = f"export PATH={shim}:\"$PATH\" BROWSER={shim}/xdg-open; "
-            cmd = {"github": web + "gh auth login --web --git-protocol https && gh auth setup-git",
-                   # HTTPS, so cloning works without SSH keys; glab asks which GitLab (work servers too).
-                   "gitlab": web + f"{GLib.shell_quote(GLAB)} auth login --git-protocol https",
-                   # Sign in, then give Claude Code Railway's own skills and MCP server.
-                   "railway": f"{rw} login && {rw} setup agent -y"}[msg["service"]]
+            cmd = {
+                "github": web + "gh auth login --web --git-protocol https && gh auth setup-git",
+                # HTTPS, so cloning works without SSH keys; glab asks which GitLab (work servers too).
+                "gitlab": web + f"{GLib.shell_quote(GLAB)} auth login --git-protocol https",
+                # Sign in, then give Claude Code Railway's own skills and MCP server.
+                "railway": f"{rw} login && {rw} setup agent -y",
+            }[msg["service"]]
             self.show_terminal(run=cmd)
             self.watch_login()
         elif kind == "disconnect":
-            cmd = {"github": "gh auth logout", "gitlab": "glab auth logout",
-                   "railway": f"{GLib.shell_quote(RAILWAY)} logout"}[msg["service"]]
+            cmd = {
+                "github": "gh auth logout",
+                "gitlab": "glab auth logout",
+                "railway": f"{GLib.shell_quote(RAILWAY)} logout",
+            }[msg["service"]]
             self.show_terminal(run=cmd)
             self.watch_login()
         elif kind == "gitRefresh":
@@ -644,16 +746,21 @@ class Tsukuru:
 
             def done(res):
                 ok = res[0] == 0
-                self.js("toast", "Committed" if ok else ((res[2] or res[1]).splitlines() or ["Could not commit"])[-1][:160])
+                self.js(
+                    "toast", "Committed" if ok else ((res[2] or res[1]).splitlines() or ["Could not commit"])[-1][:160]
+                )
                 if ok:
                     self.js("committed", True)
                     if msg.get("push"):
                         return self.on_git_message({"type": "push"})
                 self.refresh_git()
+
             self.in_thread(work, done)
         elif kind == "push":
             info = git_info(self.root)
-            argv = ["git", "push"] if info.get("upstream") else ["git", "push", "-u", "origin", info.get("branch", "HEAD")]
+            argv = (
+                ["git", "push"] if info.get("upstream") else ["git", "push", "-u", "origin", info.get("branch", "HEAD")]
+            )
             where = re.sub(r"^(https?://|git@)", "", info.get("remote") or "").replace(":", "/").removesuffix(".git")
             self.git(argv, f"Pushed to {where}" if where else "Pushed")
         elif kind == "pull":
@@ -673,14 +780,27 @@ class Tsukuru:
                     d = {}
                 env = (d.get("environments") or {}).get("edges") or []
                 services = [e["node"]["name"] for e in (d.get("services") or {}).get("edges", []) if e.get("node")]
-                return {"linked": bool(d), "project": d.get("name"), "services": services,
-                        "environment": env[0]["node"]["name"] if env else None}
+                return {
+                    "linked": bool(d),
+                    "project": d.get("name"),
+                    "services": services,
+                    "environment": env[0]["node"]["name"] if env else None,
+                }
+
             self.in_thread(work, lambda r: self.js("railway", r))
         elif kind in ("rwLink", "rwUp", "rwLogs", "rwOpen", "rwVars", "rwInit", "rwDomain"):
             rw = GLib.shell_quote(RAILWAY)
-            self.show_terminal(run={"rwLink": f"{rw} link", "rwUp": f"{rw} up --detach", "rwLogs": f"{rw} logs",
-                                    "rwOpen": f"{rw} open", "rwVars": f"{rw} variables", "rwInit": f"{rw} init",
-                                    "rwDomain": f"{rw} domain"}[kind])
+            self.show_terminal(
+                run={
+                    "rwLink": f"{rw} link",
+                    "rwUp": f"{rw} up --detach",
+                    "rwLogs": f"{rw} logs",
+                    "rwOpen": f"{rw} open",
+                    "rwVars": f"{rw} variables",
+                    "rwInit": f"{rw} init",
+                    "rwDomain": f"{rw} domain",
+                }[kind]
+            )
         elif kind == "repos":
             self.list_repos()
         elif kind == "clone":
@@ -688,7 +808,9 @@ class Tsukuru:
         elif kind == "newProject":
             self.new_project(msg.get("name", ""))
         elif kind == "webRepo":
-            self.show_terminal(run="gh repo view --web" if git_info(self.root).get("host") == "github" else "glab repo view --web")
+            self.show_terminal(
+                run="gh repo view --web" if git_info(self.root).get("host") == "github" else "glab repo view --web"
+            )
         else:
             return False
         return True
@@ -709,6 +831,7 @@ class Tsukuru:
             self.refresh_connections()
             left[0] -= 1
             return left[0] > 0
+
         GLib.timeout_add_seconds(4, tick)
 
     # --- terminal and Claude ---------------------------------------------------
@@ -716,14 +839,26 @@ class Tsukuru:
         if not self.termbox.get_visible():
             self.termbox.show()
             # A third of the window for the terminal, once the window has its size.
-            GLib.idle_add(lambda: self.paned.set_position(max(200, int(self.paned.get_allocated_height() * 0.64))) and False)
+            GLib.idle_add(
+                lambda: self.paned.set_position(max(200, int(self.paned.get_allocated_height() * 0.64))) and False
+            )
         if not self.term_started:
             shell = os.environ.get("SHELL", "/bin/bash")
             env = [f"{k}={v}" for k, v in os.environ.items() if k not in ("COLUMNS", "LINES")]
             env += ["TERM=xterm-256color", "COLORTERM=truecolor"]
             argv = [shell, "-l"] if not run else [shell, "-lc", f"{run}; exec {shell} -l"]
-            self.term.spawn_async(Vte.PtyFlags.DEFAULT, str(self.root or HOME), argv, env,
-                                  GLib.SpawnFlags.SEARCH_PATH, None, None, -1, None, None)
+            self.term.spawn_async(
+                Vte.PtyFlags.DEFAULT,
+                str(self.root or HOME),
+                argv,
+                env,
+                GLib.SpawnFlags.SEARCH_PATH,
+                None,
+                None,
+                -1,
+                None,
+                None,
+            )
             self.term_started = True
         elif run:
             self.term.feed_child(f"{run}\r".encode())
@@ -740,8 +875,8 @@ class Tsukuru:
         self.hide_terminal()
 
     def on_term_key(self, _w, ev):
-        cmd = ev.state & Gdk.ModifierType.CONTROL_MASK   # the Mac Cmd key here
-        ctrl = ev.state & Gdk.ModifierType.SUPER_MASK     # the physical Ctrl key here
+        cmd = ev.state & Gdk.ModifierType.CONTROL_MASK  # the Mac Cmd key here
+        ctrl = ev.state & Gdk.ModifierType.SUPER_MASK  # the physical Ctrl key here
         k = Gdk.keyval_name(Gdk.keyval_to_lower(ev.keyval)) or ""
         if cmd and not ctrl:
             if k == "c" and self.term.get_has_selection():
@@ -783,10 +918,15 @@ class Tsukuru:
             self.runner.stop(msg.get("sid"))
         elif kind == "history" and self.root:
             root, sid = self.root, msg["sid"]
-            self.in_thread(lambda: chat.history(root, sid), lambda b: self.js("history_", {"root": str(root), "sid": sid, "blocks": b}))
+            self.in_thread(
+                lambda: chat.history(root, sid),
+                lambda b: self.js("history_", {"root": str(root), "sid": sid, "blocks": b}),
+            )
         elif kind == "sessions" and self.root:
             root = self.root
-            self.in_thread(lambda: chat.sessions(root), lambda lst: self.js("sessions", {"root": str(root), "list": lst}))
+            self.in_thread(
+                lambda: chat.sessions(root), lambda lst: self.js("sessions", {"root": str(root), "list": lst})
+            )
         elif kind == "pages" and self.root:
             self.pages()
         elif kind == "diff" and self.root:
@@ -796,8 +936,12 @@ class Tsukuru:
 
             def work():
                 has_head = run(["git", "rev-parse", "--verify", "-q", "HEAD"], cwd=root)[0] == 0
-                run(["git", "add", "-A", "-N"], cwd=root)        # untracked files show in the diff too
-                _, d, _ = run(["git", "diff", "HEAD" if has_head else "--cached", "--stat", "-p", "--no-color"], cwd=root, timeout=30)
+                run(["git", "add", "-A", "-N"], cwd=root)  # untracked files show in the diff too
+                _, d, _ = run(
+                    ["git", "diff", "HEAD" if has_head else "--cached", "--stat", "-p", "--no-color"],
+                    cwd=root,
+                    timeout=30,
+                )
                 try:
                     return chat.commit_message(root, d)
                 except Exception:
@@ -808,10 +952,15 @@ class Tsukuru:
                 self.js("commitMsg", text)
                 if not text:
                     self.js("toast", "Claude could not write it this time")
+
             self.in_thread(work, done)
         elif kind == "openUrl":
-            subprocess.Popen([str(HOME / ".local/bin/mado"), msg["url"]], start_new_session=True,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen(
+                [str(HOME / ".local/bin/mado"), msg["url"]],
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         elif kind == "list":
             self.js("listed", {"path": msg["path"], "items": self.list_dir(msg["path"])})
         elif kind == "read":
@@ -860,7 +1009,9 @@ class Tsukuru:
     def on_policy(self, _v, decision, kind):
         if kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
             uri = decision.get_navigation_action().get_request().get_uri()
-            if uri.startswith(("http://", "https://")) and not re.match(r"https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])[:/]", uri):
+            if uri.startswith(("http://", "https://")) and not re.match(
+                r"https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])[:/]", uri
+            ):
                 subprocess.Popen([str(HOME / ".local/bin/mado"), uri], start_new_session=True)
                 decision.ignore()
                 return True
@@ -923,6 +1074,7 @@ def claude_projects(skip=()):
 
 def shutil_which(name):
     import shutil
+
     return shutil.which(name)
 
 
@@ -931,6 +1083,7 @@ if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else None
     if arg and arg.startswith("file://"):
         from urllib.parse import unquote, urlparse
+
         arg = unquote(urlparse(arg).path)
     if arg and Path(arg).is_file():
         arg = str(Path(arg).parent)

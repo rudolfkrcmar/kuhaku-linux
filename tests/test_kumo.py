@@ -1,5 +1,6 @@
 """kumo.py: accounts and their folders, the chosen-folders and status files, describe(), and
 (when rclone is installed) a real two-way sync against a local folder posing as Dropbox."""
+
 import json
 import os
 import pwd
@@ -24,9 +25,17 @@ class KumoCase(TempDirCase):
         super().setUp()
         self.home = self.tmp / "home"
         conf, state = self.home / ".config/kuhaku", self.home / ".local/state/kuhaku"
-        values = {"HOME": self.home, "CONF_DIR": conf, "STATE_DIR": state, "RCLONE_CONF": conf / "rclone.conf",
-                  "CHOICES": conf / "cloud.json", "STATUS": state / "cloud.json", "TRIGGER": state / "cloud.now",
-                  "LOCK": state / "cloud.lock", "LOG": state / "cloud.log"}
+        values = {
+            "HOME": self.home,
+            "CONF_DIR": conf,
+            "STATE_DIR": state,
+            "RCLONE_CONF": conf / "rclone.conf",
+            "CHOICES": conf / "cloud.json",
+            "STATUS": state / "cloud.json",
+            "TRIGGER": state / "cloud.now",
+            "LOCK": state / "cloud.lock",
+            "LOG": state / "cloud.log",
+        }
         for name, value in values.items():
             p = mock.patch.object(kumo, name, value)
             p.start()
@@ -89,7 +98,7 @@ class Accounts(KumoCase):
         self.remotes("dropbox", "dropbox-2", "dropbox-3")
         self.choices({"dropbox": {"label": "Personal"}, "dropbox-2": {"label": "Work"}})
         a = kumo.accounts()
-        self.assertEqual(a["dropbox"]["name"], "Dropbox (Personal)")     # labelled once there are several
+        self.assertEqual(a["dropbox"]["name"], "Dropbox (Personal)")  # labelled once there are several
         self.assertEqual(a["dropbox-2"]["name"], "Dropbox (Work)")
         self.assertEqual(a["dropbox-2"]["local"], self.home / "Dropbox (Work)")
         self.assertEqual(a["dropbox-3"]["name"], "Dropbox 3")
@@ -165,7 +174,7 @@ class ChooseAndStatus(KumoCase):
         self.assertEqual(kumo.folders("drive"), ["Notes"])
         self.assertEqual(json.loads(kumo.CHOICES.read_text())["drive"]["email"], "x@y")
         st = kumo.status("dropbox")
-        self.assertEqual(st["ready"], ["Work"])        # "New" still needs its first (resync) run
+        self.assertEqual(st["ready"], ["Work"])  # "New" still needs its first (resync) run
         self.assertEqual(st["last"], 5)
 
     def test_load_of_missing_or_broken_file(self):
@@ -188,13 +197,15 @@ class Describe(KumoCase):
         self.choices({"dropbox": {"folders": ["A"]}})
         self.assertEqual(kumo.describe("dropbox"), "1 folder · waiting to sync")
         self.choices({"dropbox": {"folders": ["A", "B"]}})
-        cases = [({"state": "syncing", "last": now}, "2 folders · syncing…"),
-                 ({"state": "error", "last": now}, "2 folders · not synced, will retry"),
-                 ({"state": "idle"}, "2 folders · waiting to sync"),
-                 ({"state": "idle", "last": now - 10}, "2 folders · synced just now"),
-                 ({"state": "idle", "last": now - 5 * 60 - 5}, "2 folders · synced 5 min ago"),
-                 ({"state": "idle", "last": now - 3 * 3600 - 5}, "2 folders · synced 3 h ago"),
-                 ({"state": "idle", "last": now - 3 * 86400}, "2 folders · synced a while ago")]
+        cases = [
+            ({"state": "syncing", "last": now}, "2 folders · syncing…"),
+            ({"state": "error", "last": now}, "2 folders · not synced, will retry"),
+            ({"state": "idle"}, "2 folders · waiting to sync"),
+            ({"state": "idle", "last": now - 10}, "2 folders · synced just now"),
+            ({"state": "idle", "last": now - 5 * 60 - 5}, "2 folders · synced 5 min ago"),
+            ({"state": "idle", "last": now - 3 * 3600 - 5}, "2 folders · synced 3 h ago"),
+            ({"state": "idle", "last": now - 3 * 86400}, "2 folders · synced a while ago"),
+        ]
         for st, want in cases:
             with self.subTest(st=st):
                 self.status_file({"dropbox": st})
@@ -219,8 +230,10 @@ class SyncLogic(KumoCase):
         self.assertIn("[dropbox] Work: exit 0", kumo.LOG.read_text())
 
     def test_later_run_without_resync_then_recovers(self):
-        results = [fake_completed(stderr="ERROR : Bisync aborted. Must run --resync to recover.", returncode=2),
-                   fake_completed(returncode=0)]
+        results = [
+            fake_completed(stderr="ERROR : Bisync aborted. Must run --resync to recover.", returncode=2),
+            fake_completed(returncode=0),
+        ]
         with mock.patch.object(kumo, "rclone", side_effect=results) as rc:
             kumo.sync_folder("drive", "Notes", False)
         first, second = rc.call_args_list
@@ -243,6 +256,7 @@ class SyncLogic(KumoCase):
             calls.append((key, folder, first))
             if folder == "B":
                 raise RuntimeError("offline")
+
         with mock.patch.object(kumo, "sync_folder", side_effect=fake):
             kumo.sync_all()
         self.assertEqual(calls, [("dropbox", "A", False), ("dropbox", "B", True), ("drive", "N", True)])
@@ -309,9 +323,18 @@ class RealBisync(KumoCase):
     def setUp(self):
         super().setUp()
         self.cloud = self.tmp / "cloud"
-        for rel, text in {"Work/a.txt": "a", "Work/b.txt": "b", "Work/c.txt": "c", "Work/d.txt": "d",
-                          "Work/e.txt": "e", "Work/sub/f.txt": "f", "Work/sub/g.txt": "g", "Work/h.txt": "h",
-                          "Private/secret.txt": "never copied", "top.txt": "top"}.items():
+        for rel, text in {
+            "Work/a.txt": "a",
+            "Work/b.txt": "b",
+            "Work/c.txt": "c",
+            "Work/d.txt": "d",
+            "Work/e.txt": "e",
+            "Work/sub/f.txt": "f",
+            "Work/sub/g.txt": "g",
+            "Work/h.txt": "h",
+            "Private/secret.txt": "never copied",
+            "top.txt": "top",
+        }.items():
             (self.cloud / rel).parent.mkdir(parents=True, exist_ok=True)
             (self.cloud / rel).write_text(text)
         kumo.RCLONE_CONF.parent.mkdir(parents=True)

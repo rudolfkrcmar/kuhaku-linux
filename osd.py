@@ -4,6 +4,7 @@ Kūhaku watches the volume (pactl subscribe) and the backlight itself, so any
 change, from the keys or anywhere else, shows a small calm card above
 everything for a moment, then fades away.
 """
+
 import math
 import re
 import subprocess
@@ -14,6 +15,7 @@ from pathlib import Path
 
 import cairo
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo
@@ -21,22 +23,34 @@ from kuhaku_log import report  # faults go to the log instead of vanishing
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 BRIGHT_MARK = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "kuhaku-brightness-asked"
-W, H = 380, 104          # volume, brightness: label, number and a line
-PW, PH = 220, 132        # charger: just the percentage
+W, H = 380, 104  # volume, brightness: label, number and a line
+PW, PH = 220, 132  # charger: just the percentage
 THEMES = {
-    "day":   {"bg": (0.969, 0.957, 0.945), "fg": (0.067, 0.067, 0.067), "muted": (0.4, 0.4, 0.4),
-              "faint": (0.067, 0.067, 0.067, 0.08), "accent": (0.878, 0.188, 0.118)},
-    "night": {"bg": (0.071, 0.071, 0.071), "fg": (0.925, 0.925, 0.925), "muted": (0.604, 0.604, 0.604),
-              "faint": (0.925, 0.925, 0.925, 0.10), "accent": (0.941, 0.439, 0.353)},
+    "day": {
+        "bg": (0.969, 0.957, 0.945),
+        "fg": (0.067, 0.067, 0.067),
+        "muted": (0.4, 0.4, 0.4),
+        "faint": (0.067, 0.067, 0.067, 0.08),
+        "accent": (0.878, 0.188, 0.118),
+    },
+    "night": {
+        "bg": (0.071, 0.071, 0.071),
+        "fg": (0.925, 0.925, 0.925),
+        "muted": (0.604, 0.604, 0.604),
+        "faint": (0.925, 0.925, 0.925, 0.10),
+        "accent": (0.941, 0.439, 0.353),
+    },
 }
 
 
 def read_volume():
     try:
-        vol = subprocess.run(["pactl", "get-sink-volume", "@DEFAULT_SINK@"],
-                             capture_output=True, text=True, timeout=2).stdout
-        mute = subprocess.run(["pactl", "get-sink-mute", "@DEFAULT_SINK@"],
-                              capture_output=True, text=True, timeout=2).stdout
+        vol = subprocess.run(
+            ["pactl", "get-sink-volume", "@DEFAULT_SINK@"], capture_output=True, text=True, timeout=2
+        ).stdout
+        mute = subprocess.run(
+            ["pactl", "get-sink-mute", "@DEFAULT_SINK@"], capture_output=True, text=True, timeout=2
+        ).stdout
         levels = [int(x) for x in re.findall(r"(\d+)%", vol)]
         return (round(sum(levels) / len(levels)) if levels else 0, "yes" in mute)
     except Exception:
@@ -46,8 +60,9 @@ def read_volume():
 
 def read_mic_mute():
     try:
-        out = subprocess.run(["pactl", "get-source-mute", "@DEFAULT_SOURCE@"],
-                             capture_output=True, text=True, timeout=2).stdout
+        out = subprocess.run(
+            ["pactl", "get-source-mute", "@DEFAULT_SOURCE@"], capture_output=True, text=True, timeout=2
+        ).stdout
         return "yes" in out if out else None
     except Exception:
         report()
@@ -80,10 +95,22 @@ class Osd:
         threading.Thread(target=self.watch_volume, daemon=True).start()
         self.backlight = next(iter(sorted(Path("/sys/class/backlight").glob("*"))), None)
         self.bright = self.read_brightness()
-        self.mains = next((p for p in Path("/sys/class/power_supply").glob("*")
-                           if (p / "type").exists() and (p / "type").read_text().strip() == "Mains"), None)
-        self.battery = next((p for p in sorted(Path("/sys/class/power_supply").glob("*"))
-                             if (p / "type").exists() and (p / "type").read_text().strip() == "Battery"), None)
+        self.mains = next(
+            (
+                p
+                for p in Path("/sys/class/power_supply").glob("*")
+                if (p / "type").exists() and (p / "type").read_text().strip() == "Mains"
+            ),
+            None,
+        )
+        self.battery = next(
+            (
+                p
+                for p in sorted(Path("/sys/class/power_supply").glob("*"))
+                if (p / "type").exists() and (p / "type").read_text().strip() == "Battery"
+            ),
+            None,
+        )
         self.plugged = self.read_plugged()
         GLib.timeout_add(150, self.poll_brightness)
         GLib.timeout_add(700, self.poll_power)
@@ -200,6 +227,7 @@ class Osd:
                 return False
             self.win.set_opacity(self.alpha)
             return True
+
         self.fade_id = GLib.timeout_add(16, step)
         return False
 
@@ -237,6 +265,7 @@ class Osd:
             PangoCairo.show_layout(cr, layout)
 
         if getattr(self, "power", False) == "message":
+
             def centred(s, size, color, weight, top):
                 layout = PangoCairo.create_layout(cr)
                 fd = Pango.FontDescription.from_string(f"Inter Variable {size}")
@@ -248,6 +277,7 @@ class Osd:
                 cr.move_to((CW - tw) / 2, top)
                 PangoCairo.show_layout(cr, layout)
                 return tw
+
             tw = centred(self.kind, 17, t["fg"], Pango.Weight.LIGHT, 36)
             centred(self.detail, 11, t["muted"], Pango.Weight.LIGHT, 74)
             if self.kind == "Recording" and "stop" in self.detail:
@@ -268,6 +298,7 @@ class Osd:
                 cr.move_to((CW - tw) / 2, top)
                 PangoCairo.show_layout(cr, layout)
                 return tw
+
             centred(f"{self.level}%", 30, t["fg"], Pango.Weight.ULTRALIGHT, 22)
             tw = centred(self.kind, 11, t["muted"], Pango.Weight.LIGHT, 86)
             if self.kind == "Charging":

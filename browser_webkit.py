@@ -8,6 +8,7 @@ that is already there.
 Keys: Ctrl+L address, Ctrl+T new tab, Ctrl+W close tab, Ctrl+Tab next tab,
 Ctrl+F find, Ctrl+R reload, Alt+Left/Right back/forward, Ctrl+plus/minus zoom.
 """
+
 import base64
 import ipaddress
 import json
@@ -24,6 +25,7 @@ import urllib.request
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
@@ -38,7 +40,9 @@ DATA = HOME / ".local" / "share" / "kuhaku" / "browser-data"
 CACHE = HOME / ".cache" / "mado"
 STATE = HOME / ".local" / "state" / "kuhaku" / "browser.json"
 TRUSTED = HOME / ".config" / "kuhaku" / "mado-certificates.json"
-PERMS = HOME / ".config" / "kuhaku" / "mado-permissions.json"     # host -> "media"/"clipboard" -> true/false   # host -> PEM the user chose to trust
+PERMS = (
+    HOME / ".config" / "kuhaku" / "mado-permissions.json"
+)  # host -> "media"/"clipboard" -> true/false   # host -> PEM the user chose to trust
 SEARCH = "https://www.google.com/search?q="
 NEWTAB = (HERE / "newtab.html").as_uri()
 CHROME_HEIGHT = 52
@@ -72,6 +76,7 @@ def private_host(host):
         if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_unspecified:
             return True
     return False
+
 
 H264_SCRIPT = r"""
 (() => {
@@ -118,25 +123,59 @@ AVIF_SCRIPT = r"""
 
 # Quiet by default: the usual ad and tracking hosts never load.
 BLOCKED = [
-    "doubleclick.net", "googlesyndication.com", "googleadservices.com", "adservice.google.com",
-    "google-analytics.com", "googletagmanager.com", "googletagservices.com", "adnxs.com",
-    "taboola.com", "outbrain.com", "criteo.com", "criteo.net", "amazon-adsystem.com",
-    "scorecardresearch.com", "quantserve.com", "moatads.com", "pubmatic.com", "rubiconproject.com",
-    "openx.net", "casalemedia.com", "adform.net", "smartadserver.com", "teads.tv", "hotjar.com",
-    "facebook.net", "connect.facebook.net", "ads-twitter.com", "static.ads-twitter.com",
-    "bat.bing.com", "yieldmo.com", "sharethrough.com", "media.net", "zedo.com", "adsrvr.org",
-    "3lift.com", "bidswitch.net", "mathtag.com", "serving-sys.com", "popads.net", "propellerads.com",
+    "doubleclick.net",
+    "googlesyndication.com",
+    "googleadservices.com",
+    "adservice.google.com",
+    "google-analytics.com",
+    "googletagmanager.com",
+    "googletagservices.com",
+    "adnxs.com",
+    "taboola.com",
+    "outbrain.com",
+    "criteo.com",
+    "criteo.net",
+    "amazon-adsystem.com",
+    "scorecardresearch.com",
+    "quantserve.com",
+    "moatads.com",
+    "pubmatic.com",
+    "rubiconproject.com",
+    "openx.net",
+    "casalemedia.com",
+    "adform.net",
+    "smartadserver.com",
+    "teads.tv",
+    "hotjar.com",
+    "facebook.net",
+    "connect.facebook.net",
+    "ads-twitter.com",
+    "static.ads-twitter.com",
+    "bat.bing.com",
+    "yieldmo.com",
+    "sharethrough.com",
+    "media.net",
+    "zedo.com",
+    "adsrvr.org",
+    "3lift.com",
+    "bidswitch.net",
+    "mathtag.com",
+    "serving-sys.com",
+    "popads.net",
+    "propellerads.com",
 ]
 
 
 def theme():
     """Follow Kūhaku: its saved choice, else the clock."""
+
     def load(p):
         try:
             return json.loads(p.read_text())
         except Exception:
             report()
             return {}
+
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
     choice = st.get("theme") or cfg.get("theme", "auto")
@@ -167,8 +206,7 @@ def to_url(text):
 
 class Browser(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="app.kuhaku.Mado",
-                         flags=Gio.ApplicationFlags.HANDLES_OPEN)
+        super().__init__(application_id="app.kuhaku.Mado", flags=Gio.ApplicationFlags.HANDLES_OPEN)
         self.window = None
         self.tabs = []
         self.current = None
@@ -202,27 +240,41 @@ class Browser(Gtk.Application):
         self.night = theme() == "night"
         Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", self.night)
         # Pages and the new tab follow Kūhaku's day or night, not the system theme.
-        base = "Mint-Y" if Path("/usr/share/themes/Mint-Y").is_dir() else "Adwaita"   # Debian has no Mint themes
-        Gtk.Settings.get_default().set_property("gtk-theme-name", base + "-Dark" if self.night and base == "Mint-Y" else base)
+        base = "Mint-Y" if Path("/usr/share/themes/Mint-Y").is_dir() else "Adwaita"  # Debian has no Mint themes
+        Gtk.Settings.get_default().set_property(
+            "gtk-theme-name", base + "-Dark" if self.night and base == "Mint-Y" else base
+        )
 
         manager = WebKit2.WebsiteDataManager(base_data_directory=str(DATA), base_cache_directory=str(CACHE))
         manager.get_cookie_manager().set_persistent_storage(
-            str(DATA / "cookies.sqlite"), WebKit2.CookiePersistentStorage.SQLITE)
+            str(DATA / "cookies.sqlite"), WebKit2.CookiePersistentStorage.SQLITE
+        )
         manager.get_cookie_manager().set_accept_policy(WebKit2.CookieAcceptPolicy.NO_THIRD_PARTY)
         manager.get_cookie_manager().connect("changed", self.refuse_passes)
         self.context = WebKit2.WebContext(website_data_manager=manager)
         self.context.connect("download-started", self.on_download)
         self.images = {}
         self.content = WebKit2.UserContentManager()
-        self.content.add_script(WebKit2.UserScript.new(
-            AVIF_SCRIPT, WebKit2.UserContentInjectedFrames.ALL_FRAMES,
-            WebKit2.UserScriptInjectionTime.START, None, None))
+        self.content.add_script(
+            WebKit2.UserScript.new(
+                AVIF_SCRIPT,
+                WebKit2.UserContentInjectedFrames.ALL_FRAMES,
+                WebKit2.UserScriptInjectionTime.START,
+                None,
+                None,
+            )
+        )
         # This processor decodes only H.264 in hardware: ask YouTube for that instead of VP9/AV1,
         # which it would otherwise decode in software, slowly and hot.
-        self.content.add_script(WebKit2.UserScript.new(
-            H264_SCRIPT, WebKit2.UserContentInjectedFrames.ALL_FRAMES,
-            WebKit2.UserScriptInjectionTime.START,
-            ["https://*.youtube.com/*", "https://*.youtube-nocookie.com/*"], None))
+        self.content.add_script(
+            WebKit2.UserScript.new(
+                H264_SCRIPT,
+                WebKit2.UserContentInjectedFrames.ALL_FRAMES,
+                WebKit2.UserScriptInjectionTime.START,
+                ["https://*.youtube.com/*", "https://*.youtube-nocookie.com/*"],
+                None,
+            )
+        )
         self.content.register_script_message_handler_with_reply("kuhakuImage", None)
         self.content.connect("script-message-with-reply-received::kuhakuImage", self.on_kuhaku_image)
         self.load_filter()
@@ -239,10 +291,19 @@ class Browser(Gtk.Application):
         self.settings = WebKit2.Settings()
         self.settings.set_enable_smooth_scrolling(True)
         # Everything a modern site expects: video (YouTube), audio, WebGL, calls.
-        for name in ("enable_mediasource", "enable_media", "enable_webaudio", "enable_webgl",
-                     "enable_media_stream", "enable_webrtc", "enable_encrypted_media", "enable_fullscreen",
-                     "enable_media_capabilities", "enable_back_forward_navigation_gestures",
-                     "javascript_can_access_clipboard"):
+        for name in (
+            "enable_mediasource",
+            "enable_media",
+            "enable_webaudio",
+            "enable_webgl",
+            "enable_media_stream",
+            "enable_webrtc",
+            "enable_encrypted_media",
+            "enable_fullscreen",
+            "enable_media_capabilities",
+            "enable_back_forward_navigation_gestures",
+            "javascript_can_access_clipboard",
+        ):
             setter = getattr(self.settings, "set_" + name, None)
             if setter:
                 setter(True)
@@ -292,9 +353,16 @@ class Browser(Gtk.Application):
 
     def load_filter(self):
         store = WebKit2.UserContentFilterStore.new(str(CACHE / "filters"))
-        rules = [{"trigger": {"url-filter": r"^https?://([^/]*\.)?" + re.escape(d) + r"[:/]",
-                              "load-type": ["third-party"]},
-                  "action": {"type": "block"}} for d in BLOCKED]
+        rules = [
+            {
+                "trigger": {
+                    "url-filter": r"^https?://([^/]*\.)?" + re.escape(d) + r"[:/]",
+                    "load-type": ["third-party"],
+                },
+                "action": {"type": "block"},
+            }
+            for d in BLOCKED
+        ]
         data = GLib.Bytes.new(json.dumps(rules).encode())
 
         def done(s, res):
@@ -302,6 +370,7 @@ class Browser(Gtk.Application):
                 self.content.add_filter(s.save_finish(res))
             except Exception:
                 report()
+
         store.save("kuhaku-quiet-2", data, None, done)
 
     def restore(self):
@@ -318,11 +387,13 @@ class Browser(Gtk.Application):
     # --- tabs -------------------------------------------------------------
     def make_view(self, related=None):
         if related:
-            view = WebKit2.WebView(related_view=related, settings=self.view_settings(),
-                                   user_content_manager=self.content)
+            view = WebKit2.WebView(
+                related_view=related, settings=self.view_settings(), user_content_manager=self.content
+            )
         else:
-            view = WebKit2.WebView(web_context=self.context, settings=self.view_settings(),
-                                   user_content_manager=self.content)
+            view = WebKit2.WebView(
+                web_context=self.context, settings=self.view_settings(), user_content_manager=self.content
+            )
         for sig in ("notify::title", "notify::uri", "notify::estimated-load-progress", "notify::is-loading"):
             view.connect(sig, self.on_view_changed)
         view.connect("create", self.on_create)
@@ -395,12 +466,20 @@ class Browser(Gtk.Application):
             "title": v.get_title() or "",
             "loading": v.is_loading(),
             "progress": v.get_estimated_load_progress(),
-            "back": v.can_go_back(), "forward": v.can_go_forward(),
-            "tabs": [{"title": (t.get_title() or host(t.get_uri()) or "New tab") if t.get_uri() != NEWTAB else "New tab",
-                      "active": t is v, "loading": t.is_loading()} for t in self.tabs],
+            "back": v.can_go_back(),
+            "forward": v.can_go_forward(),
+            "tabs": [
+                {
+                    "title": (t.get_title() or host(t.get_uri()) or "New tab") if t.get_uri() != NEWTAB else "New tab",
+                    "active": t is v,
+                    "loading": t.is_loading(),
+                }
+                for t in self.tabs
+            ],
             "download": self.download_note,
             "ask": {"host": self.asking["host"], "what": self.asking["what"]}
-                   if self.asking and self.asking["view"] is v else None,
+            if self.asking and self.asking["view"] is v
+            else None,
         }
         self.js(f"update({json.dumps(state)})")
 
@@ -411,8 +490,13 @@ class Browser(Gtk.Application):
     def on_permission(self, view, request):
         # Notifications and protected video (DRM): yes. Location: no. The microphone, the
         # camera and reading the clipboard: each site asks once, the answer is remembered.
-        if isinstance(request, (WebKit2.NotificationPermissionRequest,
-                                getattr(WebKit2, "MediaKeySystemPermissionRequest", WebKit2.NotificationPermissionRequest))):
+        if isinstance(
+            request,
+            (
+                WebKit2.NotificationPermissionRequest,
+                getattr(WebKit2, "MediaKeySystemPermissionRequest", WebKit2.NotificationPermissionRequest),
+            ),
+        ):
             request.allow()
             return True
         clip = getattr(WebKit2, "ClipboardPermissionRequest", None)
@@ -465,9 +549,12 @@ class Browser(Gtk.Application):
         if kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
             self.pick_identity(_view, uri, action)
         scheme = uri.split(":", 1)[0].lower()
-        if kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION and scheme == "https" and \
-                self.is_honest(urllib.parse.urlsplit(uri).hostname):
-            self.forget_pass(uri, decision.use)     # each page load asks Cloudflare afresh
+        if (
+            kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION
+            and scheme == "https"
+            and self.is_honest(urllib.parse.urlsplit(uri).hostname)
+        ):
+            self.forget_pass(uri, decision.use)  # each page load asks Cloudflare afresh
             return True
         if not scheme or scheme in WEB_SCHEMES:
             return False
@@ -496,9 +583,11 @@ class Browser(Gtk.Application):
             return
         if self.is_honest(host):
             ua = NATIVE_UA
-        elif self.is_honest(urllib.parse.urlsplit(view.get_uri() or "").hostname) and \
-                action.get_navigation_type() == WebKit2.NavigationType.OTHER:
-            return                          # a frame or script inside an honest page: leave it be
+        elif (
+            self.is_honest(urllib.parse.urlsplit(view.get_uri() or "").hostname)
+            and action.get_navigation_type() == WebKit2.NavigationType.OTHER
+        ):
+            return  # a frame or script inside an honest page: leave it be
         else:
             ua = USER_AGENT
         s = view.get_settings()
@@ -526,7 +615,7 @@ class Browser(Gtk.Application):
         now = time.time()
         tries = [t for t in getattr(self, "cf_tries", {}).get(host, []) if now - t < 60]
         if len(tries) >= 3:
-            return                          # let the person see the check rather than loop
+            return  # let the person see the check rather than loop
         self.cf_tries = getattr(self, "cf_tries", {})
         self.cf_tries[host] = tries + [now]
         self.forget_pass(uri, view.reload)
@@ -549,13 +638,16 @@ class Browser(Gtk.Application):
                 for c in cookies:
                     if c.get_name() == "cf_clearance" and self.is_honest((c.get_domain() or "").lstrip(".")):
                         cm.delete_cookie(c, None, None)
+
             cm.get_all_cookies(None, got)
+
         GLib.idle_add(sweep)
 
     def forget_pass(self, uri, then):
         """Cloudflare's stored pass (cf_clearance) is what breaks Mado: with it, the next page
         load on claude.ai demands a checkbox this WebKit can never pass; without it, the check
         clears on its own. So Mado does not present it on page loads, then calls then()."""
+
         def got(cm, res):
             try:
                 stale = [c for c in cm.get_cookies_finish(res) if c.get_name() == "cf_clearance"]
@@ -574,8 +666,10 @@ class Browser(Gtk.Application):
                 left[0] -= 1
                 if not left[0]:
                     then()
+
             for c in stale:
                 cm.delete_cookie(c, None, gone)
+
         self.context.get_website_data_manager().get_cookie_manager().get_cookies(uri, None, got)
 
     def view_settings(self):
@@ -583,9 +677,12 @@ class Browser(Gtk.Application):
         s = WebKit2.Settings()
         for spec in self.settings.list_properties():
             if spec.name in ("enable-dns-prefetching", "load-icons-ignoring-image-load-setting"):
-                continue                    # deprecated: reading them only prints a warning
-            if spec.flags & GObject.ParamFlags.READABLE and spec.flags & GObject.ParamFlags.WRITABLE \
-                    and not spec.flags & GObject.ParamFlags.CONSTRUCT_ONLY:
+                continue  # deprecated: reading them only prints a warning
+            if (
+                spec.flags & GObject.ParamFlags.READABLE
+                and spec.flags & GObject.ParamFlags.WRITABLE
+                and not spec.flags & GObject.ParamFlags.CONSTRUCT_ONLY
+            ):
                 try:
                     s.set_property(spec.name, self.settings.get_property(spec.name))
                 except Exception:
@@ -604,8 +701,14 @@ class Browser(Gtk.Application):
         token = base64.urlsafe_b64encode(os.urandom(18)).decode()
         self.tls_pending[h] = (cert, uri, view, token)
         esc = lambda t: GLib.markup_escape_text(t)
-        page = TLS_PAGE.replace("{HOST}", esc(h)).replace("{HOSTJS}", json.dumps(h)).replace("{TOKENJS}", json.dumps(token))
-        page = page.replace("{BG}", "#121212" if self.night else "#f7f4f1").replace("{FG}", "#ececec" if self.night else "#111111")
+        page = (
+            TLS_PAGE.replace("{HOST}", esc(h))
+            .replace("{HOSTJS}", json.dumps(h))
+            .replace("{TOKENJS}", json.dumps(token))
+        )
+        page = page.replace("{BG}", "#121212" if self.night else "#f7f4f1").replace(
+            "{FG}", "#ececec" if self.night else "#111111"
+        )
         page = page.replace("{ACCENT}", "#f0705a" if self.night else "#e0301e")
         view.load_alternate_html(page, uri, None)
         return True
@@ -636,8 +739,9 @@ class Browser(Gtk.Application):
             url = referer = ""
 
         def answer(data_url):
-            reply.return_value(JavaScriptCore.Value.new_string(ctx, data_url) if data_url
-                               else JavaScriptCore.Value.new_null(ctx))
+            reply.return_value(
+                JavaScriptCore.Value.new_string(ctx, data_url) if data_url else JavaScriptCore.Value.new_null(ctx)
+            )
             return False
 
         if not url.startswith(("http://", "https://")):
@@ -656,14 +760,16 @@ class Browser(Gtk.Application):
                 if not allowed(newurl):
                     raise urllib.error.URLError("redirect to a private address")
                 return super().redirect_request(req, fp, code, msg, headers, newurl)
+
         if url in self.images:
             answer(self.images[url])
             return True
 
         def work():
             try:
-                req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Referer": referer,
-                                                           "Accept": "image/avif,image/*;q=0.8"})
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": USER_AGENT, "Referer": referer, "Accept": "image/avif,image/*;q=0.8"}
+                )
                 if not allowed(url):
                     raise ValueError("private address")
                 raw = urllib.request.build_opener(Guard).open(req, timeout=20).read(30_000_000)
@@ -684,6 +790,7 @@ class Browser(Gtk.Application):
             except Exception:
                 data_url = None
             GLib.idle_add(answer, data_url)
+
         threading.Thread(target=work, daemon=True).start()
         return True
 
@@ -802,18 +909,21 @@ class Browser(Gtk.Application):
         k = Gdk.keyval_name(ev.keyval)
         v = self.current
         if ctrl and k in ("l", "L"):
-            self.chrome.grab_focus(); self.js("editAddress()")
+            self.chrome.grab_focus()
+            self.js("editAddress()")
         elif ctrl and k in ("t", "T"):
             self.new_tab()
         elif ctrl and k in ("w", "W"):
             self.close_tab()
         elif ctrl and k in ("q", "Q"):
-            self.save(); self.window.destroy()
+            self.save()
+            self.window.destroy()
         elif ctrl and k in ("Tab", "ISO_Left_Tab", "Page_Down", "Page_Up") and len(self.tabs) > 1:
             step = -1 if (shift or k == "Page_Up" or k == "ISO_Left_Tab") else 1
             self.switch(self.tabs[(self.tabs.index(v) + step) % len(self.tabs)])
         elif ctrl and k in ("f", "F"):
-            self.chrome.grab_focus(); self.js("editFind()")
+            self.chrome.grab_focus()
+            self.js("editFind()")
         elif (ctrl and k in ("r", "R")) or k == "F5":
             v.reload()
         elif (alt and k == "Left") or k == "XF86Back":

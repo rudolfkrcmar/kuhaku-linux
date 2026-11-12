@@ -1,4 +1,5 @@
 """The pen anywhere: a clear sheet over the screen while the pen is near; what is written becomes type."""
+
 import math
 import os
 import sys
@@ -8,6 +9,7 @@ from pathlib import Path
 
 import cairo  # noqa: E402
 import gi  # noqa: E402
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
@@ -18,6 +20,7 @@ from tablet_keyboard import text_at
 
 
 # --- the pen anywhere --------------------------------------------------------------------
+
 
 def notes_in_front():
     try:
@@ -34,7 +37,7 @@ class Ink:
         self.app = app
         self.strokes = []
         self.cur = None
-        self.state = "off"          # off, ready (shown), writing, reading, placing
+        self.state = "off"  # off, ready (shown), writing, reading, placing
         self.hide_id = self.recog_id = self.hold_id = None
         self.suspended_until = 0.0
         self.held = False
@@ -48,8 +51,12 @@ class Ink:
         visual = self.win.get_screen().get_rgba_visual()
         if visual:
             self.win.set_visual(visual)
-        self.win.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK |
-                            Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.TOUCH_MASK)
+        self.win.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK
+            | Gdk.EventMask.BUTTON_RELEASE_MASK
+            | Gdk.EventMask.POINTER_MOTION_MASK
+            | Gdk.EventMask.TOUCH_MASK
+        )
         self.win.connect("draw", self.draw)
         self.win.connect("touch-event", self.on_touch)
         self.fingers = {}
@@ -63,7 +70,9 @@ class Ink:
 
     def on_realize(self, *_):
         gw = self.win.get_window()
-        cur = Gdk.Cursor.new_from_name(gw.get_display(), "pencil") or Gdk.Cursor.new_from_name(gw.get_display(), "crosshair")
+        cur = Gdk.Cursor.new_from_name(gw.get_display(), "pencil") or Gdk.Cursor.new_from_name(
+            gw.get_display(), "crosshair"
+        )
         if cur:
             gw.set_cursor(cur)
 
@@ -91,7 +100,7 @@ class Ink:
             return False
         if not self.app.settings["pen_writing"] or now < self.suspended_until or self.held:
             if now < self.suspended_until and what == "near":
-                self.suspended_until = max(self.suspended_until, now + 0.6)   # hovering on as a pointer
+                self.suspended_until = max(self.suspended_until, now + 0.6)  # hovering on as a pointer
             return False
         if os.environ.get("KT_DEBUG") and self.state == "off":
             print("pen near", file=sys.stderr, flush=True)
@@ -197,8 +206,9 @@ class Ink:
             GLib.source_remove(self.hold_id)
             self.hold_id = None
         x0, y0 = min(last[0], ev.x_root) - 12, min(last[1], ev.y_root) - 12
-        self.win.queue_draw_area(int(x0), int(y0), int(abs(last[0] - ev.x_root) + 24),
-                                 int(abs(last[1] - ev.y_root) + 24))
+        self.win.queue_draw_area(
+            int(x0), int(y0), int(abs(last[0] - ev.x_root) + 24), int(abs(last[1] - ev.y_root) + 24)
+        )
         return True
 
     def on_hold(self, x, y):
@@ -270,12 +280,17 @@ class Ink:
 
         def work():
             try:
-                cands = recognize([[(p[0] - x0 + 20, p[1] - y0 + 20, p[2]) for p in s] for s in strokes],
-                                  x1 - x0 + 40, y1 - y0 + 40, lang)
+                cands = recognize(
+                    [[(p[0] - x0 + 20, p[1] - y0 + 20, p[2]) for p in s] for s in strokes],
+                    x1 - x0 + 40,
+                    y1 - y0 + 40,
+                    lang,
+                )
             except Exception as e:
                 print("kuhaku-tablet: reading the ink:", e, file=sys.stderr)
                 cands = None
             GLib.idle_add(self.place, strokes, cands)
+
         threading.Thread(target=work, daemon=True).start()
         self.win.queue_draw()
         return False
@@ -312,8 +327,9 @@ class Ink:
     def tick(self):
         if self.strokes:
             x0, y0, x1, y1 = self.bbox()
-            self.win.queue_draw_area(int(x0) - 40, int(y0) - 40, int(x1 - x0) + 80 + int(max(0, (y1 - y0) * 0.62 * 12)),
-                                     int(y1 - y0) + 120)
+            self.win.queue_draw_area(
+                int(x0) - 40, int(y0) - 40, int(x1 - x0) + 80 + int(max(0, (y1 - y0) * 0.62 * 12)), int(y1 - y0) + 120
+            )
         else:
             self.win.queue_draw()
         if self.state in ("reading", "placing"):
@@ -343,12 +359,14 @@ class Ink:
                 layout_x = x0
                 cr.save()
                 cr.translate(0, (1 - p) * 8)
-                text_at(cr, text, size, t["fg"], layout_x, (y0 + y1) / 2, weight=Pango.Weight.LIGHT, alpha=p,
-                        align="left")
+                text_at(
+                    cr, text, size, t["fg"], layout_x, (y0 + y1) / 2, weight=Pango.Weight.LIGHT, alpha=p, align="left"
+                )
                 cr.restore()
             elif offline:
-                text_at(cr, "No connection to read handwriting", 15, t["muted"], (x0 + x1) / 2, y1 + 24,
-                        alpha=min(1, p * 2))
+                text_at(
+                    cr, "No connection to read handwriting", 15, t["muted"], (x0 + x1) / 2, y1 + 24, alpha=min(1, p * 2)
+                )
         else:
             draw_ink(cr, strokes, t["fg"], 0.88, width)
         return True

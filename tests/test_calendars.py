@@ -1,4 +1,5 @@
 """calendars.py: the saved feeds, fetching (urlopen mocked), events from a cached .ics, month_view."""
+
 import json
 import unittest
 from datetime import date
@@ -64,7 +65,7 @@ class Store(CalCase):
         self.assertEqual(calendars.load(), [])
         calendars.save([{"url": "u", "name": "n"}])
         self.assertEqual(calendars.load(), [{"url": "u", "name": "n"}])
-        self.assertEqual(oct(calendars.CONFIG.stat().st_mode & 0o777), "0o600")   # the secret address
+        self.assertEqual(oct(calendars.CONFIG.stat().st_mode & 0o777), "0o600")  # the secret address
 
     def test_add_and_webcal(self):
         with mock.patch.object(calendars.urllib.request, "urlopen", return_value=self.response(ICS)) as uo:
@@ -124,7 +125,7 @@ class Events(CalCase):
     def test_events_in_range(self):
         evs = calendars.events(date(2026, 11, 1), date(2026, 12, 1))
         titles = [e["title"] for e in evs]
-        self.assertEqual(titles.count("Standup"), 4)          # the weekly repeat is unfolded
+        self.assertEqual(titles.count("Standup"), 4)  # the weekly repeat is unfolded
         self.assertIn("Dentist", titles)
         self.assertIn("(no title)", titles)
         self.assertNotIn("Long ago", titles)
@@ -144,7 +145,7 @@ class Events(CalCase):
         self.assertEqual(calendars.events(date(2026, 11, 1), date(2026, 12, 1)), [])
 
     def test_month_view_is_zero_based(self):
-        view = calendars.month_view(2026, 10)          # JavaScript's month 10 is November
+        view = calendars.month_view(2026, 10)  # JavaScript's month 10 is November
         start, end = (date.fromisoformat(x) for x in view["range"])
         self.assertEqual(start.weekday(), 0)
         self.assertLess(start, date(2026, 11, 1))

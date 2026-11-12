@@ -7,6 +7,7 @@ connections, services, start-up time and a security check. Programs can be
 stopped from here. Lives under the Terminal (its bar has a Kansei button) and
 as `kansei`.
 """
+
 import json
 import os
 import pwd
@@ -20,6 +21,7 @@ from pathlib import Path
 
 import psutil
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
@@ -38,6 +40,7 @@ def theme():
         except Exception:
             report()
             return {}
+
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
     choice = st.get("theme") or cfg.get("theme", "auto")
@@ -114,29 +117,50 @@ class Collector:
             if nic == "lo":
                 continue
             p = self.prev_net.get(nic, c)
-            nets.append({"nic": nic, "rx": (c.bytes_recv - p.bytes_recv) / dt, "tx": (c.bytes_sent - p.bytes_sent) / dt,
-                         "rxTotal": c.bytes_recv, "txTotal": c.bytes_sent})
+            nets.append(
+                {
+                    "nic": nic,
+                    "rx": (c.bytes_recv - p.bytes_recv) / dt,
+                    "tx": (c.bytes_sent - p.bytes_sent) / dt,
+                    "rxTotal": c.bytes_recv,
+                    "txTotal": c.bytes_sent,
+                }
+            )
         self.prev_net = net
         d = psutil.disk_io_counters()
-        disk_rate = {"read": (d.read_bytes - self.prev_disk.read_bytes) / dt, "write": (d.write_bytes - self.prev_disk.write_bytes) / dt}
+        disk_rate = {
+            "read": (d.read_bytes - self.prev_disk.read_bytes) / dt,
+            "write": (d.write_bytes - self.prev_disk.write_bytes) / dt,
+        }
         self.prev_disk = d
         temps = []
         nice = {"coretemp": "Processor", "nvme": "SSD", "acpitz": "Board", "iwlwifi_1": "Wi-Fi", "BAT0": "Battery"}
         for chip, entries in (psutil.sensors_temperatures() or {}).items():
             if chip == "applesmc":
-                continue            # Apple's sensor codes (TC0P …) mean little without a key
+                continue  # Apple's sensor codes (TC0P …) mean little without a key
             for e in entries:
                 if not (-20 < e.current < 130):
                     continue
                 base = "Chipset" if chip.startswith("pch") else nice.get(chip, chip)
                 lab = e.label or ""
                 lab = {"Composite": "", "Package id 0": "package"}.get(lab, lab)
-                temps.append({"chip": chip, "label": (base + (" " + lab if lab else "")).strip(), "c": e.current,
-                              "high": e.high or e.critical or 100})
+                temps.append(
+                    {
+                        "chip": chip,
+                        "label": (base + (" " + lab if lab else "")).strip(),
+                        "c": e.current,
+                        "high": e.high or e.critical or 100,
+                    }
+                )
         bat = psutil.sensors_battery()
-        bdir = next((p for p in sorted(Path("/sys/class/power_supply").glob("*"))
-                     if (p / "type").exists() and (p / "type").read_text().strip() == "Battery"),
-                    Path("/sys/class/power_supply/BAT0"))
+        bdir = next(
+            (
+                p
+                for p in sorted(Path("/sys/class/power_supply").glob("*"))
+                if (p / "type").exists() and (p / "type").read_text().strip() == "Battery"
+            ),
+            Path("/sys/class/power_supply/BAT0"),
+        )
         watts = None
         try:
             if (bdir / "power_now").exists():
@@ -147,26 +171,64 @@ class Collector:
             report()
         battery = None
         if bat:
-            full, design = read(bdir / "energy_full") or read(bdir / "charge_full"), read(bdir / "energy_full_design") or read(bdir / "charge_full_design")
-            battery = {"pct": bat.percent, "plugged": bat.power_plugged,
-                       "left": None if bat.secsleft in (psutil.POWER_TIME_UNLIMITED, psutil.POWER_TIME_UNKNOWN) else bat.secsleft,
-                       "watts": watts, "cycles": read(bdir / "cycle_count") or None,
-                       "health": round(100 * int(full) / int(design)) if full and design and int(design) else None,
-                       "status": read(bdir / "status")}
+            full, design = (
+                read(bdir / "energy_full") or read(bdir / "charge_full"),
+                read(bdir / "energy_full_design") or read(bdir / "charge_full_design"),
+            )
+            battery = {
+                "pct": bat.percent,
+                "plugged": bat.power_plugged,
+                "left": None
+                if bat.secsleft in (psutil.POWER_TIME_UNLIMITED, psutil.POWER_TIME_UNKNOWN)
+                else bat.secsleft,
+                "watts": watts,
+                "cycles": read(bdir / "cycle_count") or None,
+                "health": round(100 * int(full) / int(design)) if full and design and int(design) else None,
+                "status": read(bdir / "status"),
+            }
         load = os.getloadavg()
         return {
-            "t": now, "cpu": sum(cores) / len(cores), "cores": cores,
-            "freq": [round(f.current) for f in freq], "fmax": round(freq[0].max) if freq and freq[0].max else None,
-            "load": load, "ctx": psutil.cpu_stats().ctx_switches, "procs": len(psutil.pids()),
-            "mem": {"total": vm.total, "used": vm.total - vm.available, "cache": getattr(vm, "cached", 0) + getattr(vm, "buffers", 0),
-                    "avail": vm.available, "pct": vm.percent, "swapTotal": sw.total, "swapUsed": sw.used},
-            "net": nets, "disk": disk_rate, "temps": temps, "battery": battery,
+            "t": now,
+            "cpu": sum(cores) / len(cores),
+            "cores": cores,
+            "freq": [round(f.current) for f in freq],
+            "fmax": round(freq[0].max) if freq and freq[0].max else None,
+            "load": load,
+            "ctx": psutil.cpu_stats().ctx_switches,
+            "procs": len(psutil.pids()),
+            "mem": {
+                "total": vm.total,
+                "used": vm.total - vm.available,
+                "cache": getattr(vm, "cached", 0) + getattr(vm, "buffers", 0),
+                "avail": vm.available,
+                "pct": vm.percent,
+                "swapTotal": sw.total,
+                "swapUsed": sw.used,
+            },
+            "net": nets,
+            "disk": disk_rate,
+            "temps": temps,
+            "battery": battery,
             "uptime": now - psutil.boot_time(),
         }
 
     def processes(self):
         out, now = [], time.time()
-        for p in psutil.process_iter(["pid", "ppid", "name", "username", "uids", "memory_info", "num_threads", "cmdline", "exe", "create_time", "status"]):
+        for p in psutil.process_iter(
+            [
+                "pid",
+                "ppid",
+                "name",
+                "username",
+                "uids",
+                "memory_info",
+                "num_threads",
+                "cmdline",
+                "exe",
+                "create_time",
+                "status",
+            ]
+        ):
             try:
                 i = p.info
                 cpu = p.cpu_percent(None)
@@ -185,10 +247,17 @@ class Collector:
                 cmd = " ".join(i["cmdline"] or [])[:300]
                 app = None
                 if "python" in exe and i["cmdline"] and len(i["cmdline"]) > 1:
-                    app = {"kuhaku.py": "Kūhaku", "browser.py": "Mado", "miru.py": "Miru", "tegami.py": "Tegami",
-                           "tsukuru.py": "Tsukuru", "terminal.py": "Terminal", "kansei.py": "Kansei",
-                           "kuhaku-gestures.py": "Kūhaku gestures",
-                           "kuhaku-tablet.py": "Kūhaku keyboard"}.get(os.path.basename(i["cmdline"][1]))
+                    app = {
+                        "kuhaku.py": "Kūhaku",
+                        "browser.py": "Mado",
+                        "miru.py": "Miru",
+                        "tegami.py": "Tegami",
+                        "tsukuru.py": "Tsukuru",
+                        "terminal.py": "Terminal",
+                        "kansei.py": "Kansei",
+                        "kuhaku-gestures.py": "Kūhaku gestures",
+                        "kuhaku-tablet.py": "Kūhaku keyboard",
+                    }.get(os.path.basename(i["cmdline"][1]))
                 if not app and "python" in exe and i["cmdline"] and len(i["cmdline"]) > 1:
                     app = "Python: " + os.path.basename(i["cmdline"][1])
                 app = app or self.names.get(exe) or self.names.get(i["name"])
@@ -196,10 +265,24 @@ class Collector:
                     app = "Web engine"
                 if not app and not i["cmdline"] and (i["ppid"] == 2 or i["pid"] == 2):
                     app = "Linux kernel"
-                out.append({"pid": i["pid"], "ppid": i["ppid"], "name": i["name"], "app": app or "", "user": i["username"] or "",
-                            "mine": bool(i["uids"] and i["uids"].real == ME), "cpu": cpu,
-                            "rss": i["memory_info"].rss if i["memory_info"] else 0, "threads": i["num_threads"] or 0,
-                            "read": rd, "write": wr, "cmd": cmd, "age": now - (i["create_time"] or now), "status": i["status"]})
+                out.append(
+                    {
+                        "pid": i["pid"],
+                        "ppid": i["ppid"],
+                        "name": i["name"],
+                        "app": app or "",
+                        "user": i["username"] or "",
+                        "mine": bool(i["uids"] and i["uids"].real == ME),
+                        "cpu": cpu,
+                        "rss": i["memory_info"].rss if i["memory_info"] else 0,
+                        "threads": i["num_threads"] or 0,
+                        "read": rd,
+                        "write": wr,
+                        "cmd": cmd,
+                        "age": now - (i["create_time"] or now),
+                        "status": i["status"],
+                    }
+                )
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
         alive = {p["pid"] for p in out}
@@ -224,20 +307,36 @@ class Collector:
                     except Exception:
                         names[c.pid] = ""
                 name = names[c.pid]
-            rows.append({"pid": c.pid, "name": name, "proto": "tcp" if c.type == socket.SOCK_STREAM else "udp",
-                         "local": f"{c.laddr.ip}:{c.laddr.port}" if c.laddr else "",
-                         "remote": f"{c.raddr.ip}:{c.raddr.port}" if c.raddr else "", "rip": c.raddr.ip if c.raddr else "",
-                         "status": c.status, "listen": c.status == "LISTEN" or (not c.raddr and c.type == socket.SOCK_DGRAM)})
+            rows.append(
+                {
+                    "pid": c.pid,
+                    "name": name,
+                    "proto": "tcp" if c.type == socket.SOCK_STREAM else "udp",
+                    "local": f"{c.laddr.ip}:{c.laddr.port}" if c.laddr else "",
+                    "remote": f"{c.raddr.ip}:{c.raddr.port}" if c.raddr else "",
+                    "rip": c.raddr.ip if c.raddr else "",
+                    "status": c.status,
+                    "listen": c.status == "LISTEN" or (not c.raddr and c.type == socket.SOCK_DGRAM),
+                }
+            )
         return rows
 
     def wifi(self):
         info = {}
-        out = sh(["nmcli", "-t", "-f", "ACTIVE,SSID,SIGNAL,FREQ,RATE,SECURITY,CHAN", "dev", "wifi", "list", "--rescan", "no"])
+        out = sh(
+            ["nmcli", "-t", "-f", "ACTIVE,SSID,SIGNAL,FREQ,RATE,SECURITY,CHAN", "dev", "wifi", "list", "--rescan", "no"]
+        )
         for line in out.splitlines():
             parts = re.split(r"(?<!\\):", line)
             if parts and parts[0] == "yes":
-                info = {"ssid": parts[1].replace("\\:", ":"), "signal": parts[2], "freq": parts[3], "rate": parts[4],
-                        "security": parts[5], "channel": parts[6] if len(parts) > 6 else ""}
+                info = {
+                    "ssid": parts[1].replace("\\:", ":"),
+                    "signal": parts[2],
+                    "freq": parts[3],
+                    "rate": parts[4],
+                    "security": parts[5],
+                    "channel": parts[6] if len(parts) > 6 else "",
+                }
         dev = sh(["nmcli", "-t", "-f", "IP4.ADDRESS,IP4.GATEWAY,IP4.DNS,GENERAL.HWADDR,GENERAL.DEVICE", "dev", "show"])
         cur = {}
         for line in dev.splitlines():
@@ -262,7 +361,9 @@ class Collector:
                 blame.append({"time": m.group(1), "unit": m.group(2)})
         boot = sh(["systemd-analyze", "--no-pager"]).splitlines()[:1]
         services = []
-        units = sh(["systemctl", "list-units", "--type=service", "--state=running", "--no-legend", "--plain", "--no-pager"])
+        units = sh(
+            ["systemctl", "list-units", "--type=service", "--state=running", "--no-legend", "--plain", "--no-pager"]
+        )
         names = [l.split()[0] for l in units.splitlines() if l.strip()]
         if names:
             shown = sh(["systemctl", "show", "-p", "Id,MemoryCurrent,Description,MainPID", *names])
@@ -275,24 +376,61 @@ class Collector:
                         m = psutil.Process(int(kv["MainPID"])).memory_info().rss
                     except Exception:
                         report()
-                services.append({"unit": kv.get("Id", ""), "desc": kv.get("Description", ""), "pid": kv.get("MainPID", ""), "mem": m})
+                services.append(
+                    {
+                        "unit": kv.get("Id", ""),
+                        "desc": kv.get("Description", ""),
+                        "pid": kv.get("MainPID", ""),
+                        "mem": m,
+                    }
+                )
         services.sort(key=lambda s: -(s["mem"] or 0))
-        user_units = sh(["systemctl", "--user", "list-units", "--type=service", "--state=running", "--no-legend", "--plain", "--no-pager"])
+        user_units = sh(
+            [
+                "systemctl",
+                "--user",
+                "list-units",
+                "--type=service",
+                "--state=running",
+                "--no-legend",
+                "--plain",
+                "--no-pager",
+            ]
+        )
         mounts = []
         for part in psutil.disk_partitions():
             if part.fstype in ("squashfs", "tmpfs", "devtmpfs", "overlay") or part.mountpoint.startswith("/snap"):
                 continue
             try:
                 u = psutil.disk_usage(part.mountpoint)
-                mounts.append({"mount": part.mountpoint, "device": part.device, "fs": part.fstype, "total": u.total, "used": u.used, "pct": u.percent})
+                mounts.append(
+                    {
+                        "mount": part.mountpoint,
+                        "device": part.device,
+                        "fs": part.fstype,
+                        "total": u.total,
+                        "used": u.used,
+                        "pct": u.percent,
+                    }
+                )
             except Exception:
                 report()
-        return {"host": socket.gethostname(), "os": os_name.group(1) if os_name else "Linux", "kernel": os.uname().release,
-                "cpu": re.sub(r"\s+", " ", cpu.group(1)) if cpu else "", "cores": psutil.cpu_count(), "threads": psutil.cpu_count(),
-                "model": read("/sys/class/dmi/id/product_name"), "firmware": read("/sys/class/dmi/id/bios_version"),
-                "boot": boot[0] if boot else "", "blame": blame, "services": services,
-                "userServices": len([l for l in user_units.splitlines() if l.strip()]), "mounts": mounts,
-                "user": pwd.getpwuid(ME).pw_name}
+        return {
+            "host": socket.gethostname(),
+            "os": os_name.group(1) if os_name else "Linux",
+            "kernel": os.uname().release,
+            "cpu": re.sub(r"\s+", " ", cpu.group(1)) if cpu else "",
+            "cores": psutil.cpu_count(),
+            "threads": psutil.cpu_count(),
+            "model": read("/sys/class/dmi/id/product_name"),
+            "firmware": read("/sys/class/dmi/id/bios_version"),
+            "boot": boot[0] if boot else "",
+            "blame": blame,
+            "services": services,
+            "userServices": len([l for l in user_units.splitlines() if l.strip()]),
+            "mounts": mounts,
+            "user": pwd.getpwuid(ME).pw_name,
+        }
 
     def disk_use(self):
         """What fills the home folder: the biggest folders, two levels deep."""
@@ -301,7 +439,13 @@ class Collector:
         for line in out.splitlines():
             size, _, path = line.partition("\t")
             if path and path != str(HOME) and size.isdigit():
-                rows.append({"path": path.replace(str(HOME), "~", 1), "size": int(size), "depth": path[len(str(HOME)):].count("/")})
+                rows.append(
+                    {
+                        "path": path.replace(str(HOME), "~", 1),
+                        "size": int(size),
+                        "depth": path[len(str(HOME)) :].count("/"),
+                    }
+                )
         rows.sort(key=lambda r: -r["size"])
         return rows[:40]
 
@@ -310,38 +454,87 @@ class Collector:
 
         def add(name, ok, detail, level="warn"):
             checks.append({"name": name, "ok": ok, "detail": detail, "level": "ok" if ok else level})
+
         ufw = sh(["systemctl", "is-active", "ufw"]).strip()
         ufw_conf = read("/etc/ufw/ufw.conf")
         fw_on = ufw == "active" and "ENABLED=yes" in ufw_conf
-        checks.append({"name": "Firewall", "ok": fw_on, "level": "ok" if fw_on else "warn", "fix": None if fw_on else "firewall",
-                       "detail": "On: nothing from the network reaches this computer unasked" if fw_on
-                       else "Off. Turn it on so nothing from the network can reach this computer unasked."})
+        checks.append(
+            {
+                "name": "Firewall",
+                "ok": fw_on,
+                "level": "ok" if fw_on else "warn",
+                "fix": None if fw_on else "firewall",
+                "detail": "On: nothing from the network reaches this computer unasked"
+                if fw_on
+                else "Off. Turn it on so nothing from the network can reach this computer unasked.",
+            }
+        )
         listening = [c for c in self.connections() if c["listen"]]
-        exposed = sorted({(c["local"].rsplit(":", 1)[-1], c["name"] or "?") for c in listening
-                          if not c["local"].startswith(("127.", "::1", "[::1]")) and not c["local"].startswith("::ffff:127")})
-        add("Open ports", not exposed, "None open to the network" if not exposed else
-            "Listening to the network: " + ", ".join(f"{p} ({n})" for p, n in exposed[:8]))
-        auto = Path("/etc/apt/apt.conf.d/52kuhaku-unattended").exists() or "Unattended-Upgrade \"1\"" in read("/etc/apt/apt.conf.d/20auto-upgrades")
+        exposed = sorted(
+            {
+                (c["local"].rsplit(":", 1)[-1], c["name"] or "?")
+                for c in listening
+                if not c["local"].startswith(("127.", "::1", "[::1]")) and not c["local"].startswith("::ffff:127")
+            }
+        )
+        add(
+            "Open ports",
+            not exposed,
+            "None open to the network"
+            if not exposed
+            else "Listening to the network: " + ", ".join(f"{p} ({n})" for p, n in exposed[:8]),
+        )
+        auto = Path("/etc/apt/apt.conf.d/52kuhaku-unattended").exists() or "Unattended-Upgrade \"1\"" in read(
+            "/etc/apt/apt.conf.d/20auto-upgrades"
+        )
         add("Automatic security updates", auto, "Security fixes install by themselves" if auto else "Not set up", "bad")
         reboot = Path("/var/run/reboot-required").exists()
-        add("Restart pending", not reboot, "Nothing waiting" if not reboot else "An update waits for a restart to take effect")
+        add(
+            "Restart pending",
+            not reboot,
+            "Nothing waiting" if not reboot else "An update waits for a restart to take effect",
+        )
         pending = sh(["apt-get", "-s", "-o", "Debug::NoLocking=1", "upgrade"], timeout=30)
         n_up = len([l for l in pending.splitlines() if l.startswith("Inst ")])
         n_sec = len([l for l in pending.splitlines() if l.startswith("Inst ") and "security" in l])
-        add("Updates waiting", n_sec == 0, f"{n_up} updates waiting, {n_sec} of them security" if n_up else "Everything is up to date")
-        enc = any(p.fstype in ("ecryptfs", "crypto_LUKS") for p in psutil.disk_partitions(all=True)) or "crypt" in sh(["lsblk", "-o", "TYPE"])
-        add("Home folder encrypted", enc, "Your files are encrypted on disk" if enc else "Files are stored unencrypted", "bad")
+        add(
+            "Updates waiting",
+            n_sec == 0,
+            f"{n_up} updates waiting, {n_sec} of them security" if n_up else "Everything is up to date",
+        )
+        enc = any(p.fstype in ("ecryptfs", "crypto_LUKS") for p in psutil.disk_partitions(all=True)) or "crypt" in sh(
+            ["lsblk", "-o", "TYPE"]
+        )
+        add(
+            "Home folder encrypted",
+            enc,
+            "Your files are encrypted on disk" if enc else "Files are stored unencrypted",
+            "bad",
+        )
         sb = sh(["mokutil", "--sb-state"]).strip()
         add("Secure Boot", "enabled" in sb.lower(), sb or "Unknown (this Mac starts without UEFI Secure Boot)", "info")
-        sshd = sh(["systemctl", "is-active", "ssh"]).strip() == "active" or sh(["systemctl", "is-active", "sshd"]).strip() == "active"
+        sshd = (
+            sh(["systemctl", "is-active", "ssh"]).strip() == "active"
+            or sh(["systemctl", "is-active", "sshd"]).strip() == "active"
+        )
         add("Remote login (SSH)", not sshd, "Off" if not sshd else "On: people can log in over the network")
         admins = read("/etc/group")
         sudo = re.search(r"^sudo:[^:]*:[^:]*:(.*)$", admins, re.M)
-        add("Administrators", True, ", ".join(filter(None, (sudo.group(1) if sudo else "").split(","))) or "none", "info")
-        fails = sh(["journalctl", "-q", "--since", "-7d", "--no-pager", "-g", "authentication failure|Failed password"], timeout=20)
+        add(
+            "Administrators",
+            True,
+            ", ".join(filter(None, (sudo.group(1) if sudo else "").split(","))) or "none",
+            "info",
+        )
+        fails = sh(
+            ["journalctl", "-q", "--since", "-7d", "--no-pager", "-g", "authentication failure|Failed password"],
+            timeout=20,
+        )
         nf = len(fails.splitlines())
         add("Failed logins (7 days)", nf < 5, f"{nf} failed password attempts" if nf else "None")
-        guest = Path("/etc/lightdm/lightdm.conf.d").exists() and "allow-guest=true" in sh(["sh", "-c", "cat /etc/lightdm/lightdm.conf.d/* 2>/dev/null"])
+        guest = Path("/etc/lightdm/lightdm.conf.d").exists() and "allow-guest=true" in sh(
+            ["sh", "-c", "cat /etc/lightdm/lightdm.conf.d/* 2>/dev/null"]
+        )
         add("Guest account", not guest, "Off" if not guest else "On: anyone can log in as a guest")
         return checks
 
@@ -391,13 +584,18 @@ class Kansei:
         if self.tab in ("overview", "processes"):
             self.js("processes", self.c.processes())
         # Network details take a moment (nmcli): every 3 s, off the screen's thread.
-        if self.tab == "network" and not getattr(self, "net_busy", False) and time.time() - getattr(self, "net_at", 0) > 3:
+        if (
+            self.tab == "network"
+            and not getattr(self, "net_busy", False)
+            and time.time() - getattr(self, "net_at", 0) > 3
+        ):
             self.net_busy, self.net_at = True, time.time()
 
             def work():
                 data = {"conns": self.c.connections(), "wifi": self.c.wifi()}
                 self.net_busy = False
                 GLib.idle_add(lambda: self.js("got", {"kind": "network", "data": data}) or False)
+
             threading.Thread(target=work, daemon=True).start()
         return True
 
@@ -405,6 +603,7 @@ class Kansei:
         def work():
             data = fn()
             GLib.idle_add(lambda: self.js("got", {"kind": kind, "data": data}) or False)
+
         threading.Thread(target=work, daemon=True).start()
 
     def on_message(self, _m, result):
@@ -426,12 +625,22 @@ class Kansei:
                 self.background("system", self.c.system)
                 self.background("diskuse", self.c.disk_use)
         elif k == "fix" and msg.get("what") == "firewall":
+
             def work():
-                r = subprocess.run(["pkexec", "sh", "-c", "ufw default deny incoming && ufw default allow outgoing && ufw --force enable"],
-                                   capture_output=True, text=True)
+                r = subprocess.run(
+                    [
+                        "pkexec",
+                        "sh",
+                        "-c",
+                        "ufw default deny incoming && ufw default allow outgoing && ufw --force enable",
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
                 GLib.idle_add(self.js, "toast", "Firewall on" if r.returncode == 0 else "Firewall not changed")
                 data = self.c.security()
                 GLib.idle_add(lambda: self.js("got", {"kind": "security", "data": data}) or False)
+
             threading.Thread(target=work, daemon=True).start()
         elif k == "kill":
             self.kill(int(msg.get("pid", 0)), bool(msg.get("force")))
@@ -453,6 +662,7 @@ class Kansei:
             def work():
                 r = subprocess.run(["pkexec", "kill", "-9" if force else "-15", str(pid)], capture_output=True)
                 GLib.idle_add(self.js, "toast", "Stopped" if r.returncode == 0 else "Not stopped")
+
             threading.Thread(target=work, daemon=True).start()
         except Exception as e:
             self.js("toast", f"Could not stop it: {e}"[:120])

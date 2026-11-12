@@ -10,6 +10,7 @@ Reads Kūhaku's own job lines (~/.local/state/kuhaku/jobs.jsonl), the older
 log of the home screen (claude.log) and Claude Code's transcripts of every
 account. Nothing is changed; the export is a CSV for your own numbers.
 """
+
 import csv
 import json
 import os
@@ -22,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
@@ -110,8 +112,14 @@ def from_old_log(before, prev):
             m = HEADER.match(line)
             if m:
                 start = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S").timestamp()
-                r = {"start": start, "tab": m.group(2), "question": m.group(3), "client": "Kūhaku",
-                     "outcome": "stopped", "events": 0}
+                r = {
+                    "start": start,
+                    "tab": m.group(2),
+                    "question": m.group(3),
+                    "client": "Kūhaku",
+                    "outcome": "stopped",
+                    "events": 0,
+                }
                 if start < before:
                     runs.append(r)
                     open_runs.append(r)
@@ -141,12 +149,20 @@ def from_old_log(before, prev):
             r["events"] += 1
             if ev.get("type") == "result":
                 u = ev.get("usage") or {}
-                r.update(cost=ev.get("total_cost_usd"), turns=ev.get("num_turns"), api_ms=ev.get("duration_api_ms"),
-                         models=ev.get("modelUsage"), answer=(ev.get("result") or "")[:4000],
-                         outcome="error" if ev.get("is_error") else "done",
-                         tokens={"in": u.get("input_tokens", 0), "out": u.get("output_tokens", 0),
-                                 "cache_read": u.get("cache_read_input_tokens", 0),
-                                 "cache_write": u.get("cache_creation_input_tokens", 0)})
+                r.update(
+                    cost=ev.get("total_cost_usd"),
+                    turns=ev.get("num_turns"),
+                    api_ms=ev.get("duration_api_ms"),
+                    models=ev.get("modelUsage"),
+                    answer=(ev.get("result") or "")[:4000],
+                    outcome="error" if ev.get("is_error") else "done",
+                    tokens={
+                        "in": u.get("input_tokens", 0),
+                        "out": u.get("output_tokens", 0),
+                        "cache_read": u.get("cache_read_input_tokens", 0),
+                        "cache_write": u.get("cache_creation_input_tokens", 0),
+                    },
+                )
                 if ev.get("duration_ms"):
                     r["end"] = r["start"] + ev["duration_ms"] / 1000
                     r["seconds"] = round(ev["duration_ms"] / 1000, 1)
@@ -231,8 +247,15 @@ def from_transcripts(known):
         if hit and hit[0] == mtime:
             out.append(hit[1])
             continue
-        r = {"session_id": sid, "account": acct, "client": "Claude Code", "outcome": "done", "question": "",
-             "answer": "", "tokens": {"in": 0, "out": 0, "cache_read": 0, "cache_write": 0}}
+        r = {
+            "session_id": sid,
+            "account": acct,
+            "client": "Claude Code",
+            "outcome": "done",
+            "question": "",
+            "answer": "",
+            "tokens": {"in": 0, "out": 0, "cache_read": 0, "cache_write": 0},
+        }
         seen, costs, models, first, last = set(), {}, {}, None, None
         with open(f, errors="ignore") as fh:
             for line in fh:
@@ -275,8 +298,9 @@ def from_transcripts(known):
         if not r["question"] and not models:
             continue
         cwd = r.get("cwd") or ""
-        r["client"] = ("Tegami" if cwd.startswith(str(MAIL_DIR)) else
-                       "Terminal" if r.get("entry") == "cli" else "Claude Code")
+        r["client"] = (
+            "Tegami" if cwd.startswith(str(MAIL_DIR)) else "Terminal" if r.get("entry") == "cli" else "Claude Code"
+        )
         r["model"] = max(models, key=models.get) if models else None
         r["cost"] = round(max(c for c, _ in costs.values()), 4) if costs else None
         r["start"], r["end"] = first, last
@@ -304,10 +328,18 @@ def from_tabs(runs):
             last["outcome"] = "running"
             last["title"] = t.get("title")
             continue
-        runs.append({"start": t.get("queued") or time.time(), "tab": t["id"], "title": t.get("title"),
-                     "question": t.get("question") or "", "client": "Kūhaku", "agent": t.get("agent"),
-                     "session_id": t.get("session_id"),
-                     "outcome": "running" if t["status"] == "running" else "waiting"})
+        runs.append(
+            {
+                "start": t.get("queued") or time.time(),
+                "tab": t["id"],
+                "title": t.get("title"),
+                "question": t.get("question") or "",
+                "client": "Kūhaku",
+                "agent": t.get("agent"),
+                "session_id": t.get("session_id"),
+                "outcome": "running" if t["status"] == "running" else "waiting",
+            }
+        )
     return runs
 
 
@@ -331,18 +363,35 @@ def all_runs():
         if not r.get("start"):
             continue
         tk = r.get("tokens") or {}
-        out.append({
-            "start": r["start"], "end": r.get("end"), "seconds": r.get("seconds"),
-            "client": r.get("client"), "tab": r.get("tab"), "title": r.get("title"),
-            "question": (r.get("question") or "")[:3000], "answer": r.get("answer") or "",
-            "model": r.get("model"), "model_name": model_name(r.get("model")),
-            "helpers": [model_name(m) for m in (r.get("models") or {}) if m != r.get("model")],
-            "agent": r.get("agent") or "", "account": r.get("account"),
-            "session_id": r.get("session_id"), "outcome": r.get("outcome"),
-            "cost": r.get("cost"), "turns": r.get("turns"), "api_ms": r.get("api_ms"),
-            "tokens": tk, "total_tokens": sum(tk.values()) if tk else 0,
-            "cpu": r.get("cpu"), "memory_mb": r.get("memory_mb"), "wh": r.get("wh"), "wh_from": r.get("wh_from"), "cwd": r.get("cwd"),
-        })
+        out.append(
+            {
+                "start": r["start"],
+                "end": r.get("end"),
+                "seconds": r.get("seconds"),
+                "client": r.get("client"),
+                "tab": r.get("tab"),
+                "title": r.get("title"),
+                "question": (r.get("question") or "")[:3000],
+                "answer": r.get("answer") or "",
+                "model": r.get("model"),
+                "model_name": model_name(r.get("model")),
+                "helpers": [model_name(m) for m in (r.get("models") or {}) if m != r.get("model")],
+                "agent": r.get("agent") or "",
+                "account": r.get("account"),
+                "session_id": r.get("session_id"),
+                "outcome": r.get("outcome"),
+                "cost": r.get("cost"),
+                "turns": r.get("turns"),
+                "api_ms": r.get("api_ms"),
+                "tokens": tk,
+                "total_tokens": sum(tk.values()) if tk else 0,
+                "cpu": r.get("cpu"),
+                "memory_mb": r.get("memory_mb"),
+                "wh": r.get("wh"),
+                "wh_from": r.get("wh_from"),
+                "cwd": r.get("cwd"),
+            }
+        )
     out.sort(key=lambda r: r["start"], reverse=True)
     # Which runs share a conversation: a thread is every run with the same session.
     count = {}
@@ -384,8 +433,14 @@ def thread(session_id):
                         if work:
                             items.append({"who": "work", "steps": work})
                             work = 0
-                        items.append({"who": "ai", "text": t[:20000], "time": e.get("timestamp"),
-                                      "model": model_name((e.get("message") or {}).get("model"))})
+                        items.append(
+                            {
+                                "who": "ai",
+                                "text": t[:20000],
+                                "time": e.get("timestamp"),
+                                "model": model_name((e.get("message") or {}).get("model")),
+                            }
+                        )
     return items
 
 
@@ -393,19 +448,55 @@ def export_csv(runs):
     folder = HOME / "Downloads"
     folder.mkdir(exist_ok=True)
     path = folder / f"kiroku-{time.strftime('%Y-%m-%d')}.csv"
-    cols = ["started", "seconds", "client", "model", "agent", "title", "question", "outcome", "cost_usd",
-            "tokens_in", "tokens_out", "cache_read", "cache_write", "turns", "cpu_seconds", "memory_peak_mb", "energy_wh",
-            "energy_from", "session_id"]
+    cols = [
+        "started",
+        "seconds",
+        "client",
+        "model",
+        "agent",
+        "title",
+        "question",
+        "outcome",
+        "cost_usd",
+        "tokens_in",
+        "tokens_out",
+        "cache_read",
+        "cache_write",
+        "turns",
+        "cpu_seconds",
+        "memory_peak_mb",
+        "energy_wh",
+        "energy_from",
+        "session_id",
+    ]
     with open(path, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(cols)
         for r in runs:
             tk = r.get("tokens") or {}
-            w.writerow([datetime.fromtimestamp(r["start"]).isoformat(timespec="seconds"), r.get("seconds"),
-                        r.get("client"), r.get("model"), r.get("agent"), r.get("title"), r.get("question"),
-                        r.get("outcome"), r.get("cost"), tk.get("in"), tk.get("out"), tk.get("cache_read"),
-                        tk.get("cache_write"), r.get("turns"), r.get("cpu"), r.get("memory_mb"), r.get("wh"), r.get("wh_from"),
-                        r.get("session_id")])
+            w.writerow(
+                [
+                    datetime.fromtimestamp(r["start"]).isoformat(timespec="seconds"),
+                    r.get("seconds"),
+                    r.get("client"),
+                    r.get("model"),
+                    r.get("agent"),
+                    r.get("title"),
+                    r.get("question"),
+                    r.get("outcome"),
+                    r.get("cost"),
+                    tk.get("in"),
+                    tk.get("out"),
+                    tk.get("cache_read"),
+                    tk.get("cache_write"),
+                    r.get("turns"),
+                    r.get("cpu"),
+                    r.get("memory_mb"),
+                    r.get("wh"),
+                    r.get("wh_from"),
+                    r.get("session_id"),
+                ]
+            )
     return path
 
 
@@ -447,7 +538,7 @@ class Kiroku:
         self.view.connect("load-changed", lambda v, e: e == WebKit2.LoadEvent.FINISHED and self.refresh())
         self.win.show_all()
         self.runs = []
-        GLib.timeout_add_seconds(20, self.refresh)   # jobs still running land here when they finish
+        GLib.timeout_add_seconds(20, self.refresh)  # jobs still running land here when they finish
 
     def js(self, fn, payload):
         self.view.evaluate_javascript(f"{fn}({json.dumps(payload)})", -1, None, None, None, None, None)
@@ -458,6 +549,7 @@ class Kiroku:
             runs = all_runs()
             self.runs = runs
             GLib.idle_add(self.js, "setRuns", {"runs": runs, "now": time.time()})
+
         threading.Thread(target=work, daemon=True).start()
         return True
 
@@ -470,8 +562,10 @@ class Kiroku:
         k = msg.get("type")
         if k == "thread":
             sid = msg.get("session_id")
-            threading.Thread(target=lambda: GLib.idle_add(self.js, "showThread",
-                                                          {"session_id": sid, "items": thread(sid)}), daemon=True).start()
+            threading.Thread(
+                target=lambda: GLib.idle_add(self.js, "showThread", {"session_id": sid, "items": thread(sid)}),
+                daemon=True,
+            ).start()
         elif k == "continue":
             agent = msg.get("agent") or (("acct:" + msg["account"]) if msg.get("account") else "")
             if send_home(f"continue {msg.get('session_id')} {agent}".strip()):

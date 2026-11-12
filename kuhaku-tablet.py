@@ -16,6 +16,7 @@ Tablet mode comes from the "Intel HID switches" device; kuhaku-tablet-fix.sh
 lets the signed-in person read it. `kuhaku-tablet.py toggle` shows or hides the
 keyboard by hand (also: kill -USR1 <pid>).
 """
+
 import os
 import signal
 import sys
@@ -25,6 +26,7 @@ from pathlib import Path
 import tablet_base  # noqa: F401  first: it starts Xlib's threads before GTK opens the display
 
 import gi  # noqa: E402
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
@@ -38,6 +40,7 @@ from tablet_ink import Ink
 
 
 # --- together ----------------------------------------------------------------------------
+
 
 class App:
     def __init__(self):
@@ -57,8 +60,15 @@ class App:
         # Without the switch (not readable, or none), the hinge angle from the motion sensors.
         self.hinge = Hinge(self.set_tablet) if not self.switch.readable else None
         if os.environ.get("KT_DEBUG"):
-            print("switch", self.switch.path, self.switch.readable, "hinge",
-                  self.hinge and self.hinge.ok, file=sys.stderr, flush=True)
+            print(
+                "switch",
+                self.switch.path,
+                self.switch.readable,
+                "hinge",
+                self.hinge and self.hinge.ok,
+                file=sys.stderr,
+                flush=True,
+            )
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, self.toggle_signal)
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR2, self.tablet_signal)
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, self.quit)
@@ -75,7 +85,7 @@ class App:
             if self.hinge:
                 self.hinge.typed()
             return False
-        return False        # the pen is a pen: no writing anywhere (only the keyboard's Write pad)
+        return False  # the pen is a pen: no writing anywhere (only the keyboard's Write pad)
 
     def refresh_theme(self):
         self.keyboard.theme = THEMES[current_theme()]
@@ -182,8 +192,12 @@ def main():
     pid = running_pid()
     if cmd in ("toggle", "tablet", "show", "hide") and (pid or cmd != "show"):
         if pid:
-            os.kill(pid, {"toggle": signal.SIGUSR1, "tablet": signal.SIGUSR2,
-                          "show": signal.SIGWINCH, "hide": signal.SIGHUP}[cmd])
+            os.kill(
+                pid,
+                {"toggle": signal.SIGUSR1, "tablet": signal.SIGUSR2, "show": signal.SIGWINCH, "hide": signal.SIGHUP}[
+                    cmd
+                ],
+            )
         return
     if pid and pid != os.getpid():
         print("kuhaku-tablet is already running", file=sys.stderr)

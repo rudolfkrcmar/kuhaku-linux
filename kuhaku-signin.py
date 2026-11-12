@@ -10,6 +10,7 @@ sign-in back to the tool on this computer.
 Kūhaku has no window frames, so it brings its own thin bar: what is being signed in to, a
 reload, and a ×. Closing it (× or Esc) also stops the waiting sign-in tool.
 """
+
 import json
 import os
 import signal
@@ -19,6 +20,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2  # noqa: E402
@@ -44,6 +46,7 @@ def google_as_firefox(view):
             host = urlparse(decision.get_navigation_action().get_request().get_uri()).hostname or ""
             v.get_settings().set_user_agent(FIREFOX_UA if host == "accounts.google.com" else usual)
         return False
+
     view.connect("decide-policy", decide)
 
 
@@ -54,6 +57,7 @@ def night():
         except Exception:
             report()
             return {}
+
     cfg = load(HOME / ".config/kuhaku/config.json")
     choice = load(HOME / ".local/state/kuhaku/state.json").get("theme") or cfg.get("theme", "auto")
     if choice in ("day", "night"):
@@ -63,8 +67,11 @@ def night():
 
 
 def style():
-    bg, fg, muted, faint, accent = (("#121212", "#ececec", "#9a9a9a", "rgba(236,236,236,.08)", "#f0705a") if night()
-                                    else ("#f7f4f1", "#111111", "#666666", "rgba(17,17,17,.08)", "#e0301e"))
+    bg, fg, muted, faint, accent = (
+        ("#121212", "#ececec", "#9a9a9a", "rgba(236,236,236,.08)", "#f0705a")
+        if night()
+        else ("#f7f4f1", "#111111", "#666666", "rgba(17,17,17,.08)", "#e0301e")
+    )
     css = f"""
     .kbar {{ background:{bg}; border-bottom:1px solid {faint}; padding:0 10px 0 22px; min-height:46px; }}
     .kbar label {{ color:{muted}; font-family:'Inter Variable','Inter',sans-serif; font-size:14px; font-weight:300; }}
@@ -80,6 +87,7 @@ def style():
 
 class Window:
     """One sign-in window: the page, or a popup the page opened (Google's and Apple's sign-ins)."""
+
     count = 0
 
     def __init__(self, title, view, on_close, size=(980, 820)):
@@ -106,8 +114,12 @@ class Window:
         # The bar moves the window, as a frame would.
         drag = Gtk.EventBox()
         drag.add(bar)
-        drag.connect("button-press-event", lambda w, e: self.win.begin_move_drag(
-            e.button, int(e.x_root), int(e.y_root), e.time) if e.button == 1 else None)
+        drag.connect(
+            "button-press-event",
+            lambda w, e: (
+                self.win.begin_move_drag(e.button, int(e.x_root), int(e.y_root), e.time) if e.button == 1 else None
+            ),
+        )
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         box.pack_start(drag, False, False, 0)
@@ -196,6 +208,7 @@ def main(url):
         except OSError:
             done()
             return False
+
     view.connect("load-changed", loaded)
     if parent > 1:
         GLib.timeout_add_seconds(1, tool_alive)

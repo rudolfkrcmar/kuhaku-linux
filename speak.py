@@ -1,5 +1,6 @@
 """Kūhaku's voice: loads Piper once, then turns each JSON line {"text", "path"} read from
 stdin into a WAV at that path, answering one line of JSON on stdout. Fully offline."""
+
 import json
 import sys
 import wave

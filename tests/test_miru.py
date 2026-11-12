@@ -1,5 +1,6 @@
 """miru.py helpers: sizes, natural sort, kinds of file, USB drives from lsblk, meshes, and the
 file operations of the Miru class (run on a bare instance: no window is ever made)."""
+
 import json
 import struct
 import unittest
@@ -14,8 +15,17 @@ import miru
 
 class HumanSize(unittest.TestCase):
     def test_units(self):
-        cases = [(0, "0 bytes"), (999, "999 bytes"), (1000, "1.0 KB"), (1500, "1.5 KB"), (999_999, "1000.0 KB"),
-                 (1_000_000, "1.0 MB"), (2_500_000_000, "2.5 GB"), (3e12, "3.0 TB"), (5e15, "5000.0 TB")]
+        cases = [
+            (0, "0 bytes"),
+            (999, "999 bytes"),
+            (1000, "1.0 KB"),
+            (1500, "1.5 KB"),
+            (999_999, "1000.0 KB"),
+            (1_000_000, "1.0 MB"),
+            (2_500_000_000, "2.5 GB"),
+            (3e12, "3.0 TB"),
+            (5e15, "5000.0 TB"),
+        ]
         for n, want in cases:
             with self.subTest(n=n):
                 self.assertEqual(miru.human_size(n), want)
@@ -35,9 +45,16 @@ class KindOf(TempDirCase):
     def test_by_mime(self):
         f = self.tmp / "x"
         f.write_bytes(b"\0\1")
-        for mime, kind in [("image/png", "image"), ("video/mp4", "video"), ("audio/ogg", "audio"),
-                           ("application/pdf", "pdf"), ("text/plain", "text"), ("application/json", "text"),
-                           ("application/x-shellscript", "text"), ("application/octet-stream", "other")]:
+        for mime, kind in [
+            ("image/png", "image"),
+            ("video/mp4", "video"),
+            ("audio/ogg", "audio"),
+            ("application/pdf", "pdf"),
+            ("text/plain", "text"),
+            ("application/json", "text"),
+            ("application/x-shellscript", "text"),
+            ("application/octet-stream", "other"),
+        ]:
             with self.subTest(mime=mime):
                 self.assertEqual(miru.kind_of(f, mime), kind)
 
@@ -64,27 +81,104 @@ class KindOf(TempDirCase):
         self.assertTrue(desc)
 
 
-LSBLK = {"blockdevices": [
-    {"name": "/dev/nvme0n1", "rm": False, "hotplug": False, "type": "disk", "fstype": None, "size": 512e9,
-     "tran": "nvme", "rota": False, "model": "Internal", "children": [
-         {"name": "/dev/nvme0n1p1", "rm": False, "hotplug": False, "type": "part", "fstype": "vfat",
-          "mountpoint": "/boot/efi", "size": 5e8}]},
-    {"name": "/dev/sda", "rm": True, "hotplug": True, "type": "disk", "fstype": None, "size": 32e9,
-     "tran": "usb", "rota": False, "model": "Flash", "children": [
-         {"name": "/dev/sda1", "label": "STICK", "rm": True, "hotplug": True, "type": "part",
-          "fstype": "exfat", "mountpoint": None, "size": 32e9, "tran": None, "rota": None},
-         {"name": "/dev/sda2", "rm": True, "type": "part", "fstype": "swap", "size": 1e9}]},
-    {"name": "/dev/sdb", "rm": False, "hotplug": True, "type": "disk", "fstype": None, "size": 2e12,
-     "tran": "usb", "rota": True, "model": "Backup", "children": [
-         {"name": "/dev/sdb1", "type": "part", "fstype": "ext4", "mountpoint": "MOUNTED", "size": 2e12}]},
-    {"name": "/dev/sdc", "rm": False, "hotplug": True, "type": "disk", "fstype": None, "size": 1e12,
-     "tran": "usb", "rota": False, "model": "Portable", "children": [
-         {"name": "/dev/sdc1", "type": "part", "fstype": "ntfs", "size": 1e12}]},
-    {"name": "/dev/mmcblk0", "rm": True, "type": "disk", "fstype": None, "size": 64e9, "tran": None,
-     "children": [{"name": "/dev/mmcblk0p1", "type": "part", "fstype": "vfat", "size": 64e9}]},
-    {"name": "/dev/sdd", "rm": True, "hotplug": True, "type": "disk", "fstype": "vfat", "size": 8e9,
-     "tran": "usb", "rota": False, "label": None},
-]}
+LSBLK = {
+    "blockdevices": [
+        {
+            "name": "/dev/nvme0n1",
+            "rm": False,
+            "hotplug": False,
+            "type": "disk",
+            "fstype": None,
+            "size": 512e9,
+            "tran": "nvme",
+            "rota": False,
+            "model": "Internal",
+            "children": [
+                {
+                    "name": "/dev/nvme0n1p1",
+                    "rm": False,
+                    "hotplug": False,
+                    "type": "part",
+                    "fstype": "vfat",
+                    "mountpoint": "/boot/efi",
+                    "size": 5e8,
+                }
+            ],
+        },
+        {
+            "name": "/dev/sda",
+            "rm": True,
+            "hotplug": True,
+            "type": "disk",
+            "fstype": None,
+            "size": 32e9,
+            "tran": "usb",
+            "rota": False,
+            "model": "Flash",
+            "children": [
+                {
+                    "name": "/dev/sda1",
+                    "label": "STICK",
+                    "rm": True,
+                    "hotplug": True,
+                    "type": "part",
+                    "fstype": "exfat",
+                    "mountpoint": None,
+                    "size": 32e9,
+                    "tran": None,
+                    "rota": None,
+                },
+                {"name": "/dev/sda2", "rm": True, "type": "part", "fstype": "swap", "size": 1e9},
+            ],
+        },
+        {
+            "name": "/dev/sdb",
+            "rm": False,
+            "hotplug": True,
+            "type": "disk",
+            "fstype": None,
+            "size": 2e12,
+            "tran": "usb",
+            "rota": True,
+            "model": "Backup",
+            "children": [
+                {"name": "/dev/sdb1", "type": "part", "fstype": "ext4", "mountpoint": "MOUNTED", "size": 2e12}
+            ],
+        },
+        {
+            "name": "/dev/sdc",
+            "rm": False,
+            "hotplug": True,
+            "type": "disk",
+            "fstype": None,
+            "size": 1e12,
+            "tran": "usb",
+            "rota": False,
+            "model": "Portable",
+            "children": [{"name": "/dev/sdc1", "type": "part", "fstype": "ntfs", "size": 1e12}],
+        },
+        {
+            "name": "/dev/mmcblk0",
+            "rm": True,
+            "type": "disk",
+            "fstype": None,
+            "size": 64e9,
+            "tran": None,
+            "children": [{"name": "/dev/mmcblk0p1", "type": "part", "fstype": "vfat", "size": 64e9}],
+        },
+        {
+            "name": "/dev/sdd",
+            "rm": True,
+            "hotplug": True,
+            "type": "disk",
+            "fstype": "vfat",
+            "size": 8e9,
+            "tran": "usb",
+            "rota": False,
+            "label": None,
+        },
+    ]
+}
 
 
 class UsbDrives(TempDirCase):
@@ -118,10 +212,10 @@ class UsbDrives(TempDirCase):
 
     def test_kinds(self):
         d = {d["dev"]: d for d in self.drives(None)}
-        self.assertEqual(d["/dev/sdc1"]["drive"], "ssd")       # big, USB, not spinning
+        self.assertEqual(d["/dev/sdc1"]["drive"], "ssd")  # big, USB, not spinning
         self.assertEqual(d["/dev/mmcblk0p1"]["drive"], "sd")
         self.assertEqual(d["/dev/mmcblk0p1"]["name"], "SD card 64 GB")
-        self.assertEqual(d["/dev/sdd"]["drive"], "stick")       # a whole-disk filesystem
+        self.assertEqual(d["/dev/sdd"]["drive"], "stick")  # a whole-disk filesystem
         self.assertEqual(d["/dev/sdd"]["what"], "USB stick · 8 GB")
 
     def test_bad_output(self):
@@ -157,24 +251,29 @@ class Mesh(TempDirCase):
 
     def test_ascii_stl(self):
         f = self.tmp / "a.STL"
-        f.write_text("solid x\nfacet normal 0 0 1\nouter loop\n" +
-                     "".join(f"vertex {x} {y} {z}\n" for x, y, z in self.TRI) + "endloop\nendfacet\nendsolid\n")
+        f.write_text(
+            "solid x\nfacet normal 0 0 1\nouter loop\n"
+            + "".join(f"vertex {x} {y} {z}\n" for x, y, z in self.TRI)
+            + "endloop\nendfacet\nendsolid\n"
+        )
         self.assertEqual(list(miru.load_mesh(f)), [0, 0, 0, 1, 0, 0, 0, 1, 0])
 
     def test_obj_quads_and_negative_indices(self):
         f = self.tmp / "a.obj"
         f.write_text("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1/1 2/2 3/3 4/4\nf -4 -3 -2\n")
         out = miru.load_mesh(f)
-        self.assertEqual(out.shape, (27,))          # a quad is two triangles, plus one more
+        self.assertEqual(out.shape, (27,))  # a quad is two triangles, plus one more
         self.assertEqual(list(out[9:18]), [0, 0, 0, 1, 1, 0, 0, 1, 0])
 
     def test_3mf_with_transform(self):
         f = self.tmp / "a.3mf"
-        model = ('<model xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><resources>'
-                 '<object id="1"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/>'
-                 '<vertex x="0" y="1" z="0"/></vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles>'
-                 '</mesh></object></resources><build><item objectid="1" transform="1 0 0 0 1 0 0 0 1 10 0 5"/>'
-                 '</build></model>')
+        model = (
+            '<model xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><resources>'
+            '<object id="1"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/>'
+            '<vertex x="0" y="1" z="0"/></vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles>'
+            '</mesh></object></resources><build><item objectid="1" transform="1 0 0 0 1 0 0 0 1 10 0 5"/>'
+            '</build></model>'
+        )
         with zipfile.ZipFile(f, "w") as z:
             z.writestr("3D/3dmodel.model", model)
         self.assertEqual(list(miru.load_mesh(f)), [10, 0, 5, 11, 0, 5, 10, 1, 5])

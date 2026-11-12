@@ -12,6 +12,7 @@ is tegami_core.py, which the Mac app drives too.
 
     tegami
 """
+
 import json
 import os
 import signal
@@ -20,6 +21,7 @@ import sys
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
@@ -69,8 +71,15 @@ class Tegami:
         self.mail.ready()
         if os.environ.get("TEGAMI_TEST_DIR") and os.environ.get("TEGAMI_TEST_OPEN"):
             # Sandbox: open the first letter and a reply to look at.
-            GLib.timeout_add(600, lambda: self.view.evaluate_javascript(
-                "document.querySelector('[data-open]')?.click()", -1, None, None, None, None, None) and False)
+            GLib.timeout_add(
+                600,
+                lambda: (
+                    self.view.evaluate_javascript(
+                        "document.querySelector('[data-open]')?.click()", -1, None, None, None, None, None
+                    )
+                    and False
+                ),
+            )
 
     # the host, for the mail ------------------------------------------------------------------
     def js(self, fn, payload=None):

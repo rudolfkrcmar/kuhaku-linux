@@ -11,6 +11,7 @@ Saved shots go to ~/Pictures/Screenshots and appear as a small picture in the
 bottom-right corner for a few seconds: click it to mark it up (pen, arrow, box,
 text, highlight, crop), or let it go.
 """
+
 import math
 import re
 import subprocess
@@ -20,6 +21,7 @@ from pathlib import Path
 
 import cairo
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("PangoCairo", "1.0")
@@ -36,6 +38,7 @@ INK = {"red": ACCENT, "black": (0.067, 0.067, 0.067), "white": (1, 1, 1), "yello
 def theme():
     try:
         import json
+
         t = json.loads(STATE.read_text()).get("theme")
         if t in ("day", "night"):
             return t
@@ -59,25 +62,38 @@ def windows_top_first():
     """Normal app windows under the pointer order: (x, y, w, h) with their frames."""
     out = []
     try:
-        ids = re.findall(r"0x[0-9a-f]+", subprocess.run(["xprop", "-root", "_NET_CLIENT_LIST_STACKING"],
-                                                        capture_output=True, text=True, timeout=2).stdout)
+        ids = re.findall(
+            r"0x[0-9a-f]+",
+            subprocess.run(
+                ["xprop", "-root", "_NET_CLIENT_LIST_STACKING"], capture_output=True, text=True, timeout=2
+            ).stdout,
+        )
     except Exception:
         report()
         return out
     for xid in reversed(ids):
         try:
             info = subprocess.run(["xwininfo", "-id", xid], capture_output=True, text=True, timeout=2).stdout
-            types = subprocess.run(["xprop", "-id", xid, "_NET_WM_WINDOW_TYPE", "_NET_WM_STATE", "_NET_FRAME_EXTENTS"],
-                                   capture_output=True, text=True, timeout=2).stdout
+            types = subprocess.run(
+                ["xprop", "-id", xid, "_NET_WM_WINDOW_TYPE", "_NET_WM_STATE", "_NET_FRAME_EXTENTS"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            ).stdout
         except Exception:
             report()
             continue
         if "DESKTOP" in types or "DOCK" in types or "HIDDEN" in types or "IsViewable" not in info:
             continue
-        g = {k: int(v) for k, v in re.findall(r"(Absolute upper-left X|Absolute upper-left Y|Width|Height):\s+(-?\d+)", info)}
+        g = {
+            k: int(v)
+            for k, v in re.findall(r"(Absolute upper-left X|Absolute upper-left Y|Width|Height):\s+(-?\d+)", info)
+        }
         ext = re.search(r"_NET_FRAME_EXTENTS\(CARDINAL\) = (\d+), (\d+), (\d+), (\d+)", types)
         l, r, t, b = (int(v) for v in ext.groups()) if ext else (0, 0, 0, 0)
-        out.append((g["Absolute upper-left X"] - l, g["Absolute upper-left Y"] - t, g["Width"] + l + r, g["Height"] + t + b))
+        out.append(
+            (g["Absolute upper-left X"] - l, g["Absolute upper-left Y"] - t, g["Width"] + l + r, g["Height"] + t + b)
+        )
     return out
 
 
@@ -96,8 +112,12 @@ class Picker(Gtk.Window):
         self.set_app_paintable(True)
         self.move(0, 0)
         self.resize(shot.get_width(), shot.get_height())
-        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK |
-                        Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.KEY_PRESS_MASK)
+        self.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK
+            | Gdk.EventMask.BUTTON_RELEASE_MASK
+            | Gdk.EventMask.POINTER_MOTION_MASK
+            | Gdk.EventMask.KEY_PRESS_MASK
+        )
         self.connect("draw", self.draw)
         self.connect("button-press-event", self.press)
         self.connect("button-release-event", self.release)
@@ -127,7 +147,7 @@ class Picker(Gtk.Window):
             px, py = self.pointer
             if self.wins is None:
                 self.wins = windows_top_first()
-            for (x, y, w, h) in self.wins:
+            for x, y, w, h in self.wins:
                 if x <= px < x + w and y <= py < y + h:
                     return (max(0, x), max(0, y), w, h)
             return (0, 0, self.shot.get_width(), self.shot.get_height())
@@ -147,9 +167,9 @@ class Picker(Gtk.Window):
             cr.rectangle(x, y, w, h)
             cr.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
             cr.fill()
-            cr.set_source_rgb(*ACCENT) if self.window_mode else cr.set_source_rgba(1, 1, 1, .9)
+            cr.set_source_rgb(*ACCENT) if self.window_mode else cr.set_source_rgba(1, 1, 1, 0.9)
             cr.set_line_width(2 if self.window_mode else 1)
-            cr.rectangle(x + .5, y + .5, w - 1, h - 1)
+            cr.rectangle(x + 0.5, y + 0.5, w - 1, h - 1)
             cr.stroke()
             if not self.window_mode:
                 self.label(cr, f"{w} × {h}", x + w + 10, y + h + 8)
@@ -165,7 +185,7 @@ class Picker(Gtk.Window):
         tw, th = layout.get_pixel_size()
         x = min(x, self.shot.get_width() - tw - 16)
         y = min(y, self.shot.get_height() - th - 10)
-        cr.set_source_rgba(0.07, 0.07, 0.07, .82)
+        cr.set_source_rgba(0.07, 0.07, 0.07, 0.82)
         cr.rectangle(x, y, tw + 12, th + 6)
         cr.fill()
         cr.set_source_rgb(1, 1, 1)
@@ -234,15 +254,15 @@ class Thumb(Gtk.Window):
         cr.paint()
         Gdk.cairo_set_source_pixbuf(cr, self.small, 4, 4)
         cr.paint()
-        cr.set_source_rgba(0, 0, 0, .15)
+        cr.set_source_rgba(0, 0, 0, 0.15)
         cr.set_line_width(1)
-        cr.rectangle(.5, .5, self.small.get_width() + 7, self.small.get_height() + 7)
+        cr.rectangle(0.5, 0.5, self.small.get_width() + 7, self.small.get_height() + 7)
         cr.stroke()
 
     def click(self, _w, e):
         GLib.source_remove(self.timer)
         self.destroy()
-        if e.button == 3:            # right click: throw it away
+        if e.button == 3:  # right click: throw it away
             self.path.unlink(missing_ok=True)
             Gtk.main_quit()
             return
@@ -256,7 +276,14 @@ class Thumb(Gtk.Window):
 
 # --- marking it up ----------------------------------------------------------------------------------
 class Editor(Gtk.Window):
-    TOOLS = [("pen", "Pen"), ("arrow", "Arrow"), ("box", "Box"), ("text", "Text"), ("mark", "Highlight"), ("crop", "Crop")]
+    TOOLS = [
+        ("pen", "Pen"),
+        ("arrow", "Arrow"),
+        ("box", "Box"),
+        ("text", "Text"),
+        ("mark", "Highlight"),
+        ("crop", "Crop"),
+    ]
 
     def __init__(self, path):
         super().__init__(title="Screenshot")
@@ -269,7 +296,8 @@ class Editor(Gtk.Window):
         self.night = theme() == "night"
         bg, fg, muted = ("#121212", "#ececec", "#9a9a9a") if self.night else ("#f7f4f1", "#111111", "#666666")
         css = Gtk.CssProvider()
-        css.load_from_data(f"""
+        css.load_from_data(
+            f"""
           window {{ background:{bg}; }}
           .bar {{ padding:10px 24px; }}
           .bar button {{ background:none; border:0; box-shadow:none; border-radius:0; padding:6px 10px; color:{muted}; font-family:Inter; font-weight:300; }}
@@ -281,7 +309,8 @@ class Editor(Gtk.Window):
           .bar .ink.on {{ box-shadow: 0 0 0 2px {bg}, 0 0 0 3.5px {muted}; }}
           .bar .name {{ color:{muted}; font-family:Inter; font-weight:300; margin-right:18px; }}
           entry.textin {{ background:rgba(255,255,255,.9); color:#111; border:0; border-radius:0; font-family:Inter; font-size:18pt; }}
-        """.encode())
+        """.encode()
+        )
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.set_decorated(False)
         self.maximize()
@@ -305,15 +334,23 @@ class Editor(Gtk.Window):
             b = Gtk.Button()
             b.get_style_context().add_class("ink")
             p = Gtk.CssProvider()
-            p.load_from_data(("button { background:rgb(%d,%d,%d); border:1px solid rgba(0,0,0,.18); }" %
-                              tuple(round(c * 255) for c in rgb)).encode())
+            p.load_from_data(
+                (
+                    "button { background:rgb(%d,%d,%d); border:1px solid rgba(0,0,0,.18); }"
+                    % tuple(round(c * 255) for c in rgb)
+                ).encode()
+            )
             b.get_style_context().add_provider(p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
             b.set_valign(Gtk.Align.CENTER)
             b.connect("clicked", lambda _b, k=key: self.set_ink(k))
             bar.pack_start(b, False, False, 0)
             self.ink_buttons[key] = b
-        for label, fn, cls in (("Done", self.save_close, "done"), ("Copy", self.copy, ""), ("Delete", self.delete, ""),
-                               ("Undo", self.undo, "")):
+        for label, fn, cls in (
+            ("Done", self.save_close, "done"),
+            ("Copy", self.copy, ""),
+            ("Delete", self.delete, ""),
+            ("Undo", self.undo, ""),
+        ):
             b = Gtk.Button(label=label)
             if cls:
                 b.get_style_context().add_class(cls)
@@ -322,8 +359,9 @@ class Editor(Gtk.Window):
         box.pack_start(bar, False, False, 0)
         self.overlay = Gtk.Overlay()
         self.area = Gtk.DrawingArea()
-        self.area.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK |
-                             Gdk.EventMask.POINTER_MOTION_MASK)
+        self.area.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK | Gdk.EventMask.POINTER_MOTION_MASK
+        )
         self.area.connect("draw", self.draw)
         self.area.connect("button-press-event", self.press)
         self.area.connect("motion-notify-event", self.motion)
@@ -412,8 +450,8 @@ class Editor(Gtk.Window):
                 layout.set_font_description(Pango.FontDescription("Inter Medium 22"))
                 layout.set_text(it["text"], -1)
                 x, y = it["pts"][0]
-                if it["ink"] != "white":      # a soft halo keeps text readable on any picture
-                    cr.set_source_rgba(1, 1, 1, .85)
+                if it["ink"] != "white":  # a soft halo keeps text readable on any picture
+                    cr.set_source_rgba(1, 1, 1, 0.85)
                     cr.move_to(x, y)
                     PangoCairo.layout_path(cr, layout)
                     cr.set_line_width(5)
@@ -426,14 +464,14 @@ class Editor(Gtk.Window):
         s, ox, oy = self.fit()
         cr.translate(ox, oy)
         cr.scale(s, s)
-        cr.set_source_rgba(0, 0, 0, .12)
+        cr.set_source_rgba(0, 0, 0, 0.12)
         cr.rectangle(-1 / s, -1 / s, self.pixbuf.get_width() + 2 / s, self.pixbuf.get_height() + 2 / s)
         cr.fill()
         self.paint(cr, self.items + ([self.cur] if self.cur and self.cur["tool"] != "crop" else []))
         c = self.cur["pts"] if self.cur and self.cur["tool"] == "crop" else self.crop
         if c:
             (a, b), (x2, y2) = c[0], c[-1]
-            cr.set_source_rgba(0, 0, 0, .45)
+            cr.set_source_rgba(0, 0, 0, 0.45)
             cr.rectangle(0, 0, self.pixbuf.get_width(), self.pixbuf.get_height())
             cr.rectangle(min(a, x2), min(b, y2), abs(x2 - a), abs(y2 - b))
             cr.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
@@ -606,8 +644,10 @@ def main():
 
 
 def play_sound():
-    for f in ("/usr/share/sounds/freedesktop/stereo/camera-shutter.oga",
-              "/usr/share/sounds/freedesktop/stereo/screen-capture.oga"):
+    for f in (
+        "/usr/share/sounds/freedesktop/stereo/camera-shutter.oga",
+        "/usr/share/sounds/freedesktop/stereo/screen-capture.oga",
+    ):
         if Path(f).exists():
             subprocess.Popen(["pw-play", f], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return

@@ -6,6 +6,7 @@ not interrupt the work either: while Claude works the lid only turns the screen 
 computer goes to sleep as soon as the work is done if the lid is still closed by then.
 On a Mac, caffeinate does the same.
 """
+
 import os
 import subprocess
 import sys
@@ -34,10 +35,16 @@ def _xfpm(prop, value=None):
     if value is None:
         r = subprocess.run(["xfconf-query", "-c", "xfce4-power-manager", "-p", path], capture_output=True, text=True)
         return r.stdout.strip() if r.returncode == 0 else None
-    if subprocess.run(["xfconf-query", "-c", "xfce4-power-manager", "-p", path, "-s", value],
-                      capture_output=True).returncode != 0:
-        subprocess.run(["xfconf-query", "-c", "xfce4-power-manager", "-p", path, "-n", "-t", "uint", "-s", value],
-                       capture_output=True)
+    if (
+        subprocess.run(
+            ["xfconf-query", "-c", "xfce4-power-manager", "-p", path, "-s", value], capture_output=True
+        ).returncode
+        != 0
+    ):
+        subprocess.run(
+            ["xfconf-query", "-c", "xfce4-power-manager", "-p", path, "-n", "-t", "uint", "-s", value],
+            capture_output=True,
+        )
 
 
 def _holders():
@@ -63,7 +70,7 @@ def _lid_keep_awake():
                 f.write(" ".join(_xfpm(p) or "1" for p in LID_PROPS))
         open(os.path.join(LID_DIR, str(os.getpid())), "w").close()
         for p in LID_PROPS:
-            _xfpm(p, "0")                       # 0: the lid only switches the screen off
+            _xfpm(p, "0")  # 0: the lid only switches the screen off
     except Exception:
         report()
 
@@ -88,6 +95,7 @@ def _lid_release():
         return False
     try:
         import glob
+
         return any("closed" in open(p).read() for p in glob.glob("/proc/acpi/button/lid/*/state"))
     except Exception:
         report()
@@ -97,8 +105,17 @@ def _lid_release():
 def _call(method, args):
     """The session's power manager: Inhibit keeps the computer from sleeping when idle."""
     bus = Gio.bus_get_sync(Gio.BusType.SESSION)
-    return bus.call_sync("org.freedesktop.PowerManagement", "/org/freedesktop/PowerManagement/Inhibit",
-                         "org.freedesktop.PowerManagement.Inhibit", method, args, None, 0, 3000, None)
+    return bus.call_sync(
+        "org.freedesktop.PowerManagement",
+        "/org/freedesktop/PowerManagement/Inhibit",
+        "org.freedesktop.PowerManagement.Inhibit",
+        method,
+        args,
+        None,
+        0,
+        3000,
+        None,
+    )
 
 
 def hold(why="Claude is working"):
@@ -107,7 +124,7 @@ def hold(why="Claude is working"):
         _count += 1
         if _count == 1:
             try:
-                if MAC:     # held until released, or until this program ends
+                if MAC:  # held until released, or until this program ends
                     _cookie = subprocess.Popen(["caffeinate", "-i", "-w", str(os.getpid())])
                 else:
                     _cookie = _call("Inhibit", GLib.Variant("(ss)", ("Kūhaku", why))).unpack()[0]
@@ -132,12 +149,17 @@ def release():
             _cookie = None
         if _count == 0 and not MAC and _lid_release():
             # The lid was closed while Claude worked: the work is done, so now it sleeps.
-            subprocess.Popen(["sh", "-c", "sleep 3; grep -qs closed /proc/acpi/button/lid/*/state && systemctl suspend"],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            subprocess.Popen(
+                ["sh", "-c", "sleep 3; grep -qs closed /proc/acpi/button/lid/*/state && systemctl suspend"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
 
 
 class Awake:
     """with Awake(): ...  keeps the computer awake for the block."""
+
     def __init__(self, why="Claude is working"):
         self.why = why
 

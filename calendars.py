@@ -5,6 +5,7 @@ Settings, then the calendar, then Integrate calendar). The feed is downloaded
 every 15 minutes and kept on disk, so events show offline too. The secret
 address stays in ~/.config/kuhaku/calendars.json, readable only by you.
 """
+
 import json
 import os
 import sys
@@ -45,7 +46,7 @@ def _file(i):
 def fetch(cal, i):
     url = cal["url"].strip()
     if url.startswith("webcal://"):
-        url = "https://" + url[len("webcal://"):]
+        url = "https://" + url[len("webcal://") :]
     req = urllib.request.Request(url, headers={"User-Agent": "Kuhaku calendar"})
     data = urllib.request.urlopen(req, timeout=30).read()
     if b"BEGIN:VCALENDAR" not in data[:2000]:
@@ -57,6 +58,7 @@ def fetch(cal, i):
 
 def name_of(data):
     import icalendar
+
     try:
         c = icalendar.Calendar.from_ical(data)
         return str(c.get("X-WR-CALNAME") or "Calendar")
@@ -102,6 +104,7 @@ def events(start, end):
     """Events between two dates, as plain dicts, sorted by time."""
     import icalendar
     import recurring_ical_events
+
     out = []
     for i, cal in enumerate(load()):
         f = _file(i)
@@ -123,15 +126,17 @@ def events(start, end):
             if not all_day:
                 s = s.astimezone() if s.tzinfo else s
                 e = e.astimezone() if getattr(e, "tzinfo", None) else e
-            out.append({
-                "title": str(ev.get("SUMMARY") or "(no title)"),
-                "where": str(ev.get("LOCATION") or ""),
-                "allDay": all_day,
-                "start": s.isoformat(),
-                "end": e.isoformat(),
-                "day": (s if all_day else s.date()).isoformat(),
-                "cal": cal.get("name", "Calendar"),
-            })
+            out.append(
+                {
+                    "title": str(ev.get("SUMMARY") or "(no title)"),
+                    "where": str(ev.get("LOCATION") or ""),
+                    "allDay": all_day,
+                    "start": s.isoformat(),
+                    "end": e.isoformat(),
+                    "day": (s if all_day else s.date()).isoformat(),
+                    "cal": cal.get("name", "Calendar"),
+                }
+            )
     out.sort(key=lambda x: (x["day"], not x["allDay"], x["start"]))
     return out
 
@@ -141,5 +146,8 @@ def month_view(year, month):
     first = date(year, month + 1, 1)
     start = first - timedelta(days=first.weekday() + 7)
     end = start + timedelta(days=56)
-    return {"events": events(start, end), "calendars": [{"name": c.get("name", "Calendar")} for c in load()],
-            "range": [start.isoformat(), end.isoformat()]}
+    return {
+        "events": events(start, end),
+        "calendars": [{"name": c.get("name", "Calendar")} for c in load()],
+        "range": [start.isoformat(), end.isoformat()],
+    }

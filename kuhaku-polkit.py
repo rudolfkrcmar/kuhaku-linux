@@ -8,11 +8,13 @@ permission, Escape declines. A wrong password says so under the line.
 It is the session's polkit authentication agent (it replaces MATE's dialog). If it ever
 cannot start, kuhaku-session falls back to MATE's agent, so permission can always be given.
 """
+
 import os
 import signal
 import sys
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Polkit", "1.0")
@@ -39,6 +41,7 @@ FRIENDLY = {
 def log(*a):
     try:
         import time
+
         with open(os.path.join(GLib.get_user_runtime_dir(), "kuhaku-polkit.log"), "a") as f:
             f.write(time.strftime("%H:%M:%S ") + " ".join(map(str, a)) + "\n")
     except Exception:
@@ -49,11 +52,15 @@ class Prompt:
     def __init__(self, done, action_id, message, details, cookie, identities):
         self.done, self.cookie = done, cookie
         me = os.getuid()
-        self.identity = next((i for i in identities if isinstance(i, Polkit.UnixUser) and i.get_uid() == me),
-                             identities[0] if identities else None)
+        self.identity = next(
+            (i for i in identities if isinstance(i, Polkit.UnixUser) and i.get_uid() == me),
+            identities[0] if identities else None,
+        )
         bg, fg, muted, accent = COLORS
         css = Gtk.CssProvider()
-        css.load_from_data((f"""
+        css.load_from_data(
+            (
+                f"""
             window {{ background: {bg}; }}
             * {{ font-family: "Inter", sans-serif; }}
             #why {{ color: {fg}; font-size: 17px; font-weight: 300; }}
@@ -64,7 +71,10 @@ class Prompt:
             #hint {{ color: alpha({fg}, .35); font-size: 26px; font-weight: 200; }}
             #error {{ color: {accent}; font-size: 13px; font-weight: 300; }}
             #keys {{ color: {muted}; font-size: 12px; font-weight: 300; }}
-        """ + touchkeys.css(fg, muted, accent)).encode())
+        """
+                + touchkeys.css(fg, muted, accent)
+            ).encode()
+        )
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
         w = self.win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
@@ -83,12 +93,16 @@ class Prompt:
         box.set_size_request(col, -1)
         stage.put(box, (g.width - col) // 2, int(g.height * 0.45) - 70)
 
-        why = Gtk.Label(label=next((v for k, v in FRIENDLY.items() if action_id.startswith(k)), message), name="why", xalign=0)
+        why = Gtk.Label(
+            label=next((v for k, v in FRIENDLY.items() if action_id.startswith(k)), message), name="why", xalign=0
+        )
         why.set_line_wrap(True)
         why.set_margin_start(20)
         box.pack_start(why, False, False, 0)
         program = details.get("program") if details else None
-        what = Gtk.Label(label=program or message if program or message != why.get_text() else action_id, name="what", xalign=0)
+        what = Gtk.Label(
+            label=program or message if program or message != why.get_text() else action_id, name="what", xalign=0
+        )
         what.set_ellipsize(3)
         what.set_margin_start(20)
         what.set_margin_top(6)
@@ -147,8 +161,8 @@ class Prompt:
     def start(self):
         # A fresh PAM conversation. The previous session is kept alive until this one replaces it:
         # dropping it from inside its own "completed" signal frees it mid-emission and crashes.
-        self.asked = False      # PAM has asked for the password
-        self.typed = None       # Enter pressed before PAM asked: answer as soon as it does
+        self.asked = False  # PAM has asked for the password
+        self.typed = None  # Enter pressed before PAM asked: answer as soon as it does
         if self.session:
             self.retired.append(self.session)
         s = self.session = PolkitAgent.Session.new(self.identity, self.cookie)
@@ -216,6 +230,7 @@ class Prompt:
         if gained:
             GLib.idle_add(lambda: (self.finish(True), False)[1])
             return
+
         def again():
             if getattr(self, "finished", False):
                 return False
@@ -225,6 +240,7 @@ class Prompt:
             self.start()
             self.entry.grab_focus()
             return False
+
         GLib.idle_add(again)
 
     def on_key(self, _w, ev):
@@ -284,14 +300,28 @@ class Agent:
 
     def __init__(self):
         self.bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
-        self.current = None   # (cookie, invocation, prompt)
+        self.current = None  # (cookie, invocation, prompt)
         node = Gio.DBusNodeInfo.new_for_xml(AGENT_XML)
         self.bus.register_object(AGENT_PATH, node.interfaces[0], self.on_call, None, None)
         session = Polkit.UnixSession.new_for_process_sync(os.getpid(), None)
-        self.bus.call_sync("org.freedesktop.PolicyKit1", "/org/freedesktop/PolicyKit1/Authority",
-                           "org.freedesktop.PolicyKit1.Authority", "RegisterAuthenticationAgent",
-                           GLib.Variant("((sa{sv})ss)", (("unix-session", {"session-id": GLib.Variant("s", session.get_session_id())}), os.environ.get("LANG", "C"), AGENT_PATH)),
-                           None, Gio.DBusCallFlags.NONE, -1, None)
+        self.bus.call_sync(
+            "org.freedesktop.PolicyKit1",
+            "/org/freedesktop/PolicyKit1/Authority",
+            "org.freedesktop.PolicyKit1.Authority",
+            "RegisterAuthenticationAgent",
+            GLib.Variant(
+                "((sa{sv})ss)",
+                (
+                    ("unix-session", {"session-id": GLib.Variant("s", session.get_session_id())}),
+                    os.environ.get("LANG", "C"),
+                    AGENT_PATH,
+                ),
+            ),
+            None,
+            Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+        )
         log("agent registered for session", session.get_session_id())
 
     def on_call(self, _bus, _sender, _path, _iface, method, params, invocation):
@@ -317,6 +347,7 @@ class Agent:
                     invocation.return_value(None)
                 else:
                     invocation.return_dbus_error("org.freedesktop.PolicyKit1.Error.Cancelled", "Declined")
+
             self.current = (cookie, invocation, None)
             prompt = Prompt(done, action_id, message, details, cookie, ids)
             if self.current and self.current[0] == cookie:

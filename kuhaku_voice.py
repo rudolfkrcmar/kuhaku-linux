@@ -1,6 +1,7 @@
 """Talking with Kūhaku: offline dictation (Whisper), and spoken conversations that listen, ask Claude and answer aloud (Piper).
 
 A part of the Kuhaku window class (kuhaku.py), kept here by subject."""
+
 import json
 import signal
 import subprocess
@@ -9,6 +10,7 @@ import re
 import time
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
@@ -25,9 +27,17 @@ class Voice:
             STATE_DIR.mkdir(parents=True, exist_ok=True)
             try:
                 self.recorder = subprocess.Popen(
-                    ["parec", "--rate=16000", "--channels=1", "--format=s16le",
-                     "--file-format=wav", str(DICTATION_FILE)],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    [
+                        "parec",
+                        "--rate=16000",
+                        "--channels=1",
+                        "--format=s16le",
+                        "--file-format=wav",
+                        str(DICTATION_FILE),
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
                 # Load Whisper while the user is still speaking.
                 threading.Thread(target=self.start_whisper, daemon=True).start()
             except FileNotFoundError:
@@ -48,7 +58,11 @@ class Voice:
                 return None
             self.whisper = subprocess.Popen(
                 [str(python), str(HERE / "transcribe.py"), self.config.get("dictation_model") or "auto"],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
             self.whisper.stdout.readline()  # {"ready": true}
             return self.whisper
 
@@ -93,24 +107,28 @@ class Voice:
         import array
         import math
         import wave
+
         STATE_DIR.mkdir(parents=True, exist_ok=True)
         self.voice_state(conv, "listening")
         try:
-            rec = subprocess.Popen(["parec", "--rate=16000", "--channels=1", "--format=s16le", "--raw"],
-                                   stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            rec = subprocess.Popen(
+                ["parec", "--rate=16000", "--channels=1", "--format=s16le", "--raw"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
         except FileNotFoundError:
             self.voice_state(conv, "error", error="No microphone recorder found.")
             self.convo = 0
             return
         self.voice_proc = rec
-        chunk, frames, floor, spoke, quiet, waited = 3200, [], [], False, 0, 0   # 100 ms chunks
+        chunk, frames, floor, spoke, quiet, waited = 3200, [], [], False, 0, 0  # 100 ms chunks
         while self.convo == conv:
             data = rec.stdout.read(chunk)
             if not data:
                 break
             a = array.array("h", data)
             level = math.sqrt(sum(x * x for x in a) / max(1, len(a)))
-            if len(floor) < 4:              # the room's own sound, first 0.4 s
+            if len(floor) < 4:  # the room's own sound, first 0.4 s
                 floor.append(level)
                 continue
             threshold = max(450, 3 * (sum(floor) / len(floor)))
@@ -122,9 +140,9 @@ class Voice:
                 quiet += 1
             else:
                 waited += 1
-                frames = frames[-5:]        # keep a little lead-in before the first word
+                frames = frames[-5:]  # keep a little lead-in before the first word
             frames.append(data)
-            if spoke and (quiet >= 12 or len(frames) > 600):   # a 1.2 s pause, or a minute at most
+            if spoke and (quiet >= 12 or len(frames) > 600):  # a 1.2 s pause, or a minute at most
                 break
             if not spoke and waited > 200:  # 20 s of quiet: the conversation ends by itself
                 break
@@ -137,7 +155,9 @@ class Voice:
             GLib.idle_add(self.send, "voiceState", "off")
             return
         with wave.open(str(VOICE_IN), "wb") as w:
-            w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000)
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
             w.writeframes(b"".join(frames))
         self.voice_state(conv, "thinking")
         text = ""
@@ -154,7 +174,7 @@ class Voice:
         if self.convo != conv:
             return
         if not text.strip() or re.fullmatch(r"\W*(thank you|thanks for watching|you)\W*", text.strip(), re.I):
-            return self.listen(conv)        # only noise: keep listening
+            return self.listen(conv)  # only noise: keep listening
         GLib.idle_add(self.send, "voiceHeard", {"text": text.strip()})
 
     def start_speaker(self):
@@ -164,9 +184,13 @@ class Voice:
             python = HERE / "venv" / "bin" / "python"
             if not python.exists() or not VOICE_MODEL.exists():
                 return None
-            self.speaker = subprocess.Popen([str(python), str(HERE / "speak.py"), str(VOICE_MODEL)],
-                                            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                            stderr=subprocess.DEVNULL, text=True)
+            self.speaker = subprocess.Popen(
+                [str(python), str(HERE / "speak.py"), str(VOICE_MODEL)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
             self.speaker.stdout.readline()  # {"ready": true}
             return self.speaker
 
@@ -185,8 +209,9 @@ class Voice:
                     worker.stdin.flush()
                     ok = json.loads(worker.stdout.readline() or "{}").get("ok")
                 if ok and self.convo == conv:
-                    self.voice_proc = subprocess.Popen(["paplay", str(VOICE_OUT)],
-                                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    self.voice_proc = subprocess.Popen(
+                        ["paplay", str(VOICE_OUT)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
                     self.voice_proc.wait()
             except Exception:
                 report()

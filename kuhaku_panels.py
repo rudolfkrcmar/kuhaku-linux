@@ -6,6 +6,7 @@ runs its handler on a worker thread. A handler returns the data for the page (se
 panelData under the same action), Reply(action, data) to answer under another action, or
 QUIET when there is nothing to send. Part of the Kuhaku window class (kuhaku.py).
 """
+
 import os
 import pwd
 import re
@@ -14,14 +15,27 @@ import time
 from collections import namedtuple
 
 import gi
+
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
 import claude_accounts as accounts
 from kuhaku_config import HERE, HOME, MENU
 from kuhaku_log import note
-from kuhaku_system import (FINGER_ORDER, battery_details, bluetooth_state, daily_tokens, launch_app, list_apps,
-                           notices, plan_limits, run, spawn, wifi_connect, wifi_networks)
+from kuhaku_system import (
+    FINGER_ORDER,
+    battery_details,
+    bluetooth_state,
+    daily_tokens,
+    launch_app,
+    list_apps,
+    notices,
+    plan_limits,
+    run,
+    spawn,
+    wifi_connect,
+    wifi_networks,
+)
 
 Reply = namedtuple("Reply", "action data")
 QUIET = object()
@@ -112,22 +126,29 @@ class Panels:
 
     def _cal_events(self, msg):
         import calendars
+
         y, m = int(msg.get("year", 0)), int(msg.get("month", 0))
         GLib.idle_add(self.send, "panelData", {"action": "cal-events", "data": calendars.month_view(y, m)})
-        calendars.refresh()                          # the copy on disk came first; now fresh, if online
+        calendars.refresh()  # the copy on disk came first; now fresh, if online
         return calendars.month_view(y, m)
 
     def _cal_add(self, msg):
         import calendars
+
         try:
             return {"ok": True, "name": calendars.add(msg.get("url", ""))}
         except Exception as e:
             bad_address = "calendar feed" in str(e) or "HTTP" in str(e) or "unknown url" in str(e).lower()
-            return {"ok": False, "error": "That address did not work. Copy the secret address in iCal format again."
-                    if bad_address else str(e)[:160]}
+            return {
+                "ok": False,
+                "error": "That address did not work. Copy the secret address in iCal format again."
+                if bad_address
+                else str(e)[:160],
+            }
 
     def _cal_remove(self, msg):
         import calendars
+
         calendars.remove(int(msg.get("index", -1)))
         return {"ok": True}
 
@@ -150,7 +171,7 @@ class Panels:
 
     def _close(self, msg):
         if XID.fullmatch(msg.get("xid", "")):
-            spawn(["wmctrl", "-i", "-c", msg["xid"]])     # the polite way: the app may still ask to save
+            spawn(["wmctrl", "-i", "-c", msg["xid"]])  # the polite way: the app may still ask to save
         return QUIET
 
     def _talk(self, _msg):
@@ -172,18 +193,22 @@ class Panels:
     def _unlock(self, msg):
         # Fingers and face: their own windows do the teaching; Settings is told again when they close.
         what, finger = msg.get("what"), str(msg.get("finger") or "")
-        teach = {"add-finger": ["python3", str(HERE / "kuhaku-finger.py")],
-                 "face-setup": ["python3", str(HERE / "kuhaku-face.py"), "enroll"],
-                 "guided": ["python3", str(HERE / "kuhaku-unlock-setup.py")]}
+        teach = {
+            "add-finger": ["python3", str(HERE / "kuhaku-finger.py")],
+            "face-setup": ["python3", str(HERE / "kuhaku-face.py"), "enroll"],
+            "guided": ["python3", str(HERE / "kuhaku-unlock-setup.py")],
+        }
         if what in teach:
-            p = subprocess.Popen(teach[what], start_new_session=True, cwd=HOME,
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            p = subprocess.Popen(
+                teach[what], start_new_session=True, cwd=HOME, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
 
             def closed():
                 if p.poll() is None:
                     return True
                 self.send("panelData", {"action": "prefs", "data": self.read_prefs()})
                 return False
+
             GLib.timeout_add_seconds(1, closed)
             return QUIET
         me = pwd.getpwuid(os.getuid()).pw_name
@@ -222,16 +247,44 @@ class Panels:
 
 # Every action the page may ask for, and who answers it.
 PANEL = {
-    "wifi": Panels._wifi, "wifi-connect": Panels._wifi_connect, "wifi-forget": Panels._wifi_forget,
-    "wifi-disconnect": Panels._wifi_disconnect, "wifi-radio": Panels._wifi_radio,
-    "bt": Panels._bt, "bt-power": Panels._bt_power, "bt-connect": Panels._bt_connect,
-    "bt-disconnect": Panels._bt_disconnect, "bt-forget": Panels._bt_forget,
-    "battery": Panels._battery, "power-profile": Panels._power_profile,
-    "calendar": Panels._calendar, "cal-events": Panels._cal_events, "cal-add": Panels._cal_add,
+    "wifi": Panels._wifi,
+    "wifi-connect": Panels._wifi_connect,
+    "wifi-forget": Panels._wifi_forget,
+    "wifi-disconnect": Panels._wifi_disconnect,
+    "wifi-radio": Panels._wifi_radio,
+    "bt": Panels._bt,
+    "bt-power": Panels._bt_power,
+    "bt-connect": Panels._bt_connect,
+    "bt-disconnect": Panels._bt_disconnect,
+    "bt-forget": Panels._bt_forget,
+    "battery": Panels._battery,
+    "power-profile": Panels._power_profile,
+    "calendar": Panels._calendar,
+    "cal-events": Panels._cal_events,
+    "cal-add": Panels._cal_add,
     "cal-remove": Panels._cal_remove,
-    "settings": Panels._settings, "apps": Panels._apps, "launch": Panels._launch, "focus": Panels._focus,
-    "close": Panels._close, "talk": Panels._talk, "notices": Panels._notices, "notices-clear": Panels._notices,
-    "prefs": Panels._prefs, "pref": Panels._pref, "unlock": Panels._unlock,
-    **{a: Panels._account for a in ("account-use", "account-cycle", "account-add", "account-signin",
-                                    "account-remove", "ai-signin", "ai-set-add", "ai-set-remove")},
+    "settings": Panels._settings,
+    "apps": Panels._apps,
+    "launch": Panels._launch,
+    "focus": Panels._focus,
+    "close": Panels._close,
+    "talk": Panels._talk,
+    "notices": Panels._notices,
+    "notices-clear": Panels._notices,
+    "prefs": Panels._prefs,
+    "pref": Panels._pref,
+    "unlock": Panels._unlock,
+    **{
+        a: Panels._account
+        for a in (
+            "account-use",
+            "account-cycle",
+            "account-add",
+            "account-signin",
+            "account-remove",
+            "ai-signin",
+            "ai-set-add",
+            "ai-set-remove",
+        )
+    },
 }

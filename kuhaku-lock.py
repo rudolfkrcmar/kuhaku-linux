@@ -12,6 +12,7 @@ Run without arguments it waits: it locks before the computer sleeps (holding sle
 back until the lock is on screen) and whenever the session is asked to lock
 (`loginctl lock-session`, the menu's Lock). `kuhaku-lock.py lock` locks now.
 """
+
 import os
 import pwd
 import shutil
@@ -21,6 +22,7 @@ import sys
 import threading
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
@@ -28,6 +30,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import touchkeys  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
+
 COLORS = {"night": ("#121212", "#ececec", "#9a9a9a", "#f0705a"), "day": ("#f7f4f1", "#111111", "#666666", "#e0301e")}
 USER = pwd.getpwuid(os.getuid()).pw_name
 LOGIN1 = "org.freedesktop.login1"
@@ -36,8 +39,13 @@ LOGIN1 = "org.freedesktop.login1"
 def password_ok(password):
     """The same check the system's own lock screens use (pam_unix's helper), for this user only."""
     try:
-        p = subprocess.run(["/usr/sbin/unix_chkpwd", USER, "nullok"], input=password.encode() + b"\0",
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
+        p = subprocess.run(
+            ["/usr/sbin/unix_chkpwd", USER, "nullok"],
+            input=password.encode() + b"\0",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=20,
+        )
         return p.returncode == 0
     except Exception:
         report()
@@ -68,11 +76,13 @@ class Finger:
 
     def run(self):
         import time
+
         # Keeps asking as long as the lock is up: after a sleep the reader needs a moment to come back.
         while not self.stopped:
             try:
-                self.proc = subprocess.Popen(["fprintd-verify", USER], stdout=subprocess.PIPE,
-                                             stderr=subprocess.STDOUT, text=True)
+                self.proc = subprocess.Popen(
+                    ["fprintd-verify", USER], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                )
                 out = self.proc.communicate()[0]
             except Exception:
                 report()
@@ -85,7 +95,7 @@ class Finger:
             if "verify-no-match" in out:
                 GLib.idle_add(self.on_miss)
             else:
-                time.sleep(2)                 # busy, unplugged or still waking: rest a moment
+                time.sleep(2)  # busy, unplugged or still waking: rest a moment
 
     def stop(self):
         self.stopped = True
@@ -114,14 +124,16 @@ class Face:
         if self.stopped or (self.proc and self.proc.poll() is None):
             return
         try:
-            self.proc = subprocess.Popen(["python3", FACE, "verify", "10"], stdout=subprocess.DEVNULL,
-                                         stderr=subprocess.DEVNULL)
+            self.proc = subprocess.Popen(
+                ["python3", FACE, "verify", "10"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
         except Exception:
             report()
             return
         proc = self.proc
-        threading.Thread(target=lambda: proc.wait() == 0 and not self.stopped and GLib.idle_add(self.on_match),
-                         daemon=True).start()
+        threading.Thread(
+            target=lambda: proc.wait() == 0 and not self.stopped and GLib.idle_add(self.on_match), daemon=True
+        ).start()
 
     def stop(self):
         self.stopped = True
@@ -134,7 +146,9 @@ class Lock:
         self.on_shown = on_shown
         bg, fg, muted, accent = COLORS["night"]  # password screens stay dark, day or night
         self.css = Gtk.CssProvider()
-        self.css.load_from_data((f"""
+        self.css.load_from_data(
+            (
+                f"""
             #lock {{ background: {bg}; }}
             #lock * {{ font-family: "Inter", sans-serif; }}
             #lock #line {{ background: {accent}; min-width: 2px; }}
@@ -143,7 +157,10 @@ class Lock:
             #lock entry selection {{ background: alpha({fg}, .15); }}
             #lock #hint {{ color: alpha({fg}, .35); font-size: 26px; font-weight: 200; }}
             #lock #error {{ color: {accent}; font-size: 13px; font-weight: 300; }}
-        """ + touchkeys.css(fg, muted, accent)).encode())
+        """
+                + touchkeys.css(fg, muted, accent)
+            ).encode()
+        )
         screen = Gdk.Screen.get_default()
         Gtk.StyleContext.add_provider_for_screen(screen, self.css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
@@ -171,7 +188,10 @@ class Lock:
         self.entry = Gtk.Entry(visibility=False, invisible_char="•", has_frame=False)
         self.entry.set_hexpand(True)
         self.entry.connect("activate", self.submit)
-        self.entry.connect("changed", lambda e: (self.hint.set_visible(not e.get_text()), self.error.set_text("") if e.get_text() else None))
+        self.entry.connect(
+            "changed",
+            lambda e: (self.hint.set_visible(not e.get_text()), self.error.set_text("") if e.get_text() else None),
+        )
         over.add(self.entry)
         self.finger = None
         self.face = None
@@ -257,6 +277,7 @@ class Lock:
         def check():
             ok = password_ok(text)
             GLib.idle_add(self.checked, ok)
+
         threading.Thread(target=check, daemon=True).start()
 
     def checked(self, ok):
@@ -290,19 +311,40 @@ class Watcher:
         self.lock = None
         self.inhibit_fd = None
         self.bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
-        self.bus.signal_subscribe(LOGIN1, f"{LOGIN1}.Manager", "PrepareForSleep", "/org/freedesktop/login1",
-                                  None, Gio.DBusSignalFlags.NONE, self.on_sleep)
+        self.bus.signal_subscribe(
+            LOGIN1,
+            f"{LOGIN1}.Manager",
+            "PrepareForSleep",
+            "/org/freedesktop/login1",
+            None,
+            Gio.DBusSignalFlags.NONE,
+            self.on_sleep,
+        )
         session = self.session_path()
         for name in ("Lock", "Unlock"):
-            self.bus.signal_subscribe(LOGIN1, f"{LOGIN1}.Session", name, session,
-                                      None, Gio.DBusSignalFlags.NONE, self.on_session)
+            self.bus.signal_subscribe(
+                LOGIN1, f"{LOGIN1}.Session", name, session, None, Gio.DBusSignalFlags.NONE, self.on_session
+            )
         self.inhibit()
 
     def session_path(self):
         sid = os.environ.get("XDG_SESSION_ID")
-        call = ("GetSession", GLib.Variant("(s)", (sid,))) if sid else ("GetSessionByPID", GLib.Variant("(u)", (os.getpid(),)))
-        r = self.bus.call_sync(LOGIN1, "/org/freedesktop/login1", f"{LOGIN1}.Manager", call[0], call[1],
-                               GLib.VariantType("(o)"), Gio.DBusCallFlags.NONE, -1, None)
+        call = (
+            ("GetSession", GLib.Variant("(s)", (sid,)))
+            if sid
+            else ("GetSessionByPID", GLib.Variant("(u)", (os.getpid(),)))
+        )
+        r = self.bus.call_sync(
+            LOGIN1,
+            "/org/freedesktop/login1",
+            f"{LOGIN1}.Manager",
+            call[0],
+            call[1],
+            GLib.VariantType("(o)"),
+            Gio.DBusCallFlags.NONE,
+            -1,
+            None,
+        )
         return r.unpack()[0]
 
     def inhibit(self):
@@ -311,9 +353,17 @@ class Watcher:
             return
         try:
             r, fds = self.bus.call_with_unix_fd_list_sync(
-                LOGIN1, "/org/freedesktop/login1", f"{LOGIN1}.Manager", "Inhibit",
+                LOGIN1,
+                "/org/freedesktop/login1",
+                f"{LOGIN1}.Manager",
+                "Inhibit",
                 GLib.Variant("(ssss)", ("sleep", "Kūhaku", "Lock the screen first", "delay")),
-                GLib.VariantType("(h)"), Gio.DBusCallFlags.NONE, -1, None, None)
+                GLib.VariantType("(h)"),
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+                None,
+            )
             self.inhibit_fd = fds.get(r.unpack()[0])
         except Exception:
             self.inhibit_fd = None
@@ -329,7 +379,7 @@ class Watcher:
             self.show(on_shown=self.release)
         else:
             self.inhibit()
-            if self.lock and self.lock.win:          # back from sleep: look for the face again
+            if self.lock and self.lock.win:  # back from sleep: look for the face again
                 GLib.timeout_add(1500, self.lock.wake)
 
     def on_session(self, *args):
@@ -363,6 +413,7 @@ def main():
     # One watcher per session: a second one (a second start of the session script) waits here
     # instead of locking the screen twice.
     import fcntl
+
     hold = open(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "kuhaku-lock.watch"), "w")
     fcntl.flock(hold, fcntl.LOCK_EX)
     Gtk.init(None)

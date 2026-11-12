@@ -5,6 +5,7 @@ Each step opens the window that does the work (kuhaku-finger.py, kuhaku-face.py 
 comes back here when it closes. Opened from Settings → Unlock, the Apps page ("Unlock"),
 or by asking Claude.
 """
+
 import json
 import os
 import subprocess
@@ -12,6 +13,7 @@ import sys
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
@@ -26,8 +28,9 @@ WANT = 3
 
 def fingers():
     try:
-        out = subprocess.run([sys.executable, str(HERE / "kuhaku-finger.py"), "--list"],
-                             capture_output=True, text=True, timeout=15).stdout
+        out = subprocess.run(
+            [sys.executable, str(HERE / "kuhaku-finger.py"), "--list"], capture_output=True, text=True, timeout=15
+        ).stdout
         d = json.loads(out or "{}")
         return d.get("reader"), d.get("fingers") or []
     except Exception:
@@ -37,8 +40,9 @@ def fingers():
 
 def face():
     try:
-        out = subprocess.run([sys.executable, str(HERE / "kuhaku-face.py"), "status"],
-                             capture_output=True, text=True, timeout=15).stdout
+        out = subprocess.run(
+            [sys.executable, str(HERE / "kuhaku-face.py"), "status"], capture_output=True, text=True, timeout=15
+        ).stdout
         return json.loads(out or "{}")
     except Exception:
         report()
@@ -47,15 +51,17 @@ def face():
 
 class Setup:
     def __init__(self):
-        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), window_css(),
-                                                 Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), window_css(), Gtk.STYLE_PROVIDER_PRIORITY_USER
+        )
         self.win = Gtk.Window(title="Unlock")
         self.win.set_decorated(False)
         self.win.fullscreen()
         self.win.connect("destroy", Gtk.main_quit)
         self.win.connect("key-press-event", lambda w, e: e.keyval == Gdk.KEY_Escape and w.destroy())
-        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16,
-                           valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER)
+        self.box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=16, valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER
+        )
         self.box.set_size_request(760, -1)
         self.win.add(self.box)
         self.win.show_all()
@@ -104,37 +110,55 @@ class Setup:
                 self.win.fullscreen()
                 then()
                 return False
+
             GLib.timeout_add(500, check)
             return False
+
         GLib.idle_add(wait)
 
     # --- the steps ------------------------------------------------------------------------
     def intro(self):
-        self.screen("Unlock", "Open this computer with a touch or a look.",
-                    "First a few fingers on the reader in the power button, then your face with the infrared "
-                    "camera above the screen. About three minutes. Your password always works too, and it is "
-                    "still the one asked when the computer starts.",
-                    [("Begin", self.fingers), ("Not now", self.win.destroy)])
+        self.screen(
+            "Unlock",
+            "Open this computer with a touch or a look.",
+            "First a few fingers on the reader in the power button, then your face with the infrared "
+            "camera above the screen. About three minutes. Your password always works too, and it is "
+            "still the one asked when the computer starts.",
+            [("Begin", self.fingers), ("Not now", self.win.destroy)],
+        )
 
     def fingers(self):
         reader, known = fingers()
         if not reader:
-            self.screen("Step 1 of 2 · Fingers", "No fingerprint reader answered.",
-                        "Ask Claude to look at the fingerprint service. You can still set up your face.",
-                        [("Go on to the face", self.face), ("Close", self.win.destroy)])
+            self.screen(
+                "Step 1 of 2 · Fingers",
+                "No fingerprint reader answered.",
+                "Ask Claude to look at the fingerprint service. You can still set up your face.",
+                [("Go on to the face", self.face), ("Close", self.win.destroy)],
+            )
             return
         n = len(known)
         if n >= WANT:
-            self.screen("Step 1 of 2 · Fingers", f"{n} fingers known.",
-                        "That is reliable: if one finger is dry or at an angle, another works.",
-                        [("Go on to the face", self.face), ("Add another finger", self.teach)])
+            self.screen(
+                "Step 1 of 2 · Fingers",
+                f"{n} fingers known.",
+                "That is reliable: if one finger is dry or at an angle, another works.",
+                [("Go on to the face", self.face), ("Add another finger", self.teach)],
+            )
             return
         left = WANT - n
-        text = ("Touch the power button gently, lift, touch again, about nine times per finger, a little "
-                "differently each time. Don't press it down." if n == 0 else
-                f"{n} known. {left} more make{'s' if left == 1 else ''} it reliable: a dry or tilted finger still works.")
-        self.screen("Step 1 of 2 · Fingers", "Teach a finger." if n == 0 else "Another finger.", text,
-                    [("Teach a finger", self.teach), ("Skip to the face", self.face)])
+        text = (
+            "Touch the power button gently, lift, touch again, about nine times per finger, a little "
+            "differently each time. Don't press it down."
+            if n == 0
+            else f"{n} known. {left} more make{'s' if left == 1 else ''} it reliable: a dry or tilted finger still works."
+        )
+        self.screen(
+            "Step 1 of 2 · Fingers",
+            "Teach a finger." if n == 0 else "Another finger.",
+            text,
+            [("Teach a finger", self.teach), ("Skip to the face", self.face)],
+        )
 
     def teach(self):
         self.run([str(HERE / "kuhaku-finger.py")], self.fingers)
@@ -142,20 +166,29 @@ class Setup:
     def face(self):
         f = face()
         if not f.get("camera") or not f.get("ready"):
-            self.screen("Step 2 of 2 · Face", "The infrared camera did not answer.",
-                        "Slide the little cover above the screen open, then try again.",
-                        [("Try again", self.face), ("Finish without face", self.done)])
+            self.screen(
+                "Step 2 of 2 · Face",
+                "The infrared camera did not answer.",
+                "Slide the little cover above the screen open, then try again.",
+                [("Try again", self.face), ("Finish without face", self.done)],
+            )
             return
         if f.get("enrolled"):
-            self.screen("Step 2 of 2 · Face", "Your face is known.",
-                        "Learn it again if you change glasses or it misses you often.",
-                        [("Finish", self.done), ("Learn again", self.learn_face)])
+            self.screen(
+                "Step 2 of 2 · Face",
+                "Your face is known.",
+                "Learn it again if you change glasses or it misses you often.",
+                [("Finish", self.done), ("Learn again", self.learn_face)],
+            )
             return
-        self.screen("Step 2 of 2 · Face", "Now your face.",
-                    "Slide the camera cover open, sit as you usually do and look at the screen. Turn your head a "
-                    "little when asked. Only measurements are kept, never pictures, and the camera is on only "
-                    "while the lock screen is up. A convenience: your password and fingers are stronger.",
-                    [("Set up face", self.learn_face), ("Skip", self.done)])
+        self.screen(
+            "Step 2 of 2 · Face",
+            "Now your face.",
+            "Slide the camera cover open, sit as you usually do and look at the screen. Turn your head a "
+            "little when asked. Only measurements are kept, never pictures, and the camera is on only "
+            "while the lock screen is up. A convenience: your password and fingers are stronger.",
+            [("Set up face", self.learn_face), ("Skip", self.done)],
+        )
 
     def learn_face(self):
         self.run([str(HERE / "kuhaku-face.py"), "enroll"], self.after_face)
@@ -164,19 +197,31 @@ class Setup:
         if face().get("enrolled"):
             self.done()
         else:
-            self.screen("Step 2 of 2 · Face", "The face was not learned.",
-                        "More light on your face, or the camera cover open, usually helps.",
-                        [("Try again", self.learn_face), ("Finish without face", self.done)])
+            self.screen(
+                "Step 2 of 2 · Face",
+                "The face was not learned.",
+                "More light on your face, or the camera cover open, usually helps.",
+                [("Try again", self.learn_face), ("Finish without face", self.done)],
+            )
 
     def done(self):
         _, known = fingers()
         has_face = bool(face().get("enrolled"))
-        ways = ["your password"] + ([f"{len(known)} finger{'s' if len(known) != 1 else ''}"] if known else []) \
+        ways = (
+            ["your password"]
+            + ([f"{len(known)} finger{'s' if len(known) != 1 else ''}"] if known else [])
             + (["your face"] if has_face else [])
-        self.screen("Done", "Unlocking is set up.",
-                    "The lock screen now opens with " + ", ".join(ways[:-1]) + (" or " if len(ways) > 1 else "")
-                    + ways[-1] + ". Change it any time in Settings, under Unlock.",
-                    [("Close", self.win.destroy)])
+        )
+        self.screen(
+            "Done",
+            "Unlocking is set up.",
+            "The lock screen now opens with "
+            + ", ".join(ways[:-1])
+            + (" or " if len(ways) > 1 else "")
+            + ways[-1]
+            + ". Change it any time in Settings, under Unlock.",
+            [("Close", self.win.destroy)],
+        )
 
 
 if __name__ == "__main__":

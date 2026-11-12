@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Kūhaku (空白, "blank space"): a full screen home for Claude. 
+"""Kūhaku (空白, "blank space"): a full screen home for Claude.
 
 A WebKit window that replaces the desktop. Questions go to Claude Code
 (`claude -p`) in the background; only the pulsing dot and the final answer
 are shown. Everything Claude did is logged and can be opened in a real
 terminal with Ctrl+` (or Ctrl+Alt+Return).
 """
+
 import json
 import os
 import pwd
@@ -20,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
@@ -32,10 +34,40 @@ import jobs  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 from kuhaku_system import (  # noqa: E402  the computer: battery, Wi-Fi, power, displays, apps
-    FINGER_ORDER, PAD_KEYS, POWER_KEYS, _limits_cache, battery_details, bluetooth_icon_state, bluetooth_state,
-    daily_tokens, describe, launch_app, list_apps, load_json, note_limits, open_windows, pgrep_x, plan_limits,
-    read_battery, read_displays, read_power, read_time, read_trackpad, read_unlock, read_wifi, run, spawn,
-    wifi_connect, wifi_networks, wifi_signal, write_display, write_power, write_time, write_trackpad, notices)
+    FINGER_ORDER,
+    PAD_KEYS,
+    POWER_KEYS,
+    _limits_cache,
+    battery_details,
+    bluetooth_icon_state,
+    bluetooth_state,
+    daily_tokens,
+    describe,
+    launch_app,
+    list_apps,
+    load_json,
+    note_limits,
+    open_windows,
+    pgrep_x,
+    plan_limits,
+    read_battery,
+    read_displays,
+    read_power,
+    read_time,
+    read_trackpad,
+    read_unlock,
+    read_wifi,
+    run,
+    spawn,
+    wifi_connect,
+    wifi_networks,
+    wifi_signal,
+    write_display,
+    write_power,
+    write_time,
+    write_trackpad,
+    notices,
+)
 from kuhaku_config import (  # noqa: E402
     CONFIG_DIR,
     CONFIG_FILE,
@@ -45,12 +77,14 @@ from kuhaku_config import (  # noqa: E402
     HOME,
     MENU,
     STATE_DIR,
-    STATE_FILE)
+    STATE_FILE,
+)
 from kuhaku_panels import Panels  # noqa: E402
 from kuhaku_voice import Voice  # noqa: E402
 from kuhaku_settings import Settings  # noqa: E402
 from kuhaku_claude import ClaudeJobs  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
+
 
 class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
     def __init__(self):
@@ -65,10 +99,10 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         self.state["session_id"] = self.tabs.get(self.tabs.current)["session_id"]
         self.procs, self.live = {}, {}
         self.recorder = None
-        self.convo = 0            # a conversation's number while one is on (0: off); a new one outdates the old
-        self.speaker = None       # the Piper worker, loaded once
+        self.convo = 0  # a conversation's number while one is on (0: off); a new one outdates the old
+        self.speaker = None  # the Piper worker, loaded once
         self.speaker_lock = threading.Lock()
-        self.voice_proc = None    # what is listening or playing right now
+        self.voice_proc = None  # what is listening or playing right now
         self.whisper = None
         self.whisper_lock = threading.Lock()
         self.claude = shutil.which("claude") or str(HOME / ".local/bin/claude")
@@ -114,14 +148,20 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         self.rundot = None
         try:
             from osd import Osd
+
             self.osd = Osd(self.current_theme)
         except Exception as e:
             print("Kūhaku: no on-screen volume feedback:", e)
         try:
             from corner import Corner
-            self.corner = Corner(self.current_theme,
-                                 lambda: self.window.get_window().get_xid() if self.window.get_window() else 0,
-                                 read_battery, read_wifi, self.open_panel)
+
+            self.corner = Corner(
+                self.current_theme,
+                lambda: self.window.get_window().get_xid() if self.window.get_window() else 0,
+                read_battery,
+                read_wifi,
+                self.open_panel,
+            )
         except Exception as e:
             print("Kūhaku: no bar over apps:", e)
 
@@ -151,7 +191,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         if kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
             uri = decision.get_navigation_action().get_request().get_uri()
             if uri.startswith("kuhaku://details"):
-                self.open_terminal()   # what happened, in real Claude Code
+                self.open_terminal()  # what happened, in real Claude Code
                 decision.ignore()
                 return True
             if not uri.startswith("file://"):
@@ -175,7 +215,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             fresh = bool(answers) and (answers[-1].get("time") or 0) > booted
             self.send("setAnswers", {"answers": answers, "show": fresh and not self.state.get("dismissed")})
             cur = self.tabs.get(self.tabs.current)
-            if "draft" not in cur:   # drafts used to be one for the whole screen
+            if "draft" not in cur:  # drafts used to be one for the whole screen
                 cur.update(draft=self.state.get("draft", ""), next=self.state.get("next_draft", ""))
             self.push_tabs()
             self.restore_tab()
@@ -193,8 +233,10 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
     def push_status(self):
         self.send("setAccount", {"name": accounts.active()["name"], "many": len(accounts.ready("claude")) > 1})
         self.send("setMicMode", self.config.get("mic_button") or "talk")
-        self.send("setStatus", {"battery": read_battery(), "wifi": read_wifi(), "bt": bluetooth_icon_state(),
-                                "signal": wifi_signal()})
+        self.send(
+            "setStatus",
+            {"battery": read_battery(), "wifi": read_wifi(), "bt": bluetooth_icon_state(), "signal": wifi_signal()},
+        )
         return True
 
     def push_tablet(self):
@@ -229,8 +271,15 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         theme = self.current_theme()
         bg = (0.071, 0.071, 0.071) if theme == "night" else (0.969, 0.957, 0.945)
         self.view.set_background_color(Gdk.RGBA(*bg, 1))
-        self.send("setTheme", {"theme": theme, "choice": self.state.get("theme") or "auto",
-                               "from": self.config["night_from"], "until": self.config["night_until"]})
+        self.send(
+            "setTheme",
+            {
+                "theme": theme,
+                "choice": self.state.get("theme") or "auto",
+                "from": self.config["night_from"],
+                "until": self.config["night_until"],
+            },
+        )
         return True
 
     def save_state(self):
@@ -264,6 +313,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
 
     def overview(self, _msg=None):
         from rundot import overview
+
         if not overview():
             self.js("openRuns()")
 
@@ -283,21 +333,21 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
                         GLib.idle_add(self.capture, parts[1])
                     elif parts == ["menu"]:
                         GLib.idle_add(self.show_menu)
-                    elif len(parts) >= 2 and parts[0] == "note":       # e.g. airplane mode (F8)
+                    elif len(parts) >= 2 and parts[0] == "note":  # e.g. airplane mode (F8)
                         try:
                             n = json.loads(line.split(None, 1)[1])
                             GLib.idle_add(lambda n=n: self.note(n.get("title", ""), n.get("detail", "")) and False)
                         except Exception:
                             report()
-                    elif parts == ["notices"]:                         # F9
+                    elif parts == ["notices"]:  # F9
                         GLib.idle_add(self.open_panel, "notices")
-                    elif parts == ["display"]:                         # F7
+                    elif parts == ["display"]:  # F7
                         GLib.idle_add(self.key_js, "openPage('settings', 'display')")
-                    elif parts == ["talk"]:                            # F10
+                    elif parts == ["talk"]:  # F10
                         GLib.idle_add(self.key_js, "if (page) closePage(); if (panel) closePanel(); talk()")
-                    elif len(parts) >= 2 and parts[0] == "continue":   # from Kiroku: a past job in a new tab
+                    elif len(parts) >= 2 and parts[0] == "continue":  # from Kiroku: a past job in a new tab
                         GLib.idle_add(self.continue_thread, parts[1], " ".join(parts[2:]))
-                    elif len(parts) >= 2 and parts[0] == "ask":        # from another app: a new job
+                    elif len(parts) >= 2 and parts[0] == "ask":  # from another app: a new job
                         try:
                             GLib.idle_add(self.ask_new_tab, json.loads(line.split(None, 1)[1]).get("text", ""))
                         except Exception:
@@ -336,8 +386,12 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         # Mac-style: crosshair for an area, a picture in the corner to mark up (kuhaku-shot.py).
         if getattr(self, "osd", None):
             self.osd.win.hide()
-        subprocess.Popen([sys.executable, str(HERE / "kuhaku-shot.py"), how], start_new_session=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(
+            [sys.executable, str(HERE / "kuhaku-shot.py"), how],
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         return False
 
     def toggle_recording(self, stamp):
@@ -353,17 +407,23 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
                     proc.kill()
                 GLib.idle_add(self.note, "Recording", "Saved to Videos")
                 GLib.idle_add(self.send, "setRecording", False)
+
             threading.Thread(target=wait, daemon=True).start()
             return
         folder = HOME / "Videos" / "Screen Recordings"
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / f"Screen Recording {stamp}.mp4"
-        pipeline = ("ximagesrc use-damage=false show-pointer=true ! video/x-raw,framerate=24/1 ! queue ! videoconvert ! "
-                    "video/x-raw,format=I420 ! x264enc speed-preset=ultrafast tune=zerolatency bitrate=8000 key-int-max=48 ! "
-                    "h264parse ! queue ! mp4mux ! filesink")
+        pipeline = (
+            "ximagesrc use-damage=false show-pointer=true ! video/x-raw,framerate=24/1 ! queue ! videoconvert ! "
+            "video/x-raw,format=I420 ! x264enc speed-preset=ultrafast tune=zerolatency bitrate=8000 key-int-max=48 ! "
+            "h264parse ! queue ! mp4mux ! filesink"
+        )
         try:
-            proc = subprocess.Popen(["gst-launch-1.0", "-e", "-q", *pipeline.split(), f"location=\"{path}\""],
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            proc = subprocess.Popen(
+                ["gst-launch-1.0", "-e", "-q", *pipeline.split(), f"location=\"{path}\""],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         except FileNotFoundError:
             self.note("Recording", "Not available")
             return
@@ -373,8 +433,9 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
 
     # --- pictures for Claude: copied into ~/Pictures/ForClaude ------------
     def pick_pictures(self):
-        dialog = Gtk.FileChooserNative.new("Add a picture for Claude", self.window,
-                                           Gtk.FileChooserAction.OPEN, "Add", "Cancel")
+        dialog = Gtk.FileChooserNative.new(
+            "Add a picture for Claude", self.window, Gtk.FileChooserAction.OPEN, "Add", "Cancel"
+        )
         dialog.set_select_multiple(True)
         shots = Path.home() / "Pictures" / "Screenshots"
         if shots.is_dir():
@@ -477,17 +538,27 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         procs = self.__dict__.setdefault("signin_procs", {})
         old = procs.pop(ident, None)
         if old and old.poll() is None:
-            old.terminate()          # a sign-in left waiting: start afresh
+            old.terminate()  # a sign-in left waiting: start afresh
         env = accounts.env(ident=ident)
         shim = str(HERE / "signin-bin")
-        env.update(PATH=shim + ":" + env["PATH"], BROWSER=shim + "/xdg-open",
-                   KUHAKU_SIGNIN_TITLE="Sign in · " + accounts.label(acct))
+        env.update(
+            PATH=shim + ":" + env["PATH"],
+            BROWSER=shim + "/xdg-open",
+            KUHAKU_SIGNIN_TITLE="Sign in · " + accounts.label(acct),
+        )
         if accounts.kind(acct) == "claude":
-            env["KUHAKU_SIGNIN_BROWSER"] = "firefox"   # Cloudflare's human check stops WebKitGTK
+            env["KUHAKU_SIGNIN_BROWSER"] = "firefox"  # Cloudflare's human check stops WebKitGTK
         log = open(STATE_DIR / "signin.log", "a")
         # stdin stays open: Claude reads a pasted code from it if ever needed; Gemini asks yes/no first.
-        p = subprocess.Popen(["bash", "-c", "exec env " + accounts.login_command(acct)], env=env, cwd=str(HOME),
-                             stdin=subprocess.PIPE, stdout=log, stderr=log, start_new_session=True)
+        p = subprocess.Popen(
+            ["bash", "-c", "exec env " + accounts.login_command(acct)],
+            env=env,
+            cwd=str(HOME),
+            stdin=subprocess.PIPE,
+            stdout=log,
+            stderr=log,
+            start_new_session=True,
+        )
         log.close()
         if accounts.kind(acct) == "gemini":
             p.stdin.write(b"y\n")
@@ -509,6 +580,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
                 self.send("panelData", {"action": "prefs", "data": self.read_prefs()})
                 return False
             return True
+
         GLib.timeout_add_seconds(2, watch)
 
     def open_terminal(self):
@@ -523,8 +595,18 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         if term == "kuhaku-terminal" and kuhaku_term.exists():
             spawn([str(kuhaku_term), "-e", cmd])
         elif shutil.which(term) and "xfce4-terminal" in term:
-            spawn([term, "--maximize", "--title=Claude", f"--working-directory={HOME}",
-                   "-x", "bash", "-lc", f"{cmd}; exec bash"])
+            spawn(
+                [
+                    term,
+                    "--maximize",
+                    "--title=Claude",
+                    f"--working-directory={HOME}",
+                    "-x",
+                    "bash",
+                    "-lc",
+                    f"{cmd}; exec bash",
+                ]
+            )
         else:
             spawn(["x-terminal-emulator", "-e", "bash", "-lc", f"{cmd}; exec bash"])
 

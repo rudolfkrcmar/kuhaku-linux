@@ -1,4 +1,5 @@
 """Tegami's ground: mail accounts and their passwords, the local store (SQLite), parsing and sorting messages."""
+
 import email
 import email.policy
 import email.utils
@@ -13,13 +14,13 @@ import threading
 from pathlib import Path
 import time
 
-imaplib._MAXLINE = 50_000_000   # long server answers (big mailboxes) are fine
+imaplib._MAXLINE = 50_000_000  # long server answers (big mailboxes) are fine
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
 CONFIG = HOME / ".config/kuhaku/mail.json"
 DATA = HOME / ".local/state/kuhaku/mail"
-KEEP = 400                      # newest messages kept per folder
-SYNC_EVERY = 180                # seconds
+KEEP = 400  # newest messages kept per folder
+SYNC_EVERY = 180  # seconds
 KEEP_SPAM = 100
 CATS = ("important", "purchases", "updates", "newsletters", "cold")
 KEYRING = "app.kuhaku.Tegami"
@@ -36,10 +37,10 @@ PRESETS = {
     "yahoo.com": ("imap.mail.yahoo.com", 993, "smtp.mail.yahoo.com", 465, "Yahoo"),
 }
 
-if sys.platform == "darwin":                # a Mac keeps app data where Macs keep it
+if sys.platform == "darwin":  # a Mac keeps app data where Macs keep it
     CONFIG = HOME / "Library/Application Support/Tegami/mail.json"
     DATA = HOME / "Library/Application Support/Tegami/data"
-if os.environ.get("TEGAMI_TEST_DIR"):      # a sandbox for trying Tegami without real mail
+if os.environ.get("TEGAMI_TEST_DIR"):  # a sandbox for trying Tegami without real mail
     CONFIG = Path(os.environ["TEGAMI_TEST_DIR"]) / "mail.json"
     DATA = Path(os.environ["TEGAMI_TEST_DIR"]) / "data"
 
@@ -142,14 +143,23 @@ def snippet_of(m):
     return text[:180]
 
 
-PURCHASE = re.compile(r"\b(order|receipt|invoice|payment|paid|purchase|shipped|shipping|delivery|delivered|tracking|"
-                      r"booking|ticket|refund|subscription renewal|objedn\w*|faktur\w*|platb\w*|zásilk\w*|účtenk\w*|"
-                      r"doklad\w*|rezervac\w*|vstupenk\w*|doručen\w*)\b", re.I)
-AUTOMATED = re.compile(r"(no[-_.]?reply|do[-_.]?not[-_.]?reply|notif|alert|mailer|robot|bounce|postmaster|^info@|^news|"
-                       r"newsletter|^updates?@|^support@|^team@|^hello@|^service|^contact@|^marketing|^promo|^offers?@|"
-                       r"account|security|billing|statement|communication|^family|^message@|^mail@|^email@|@e\.|@email\.|@mail\.|@news\.)", re.I)
-UPDATE_WORDS = re.compile(r"(notif|alert|security|sign-?in|password|verif|statement|account|terms|conditions|"
-                          r"invitation|reminder|výpis|přihlášení|heslo|upozorněn|podmín)", re.I)
+PURCHASE = re.compile(
+    r"\b(order|receipt|invoice|payment|paid|purchase|shipped|shipping|delivery|delivered|tracking|"
+    r"booking|ticket|refund|subscription renewal|objedn\w*|faktur\w*|platb\w*|zásilk\w*|účtenk\w*|"
+    r"doklad\w*|rezervac\w*|vstupenk\w*|doručen\w*)\b",
+    re.I,
+)
+AUTOMATED = re.compile(
+    r"(no[-_.]?reply|do[-_.]?not[-_.]?reply|notif|alert|mailer|robot|bounce|postmaster|^info@|^news|"
+    r"newsletter|^updates?@|^support@|^team@|^hello@|^service|^contact@|^marketing|^promo|^offers?@|"
+    r"account|security|billing|statement|communication|^family|^message@|^mail@|^email@|@e\.|@email\.|@mail\.|@news\.)",
+    re.I,
+)
+UPDATE_WORDS = re.compile(
+    r"(notif|alert|security|sign-?in|password|verif|statement|account|terms|conditions|"
+    r"invitation|reminder|výpis|přihlášení|heslo|upozorněn|podmín)",
+    re.I,
+)
 
 
 def correspondents(store):
@@ -162,9 +172,13 @@ def correspondents(store):
 
 def is_automated(m, addr):
     """Mail sent by a machine (lists, shops, services) rather than a person."""
-    return bool(m.get("list-unsubscribe") or m.get("list-id") or
-                str(m.get("precedence", "")).lower() in ("bulk", "list", "junk") or
-                m.get("auto-submitted", "no").lower() != "no" or AUTOMATED.search(addr or ""))
+    return bool(
+        m.get("list-unsubscribe")
+        or m.get("list-id")
+        or str(m.get("precedence", "")).lower() in ("bulk", "list", "junk")
+        or m.get("auto-submitted", "no").lower() != "no"
+        or AUTOMATED.search(addr or "")
+    )
 
 
 def classify(m, addr, gcat=None, rule=None, known=frozenset()):

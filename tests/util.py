@@ -1,4 +1,5 @@
 """Shared helpers for Kūhaku's tests."""
+
 import importlib.util
 import os
 import sys
@@ -40,4 +41,5 @@ class Done(Exception):
 
 def fake_completed(stdout="", stderr="", returncode=0):
     import subprocess
+
     return subprocess.CompletedProcess([], returncode, stdout, stderr)

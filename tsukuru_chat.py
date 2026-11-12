@@ -9,6 +9,7 @@ Block kinds (the page draws them):
   {k:'denied', items:[...]}  Claude wanted to do something the mode did not allow
   {k:'error', t}
 """
+
 import difflib
 import json
 import os
@@ -25,9 +26,22 @@ from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 MODES = {"auto": "bypassPermissions", "plan": "plan", "ask": "default"}
-VERBS = {"Bash": "Run", "Read": "Read", "Write": "Write", "Edit": "Edit", "MultiEdit": "Edit", "NotebookEdit": "Edit",
-         "Glob": "Find", "Grep": "Search", "WebFetch": "Fetch", "WebSearch": "Search the web", "Task": "Agent",
-         "Agent": "Agent", "Skill": "Skill", "ToolSearch": "Tools"}
+VERBS = {
+    "Bash": "Run",
+    "Read": "Read",
+    "Write": "Write",
+    "Edit": "Edit",
+    "MultiEdit": "Edit",
+    "NotebookEdit": "Edit",
+    "Glob": "Find",
+    "Grep": "Search",
+    "WebFetch": "Fetch",
+    "WebSearch": "Search the web",
+    "Task": "Agent",
+    "Agent": "Agent",
+    "Skill": "Skill",
+    "ToolSearch": "Tools",
+}
 SKIP_TOOLS = {"ToolSearch", "ExitPlanMode", "EnterPlanMode"}
 
 
@@ -131,12 +145,23 @@ def rel(root, p):
 def tool_block(root, b):
     name, i = b.get("name", ""), b.get("input") or {}
     if name == "TodoWrite":
-        return {"k": "todo", "id": b.get("id"),
-                "items": [[t.get("content") or t.get("activeForm") or "", t.get("status") == "completed"]
-                          for t in i.get("todos") or []]}
+        return {
+            "k": "todo",
+            "id": b.get("id"),
+            "items": [
+                [t.get("content") or t.get("activeForm") or "", t.get("status") == "completed"]
+                for t in i.get("todos") or []
+            ],
+        }
     path = i.get("file_path") or i.get("notebook_path") or i.get("path") or ""
-    block = {"k": "tool", "id": b.get("id"), "verb": VERBS.get(name) or name.replace("mcp__", "").replace("__", " ").replace("_", " "),
-             "arg": "", "path": path, "running": True}
+    block = {
+        "k": "tool",
+        "id": b.get("id"),
+        "verb": VERBS.get(name) or name.replace("mcp__", "").replace("__", " ").replace("_", " "),
+        "arg": "",
+        "path": path,
+        "running": True,
+    }
     if name == "Bash":
         block["arg"] = short(i.get("command"), 200)
         block["note"] = short(i.get("description"), 60) if i.get("description") else ""
@@ -225,7 +250,9 @@ def history(root, sid):
             msg = e.get("message") or {}
             content = msg.get("content")
             if e["type"] == "user":
-                if isinstance(content, list) and any(c.get("type") == "tool_result" for c in content if isinstance(c, dict)):
+                if isinstance(content, list) and any(
+                    c.get("type") == "tool_result" for c in content if isinstance(c, dict)
+                ):
                     for c in content:
                         if isinstance(c, dict) and c.get("type") == "tool_result" and c.get("tool_use_id") in tools:
                             b = tools[c["tool_use_id"]]
@@ -260,8 +287,8 @@ class Runner:
     """One Claude turn at a time per session; several sessions (and projects) can work at once."""
 
     def __init__(self, emit, claude=None):
-        self.emit = emit                  # emit(kind, payload), called on the GTK thread by the caller's wrapper
-        self.procs = {}                   # sid -> Popen
+        self.emit = emit  # emit(kind, payload), called on the GTK thread by the caller's wrapper
+        self.procs = {}  # sid -> Popen
         self.claude = claude or "claude"
         self.model = None
 
@@ -283,8 +310,16 @@ class Runner:
             return sid
         sid = sid or str(uuid.uuid4())
         acct = account()
-        argv = [self.claude, "-p", text, "--output-format", "stream-json", "--verbose",
-                "--permission-mode", MODES.get(mode, mode)]
+        argv = [
+            self.claude,
+            "-p",
+            text,
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--permission-mode",
+            MODES.get(mode, mode),
+        ]
         argv += ["--session-id", sid] if new else ["--resume", sid]
         env = accounts.env(ident=acct["id"])
         threading.Thread(target=self._run, args=(root, sid, argv, env), daemon=True).start()
@@ -295,11 +330,20 @@ class Runner:
         tools, denied, error, last_text = {}, [], None, ""
         self.emit("busy", {"root": root, "sid": sid, "busy": True})
         try:
-            proc = self.procs[sid] = subprocess.Popen(argv, cwd=root, env=env, text=True, stdout=subprocess.PIPE,
-                                                      stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
-                                                      start_new_session=True)
+            proc = self.procs[sid] = subprocess.Popen(
+                argv,
+                cwd=root,
+                env=env,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+            )
         except FileNotFoundError:
-            self.emit("block", {"root": root, "sid": sid, "block": {"k": "error", "t": "Claude Code is not installed yet."}})
+            self.emit(
+                "block", {"root": root, "sid": sid, "block": {"k": "error", "t": "Claude Code is not installed yet."}}
+            )
             self.emit("busy", {"root": root, "sid": sid, "busy": False})
             return
         for line in proc.stdout:
@@ -324,8 +368,9 @@ class Runner:
                 for c in (ev.get("message") or {}).get("content") or []:
                     if isinstance(c, dict) and c.get("type") == "tool_result" and c.get("tool_use_id") in tools:
                         b = tools[c["tool_use_id"]]
-                        self.emit("update", {"root": root, "sid": sid,
-                                             "upd": apply_result(b, c, ev.get("tool_use_result"))})
+                        self.emit(
+                            "update", {"root": root, "sid": sid, "upd": apply_result(b, c, ev.get("tool_use_result"))}
+                        )
             elif t == "result":
                 for d in ev.get("permission_denials") or []:
                     i = d.get("tool_input") or {}
@@ -355,15 +400,25 @@ class Runner:
 
 def commit_message(root, diff):
     """A short commit message for the changes, from a small fast model without tools."""
-    prompt = ("Write a git commit message for these changes: one line, at most 60 characters, imperative mood, "
-              "no quotes, no trailing period. Reply with the line only.\n\n" + diff[:40000])
+    prompt = (
+        "Write a git commit message for these changes: one line, at most 60 characters, imperative mood, "
+        "no quotes, no trailing period. Reply with the line only.\n\n" + diff[:40000]
+    )
     a = accounts.pick(purpose="dev")
     if accounts.kind(a) == "claude":
         # Run outside the project, so this helper never shows up among the project's sessions.
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmp:
-            r = subprocess.run(["claude", "-p", "--model", "haiku", "--tools", "", "--no-session-persistence"], input=prompt,
-                               capture_output=True, text=True, timeout=120, cwd=tmp, env=accounts.env(ident=a["id"]))
+            r = subprocess.run(
+                ["claude", "-p", "--model", "haiku", "--tools", "", "--no-session-persistence"],
+                input=prompt,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=tmp,
+                env=accounts.env(ident=a["id"]),
+            )
         text = r.stdout.strip()
     else:
         text = accounts.ask(prompt, "You write git commit messages.", purpose="dev", cwd=str(root), timeout=120)

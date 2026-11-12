@@ -9,6 +9,7 @@ Google lets only registered apps ask for mail access. Tegami is not a company ap
 owner registers it once in their own Google Cloud project and downloads the small
 client file; Tegami notices that file in Downloads by itself.
 """
+
 import base64
 import hashlib
 import http.server
@@ -33,7 +34,7 @@ TOKEN = "https://oauth2.googleapis.com/token"
 USERINFO = "https://openidconnect.googleapis.com/v1/userinfo"
 CONSOLE = "https://console.cloud.google.com/auth/clients/create"
 
-_tokens = {}   # refresh token -> (access token, expiry)
+_tokens = {}  # refresh token -> (access token, expiry)
 
 DONE_PAGE = (Path(__file__).resolve().parent / "mail/google-signed-in.html").read_text(encoding="utf-8")
 
@@ -49,7 +50,7 @@ def client():
                     CLIENT.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy(f, CLIENT)
                     os.chmod(CLIENT, 0o600)
-                    f.unlink()     # the secret lives in one place only
+                    f.unlink()  # the secret lives in one place only
                     break
             except Exception:
                 report()
@@ -63,8 +64,9 @@ def client():
 
 
 def _post(url, fields):
-    req = urllib.request.Request(url, data=urllib.parse.urlencode(fields).encode(),
-                                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    req = urllib.request.Request(
+        url, data=urllib.parse.urlencode(fields).encode(), headers={"Content-Type": "application/x-www-form-urlencoded"}
+    )
     return json.loads(urllib.request.urlopen(req, timeout=20).read())
 
 
@@ -87,9 +89,12 @@ def sign_in(hint="", timeout=300):
                 return
             got.update({k: v[0] for k, v in q.items()})
             ok = "code" in got
-            page = DONE_PAGE.format(title="Signed in." if ok else "Not signed in.",
-                                    text="Tegami has your mail now. You can close this tab." if ok
-                                    else "Google did not give access. Close this tab and try again in Tegami.")
+            page = DONE_PAGE.format(
+                title="Signed in." if ok else "Not signed in.",
+                text="Tegami has your mail now. You can close this tab."
+                if ok
+                else "Google did not give access. Close this tab and try again in Tegami.",
+            )
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -100,10 +105,24 @@ def sign_in(hint="", timeout=300):
 
     server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
     redirect = f"http://127.0.0.1:{server.server_port}"
-    url = AUTH + "?" + urllib.parse.urlencode({
-        "client_id": c["id"], "redirect_uri": redirect, "response_type": "code", "scope": SCOPES,
-        "code_challenge": challenge, "code_challenge_method": "S256", "state": state,
-        "access_type": "offline", "prompt": "consent", **({"login_hint": hint} if hint else {})})
+    url = (
+        AUTH
+        + "?"
+        + urllib.parse.urlencode(
+            {
+                "client_id": c["id"],
+                "redirect_uri": redirect,
+                "response_type": "code",
+                "scope": SCOPES,
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+                "state": state,
+                "access_type": "offline",
+                "prompt": "consent",
+                **({"login_hint": hint} if hint else {}),
+            }
+        )
+    )
     desktop.open_url(url)
     server.timeout = 1
     end = time.time() + timeout
@@ -112,8 +131,17 @@ def sign_in(hint="", timeout=300):
     server.server_close()
     if "code" not in got:
         raise RuntimeError(got.get("error") or "timeout")
-    tok = _post(TOKEN, {"client_id": c["id"], "client_secret": c["secret"], "code": got["code"],
-                        "code_verifier": verifier, "redirect_uri": redirect, "grant_type": "authorization_code"})
+    tok = _post(
+        TOKEN,
+        {
+            "client_id": c["id"],
+            "client_secret": c["secret"],
+            "code": got["code"],
+            "code_verifier": verifier,
+            "redirect_uri": redirect,
+            "grant_type": "authorization_code",
+        },
+    )
     if "refresh_token" not in tok:
         raise RuntimeError("Google gave no lasting access")
     req = urllib.request.Request(USERINFO, headers={"Authorization": f"Bearer {tok['access_token']}"})
@@ -130,8 +158,10 @@ def access_token(refresh):
     c = client()
     if not c:
         raise RuntimeError("no-client")
-    tok = _post(TOKEN, {"client_id": c["id"], "client_secret": c["secret"], "refresh_token": refresh,
-                        "grant_type": "refresh_token"})
+    tok = _post(
+        TOKEN,
+        {"client_id": c["id"], "client_secret": c["secret"], "refresh_token": refresh, "grant_type": "refresh_token"},
+    )
     _tokens[refresh] = (tok["access_token"], time.time() + int(tok.get("expires_in", 3600)) - 60)
     return tok["access_token"]
 

@@ -4,6 +4,7 @@ Passwords live in the system keyring: libsecret on Kūhaku, the Keychain on a Ma
 Links open in Mado on Kūhaku, in the default browser on a Mac; files in Miru or
 their own app on Kūhaku, in their own app on a Mac.
 """
+
 import subprocess
 import sys
 from pathlib import Path
@@ -58,20 +59,29 @@ if MAC:
         return _vp.in_dll(lib, name).value
 
     def _str(s):
-        return _cf.CFStringCreateWithCString(None, s.encode(), 0x08000100)   # UTF-8
+        return _cf.CFStringCreateWithCString(None, s.encode(), 0x08000100)  # UTF-8
 
     def _dict(pairs):
         n = len(pairs)
         keys = (_vp * n)(*[k for k, _ in pairs])
         vals = (_vp * n)(*[v for _, v in pairs])
-        return _cf.CFDictionaryCreate(None, keys, vals, n,
-                                      ctypes.addressof(_vp.in_dll(_cf, "kCFTypeDictionaryKeyCallBacks")),
-                                      ctypes.addressof(_vp.in_dll(_cf, "kCFTypeDictionaryValueCallBacks")))
+        return _cf.CFDictionaryCreate(
+            None,
+            keys,
+            vals,
+            n,
+            ctypes.addressof(_vp.in_dll(_cf, "kCFTypeDictionaryKeyCallBacks")),
+            ctypes.addressof(_vp.in_dll(_cf, "kCFTypeDictionaryValueCallBacks")),
+        )
 
     def _query(service, key, *extra):
         made = [_str(service), _str(key)]
-        pairs = [(_const(_sec, "kSecClass"), _const(_sec, "kSecClassGenericPassword")),
-                 (_const(_sec, "kSecAttrService"), made[0]), (_const(_sec, "kSecAttrAccount"), made[1]), *extra]
+        pairs = [
+            (_const(_sec, "kSecClass"), _const(_sec, "kSecClassGenericPassword")),
+            (_const(_sec, "kSecAttrService"), made[0]),
+            (_const(_sec, "kSecAttrAccount"), made[1]),
+            *extra,
+        ]
         return _dict(pairs), made
 
     def _free(*refs):
@@ -80,8 +90,12 @@ if MAC:
                 _cf.CFRelease(r)
 
     def password_lookup(service, key):
-        q, made = _query(service, key, (_const(_sec, "kSecReturnData"), _const(_cf, "kCFBooleanTrue")),
-                         (_const(_sec, "kSecMatchLimit"), _const(_sec, "kSecMatchLimitOne")))
+        q, made = _query(
+            service,
+            key,
+            (_const(_sec, "kSecReturnData"), _const(_cf, "kCFBooleanTrue")),
+            (_const(_sec, "kSecMatchLimit"), _const(_sec, "kSecMatchLimitOne")),
+        )
         out = _vp()
         status = _sec.SecItemCopyMatching(q, ctypes.byref(out))
         _free(q, *made)
@@ -107,6 +121,7 @@ if MAC:
             raise RuntimeError(f"The Keychain did not take the password ({status})")
 else:
     import gi
+
     gi.require_version("Secret", "1")
     from gi.repository import Secret
 
@@ -114,8 +129,9 @@ else:
 
     def _schema(service):
         if service not in _schemas:
-            _schemas[service] = Secret.Schema.new(service, Secret.SchemaFlags.NONE,
-                                                  {"account": Secret.SchemaAttributeType.STRING})
+            _schemas[service] = Secret.Schema.new(
+                service, Secret.SchemaFlags.NONE, {"account": Secret.SchemaAttributeType.STRING}
+            )
         return _schemas[service]
 
     def password_lookup(service, key):

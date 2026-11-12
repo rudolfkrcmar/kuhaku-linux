@@ -9,6 +9,7 @@ Ctrl as Super, so Super+key is sent to the shell as Ctrl+key.)
     kuhaku-terminal                 a login shell
     kuhaku-terminal -e "command"    run a command, then stay in a shell
 """
+
 import json
 import os
 import signal
@@ -17,6 +18,7 @@ import time
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Vte", "2.91")
@@ -27,14 +29,54 @@ HOME = Path.home()
 
 THEMES = {
     "day": {
-        "bg": "#f7f4f1", "fg": "#111111", "muted": "#666666", "accent": "#e0301e", "select": "#f6d3cd",
-        "palette": ["#111111", "#c23b22", "#3f7d4f", "#a06a00", "#2f5f8a", "#7b4b8a", "#2a7a7a", "#bdb8b2",
-                    "#666666", "#e0301e", "#4f9a62", "#c08400", "#3f78ad", "#9a5fad", "#36999a", "#f7f4f1"],
+        "bg": "#f7f4f1",
+        "fg": "#111111",
+        "muted": "#666666",
+        "accent": "#e0301e",
+        "select": "#f6d3cd",
+        "palette": [
+            "#111111",
+            "#c23b22",
+            "#3f7d4f",
+            "#a06a00",
+            "#2f5f8a",
+            "#7b4b8a",
+            "#2a7a7a",
+            "#bdb8b2",
+            "#666666",
+            "#e0301e",
+            "#4f9a62",
+            "#c08400",
+            "#3f78ad",
+            "#9a5fad",
+            "#36999a",
+            "#f7f4f1",
+        ],
     },
     "night": {
-        "bg": "#121212", "fg": "#ececec", "muted": "#9a9a9a", "accent": "#f0705a", "select": "#3a2422",
-        "palette": ["#121212", "#e8836f", "#8fc39b", "#e3c07e", "#8fb3d9", "#c4a3d6", "#86c9c9", "#cfcfcf",
-                    "#5a5a5a", "#f0705a", "#a8d6b2", "#f0d29a", "#a9c7e8", "#d6bce4", "#a3dada", "#ececec"],
+        "bg": "#121212",
+        "fg": "#ececec",
+        "muted": "#9a9a9a",
+        "accent": "#f0705a",
+        "select": "#3a2422",
+        "palette": [
+            "#121212",
+            "#e8836f",
+            "#8fc39b",
+            "#e3c07e",
+            "#8fb3d9",
+            "#c4a3d6",
+            "#86c9c9",
+            "#cfcfcf",
+            "#5a5a5a",
+            "#f0705a",
+            "#a8d6b2",
+            "#f0d29a",
+            "#a9c7e8",
+            "#d6bce4",
+            "#a3dada",
+            "#ececec",
+        ],
     },
 }
 
@@ -46,6 +88,7 @@ def theme():
         except Exception:
             report()
             return {}
+
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
     choice = st.get("theme") or cfg.get("theme", "auto")
@@ -73,7 +116,8 @@ class Terminal:
         self.win.connect("key-press-event", self.on_key)
 
         css = Gtk.CssProvider()
-        css.load_from_data(f"""
+        css.load_from_data(
+            f"""
             window, .kuhaku {{ background: {t['bg']}; }}
             .title {{ font-family: 'Inter Variable', Inter, sans-serif; font-size: 14px; font-weight: 300;
                       color: {t['muted']}; }}
@@ -84,9 +128,9 @@ class Terminal:
                             min-width: 32px; min-height: 32px; padding: 0; border-radius: 999px;
                             transition: background 200ms, color 200ms; }}
             button.quiet:hover {{ color: {t['fg']}; background: alpha({t['fg']}, 0.08); }}
-        """.encode())
-        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css,
-                                                 Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        """.encode()
+        )
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         box.get_style_context().add_class("kuhaku")
@@ -112,11 +156,17 @@ class Terminal:
         k.get_style_context().add_class("quiet")
         k.set_relief(Gtk.ReliefStyle.NONE)
         k.set_can_focus(False)
-        k.connect("clicked", lambda *_: __import__("subprocess").Popen(
-            ["python3", str(Path(__file__).resolve().parent / "kansei.py")], start_new_session=True))
+        k.connect(
+            "clicked",
+            lambda *_: __import__("subprocess").Popen(
+                ["python3", str(Path(__file__).resolve().parent / "kansei.py")], start_new_session=True
+            ),
+        )
         row.pack_start(k, False, False, 0)
-        for symbol, tip, action in (("–", "Minimise", lambda *_: self.win.iconify()),
-                                    ("×", "Close", lambda *_: self.win.destroy())):
+        for symbol, tip, action in (
+            ("–", "Minimise", lambda *_: self.win.iconify()),
+            ("×", "Close", lambda *_: self.win.destroy()),
+        ):
             b = Gtk.Button(label=symbol)
             b.set_tooltip_text(tip)
             b.get_style_context().add_class("quiet")
@@ -161,8 +211,9 @@ class Terminal:
         argv = [shell, "-l"] if not command else [shell, "-lc", f"{command}; exec {shell} -l"]
         env = [f"{k}={v}" for k, v in os.environ.items() if k not in ("COLUMNS", "LINES")]
         env += ["TERM=xterm-256color", "COLORTERM=truecolor"]
-        self.term.spawn_async(Vte.PtyFlags.DEFAULT, str(HOME), argv, env, GLib.SpawnFlags.SEARCH_PATH,
-                              None, None, -1, None, None)
+        self.term.spawn_async(
+            Vte.PtyFlags.DEFAULT, str(HOME), argv, env, GLib.SpawnFlags.SEARCH_PATH, None, None, -1, None, None
+        )
         self.win.show_all()
         self.term.grab_focus()
 
@@ -172,8 +223,8 @@ class Terminal:
         self.win.set_title(title)
 
     def on_key(self, _w, ev):
-        cmd = ev.state & Gdk.ModifierType.CONTROL_MASK   # the Mac Cmd key here
-        ctrl = ev.state & Gdk.ModifierType.SUPER_MASK     # the physical Ctrl key here
+        cmd = ev.state & Gdk.ModifierType.CONTROL_MASK  # the Mac Cmd key here
+        ctrl = ev.state & Gdk.ModifierType.SUPER_MASK  # the physical Ctrl key here
         shift = ev.state & Gdk.ModifierType.SHIFT_MASK
         k = Gdk.keyval_name(Gdk.keyval_to_lower(ev.keyval)) or ""
         if cmd and not ctrl:

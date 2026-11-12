@@ -9,10 +9,12 @@ A wrong password says so under the line, in the accent colour.
 Shipped in the Kūhaku package (/usr/sbin/kuhaku-greeter). If it ever fails to start, the wrapper falls back to
 the standard greeter, so the computer can always be opened.
 """
+
 import os
 import sys
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("LightDM", "1")
@@ -49,9 +51,11 @@ class Greeter:
         users = LightDM.UserList.get_instance()
         self.people = [u for u in users.get_users()]
         hint = self.greeter.get_select_user_hint()
-        self.user = next((u.get_name() for u in self.people if u.get_name() == hint), None) \
-            or next((u.get_name() for u in self.people if u.get_logged_in()), None) \
+        self.user = (
+            next((u.get_name() for u in self.people if u.get_name() == hint), None)
+            or next((u.get_name() for u in self.people if u.get_logged_in()), None)
             or (self.people[0].get_name() if self.people else None)
+        )
 
         provider = Gtk.CssProvider()
         provider.load_from_data(CSS.encode())
@@ -153,7 +157,7 @@ class Greeter:
 
     def on_done(self, _g):
         if self.greeter.get_is_authenticated():
-            self.greeter.start_session_sync(None)   # the person's own session (Kūhaku)
+            self.greeter.start_session_sync(None)  # the person's own session (Kūhaku)
             return
         self.choose(self.user)
         self.error.set_text("Wrong password")

@@ -1,0 +1,36 @@
+# Kūhaku has no build step: these are the settings for its tools (dev/check runs them).
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["lib", "os", "system", "ide/vendor"]
+
+[tool.ruff.format]
+quote-style = "preserve"      # Kūhaku mixes quotes on purpose: '…' inside "…" for JS and shell snippets
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle errors and warnings, import order, bugbear, pyupgrade, simplifications.
+select = ["F", "E", "W", "I", "B", "UP", "SIM", "PIE", "RUF100"]
+ignore = [
+  "E501",   # the formatter keeps code within 120 columns; long strings and comments may run on
+  "E402",   # gi.require_version must run before `from gi.repository import …`
+  "E731",   # small lambdas in the message tables read better than one-line defs
+  "SIM105", # try/except/report() is the house style, not contextlib.suppress (faults are logged)
+  "SIM108", # ternaries are not always clearer
+  "B008",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["kuhaku_log", "kuhaku_config", "kuhaku_system", "kuhaku_panels", "kuhaku_voice",
+                     "kuhaku_settings", "kuhaku_claude", "kumo", "jobs", "claude_accounts", "keepawake",
+                     "calendars", "invites", "desktop", "tegami_ai", "tegami_core", "tegami_store", "tegami_sync",
+                     "tegami_google", "tegami_engine", "tablet_base", "tablet_x11", "tablet_keyboard", "tablet_ink",
+                     "miru", "rundot", "speak", "tsukuru_chat"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["kuhaku_log.py", "kumo.py", "kuhaku-guard.py", "kuhaku_config.py", "jobs.py"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true

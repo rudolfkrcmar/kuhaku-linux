@@ -18,6 +18,7 @@ Three modes in the one window, switched on the bar:
   Developer  (F12, Ctrl+Shift+I) the everyday tabs with developer tools under the page
              and phones and tablets to simulate.
 """
+
 import base64
 import json
 import os
@@ -37,8 +38,8 @@ HOME = Path.home()
 DATA = HOME / ".local" / "share" / "kuhaku" / "mado-chromium"
 CACHE = HOME / ".cache" / "mado-chromium"
 STATE = HOME / ".local" / "state" / "kuhaku" / "browser.json"
-TRUSTED = HOME / ".config" / "kuhaku" / "mado-certificates.json"    # host -> PEM the user chose to trust
-PERMS = HOME / ".config" / "kuhaku" / "mado-permissions.json"       # host -> "media"/"clipboard" -> true/false
+TRUSTED = HOME / ".config" / "kuhaku" / "mado-certificates.json"  # host -> PEM the user chose to trust
+PERMS = HOME / ".config" / "kuhaku" / "mado-permissions.json"  # host -> "media"/"clipboard" -> true/false
 SEARCH = "https://www.google.com/search?q="
 NEWTAB = (HERE / "newtab.html").as_uri()
 CHROME_HEIGHT = 52
@@ -52,17 +53,30 @@ WEB_SCHEMES = ("http", "https", "file", "about", "data", "blob", "javascript", "
 if os.environ.get("KUHAKU_MADO_DEBUG", "1") != "0":
     os.environ.setdefault("QTWEBENGINE_REMOTE_DEBUGGING", "127.0.0.1:9222")
 DEBUG_PORT = os.environ.get("QTWEBENGINE_REMOTE_DEBUGGING", "")
-os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", " ".join([
-    "--enable-features=VaapiVideoDecoder,VaapiVideoDecodeLinuxGL,VaapiIgnoreDriverChecks",
-    "--ignore-gpu-blocklist", "--enable-gpu-rasterization", "--process-per-site",
-]))
+os.environ.setdefault(
+    "QTWEBENGINE_CHROMIUM_FLAGS",
+    " ".join(
+        [
+            "--enable-features=VaapiVideoDecoder,VaapiVideoDecodeLinuxGL,VaapiIgnoreDriverChecks",
+            "--ignore-gpu-blocklist",
+            "--enable-gpu-rasterization",
+            "--process-per-site",
+        ]
+    ),
+)
 
 from PyQt6.QtCore import QEvent, QFile, QIODevice, QObject, Qt, QTimer, QUrl, pyqtSlot
 from PyQt6.QtGui import QColor, QDesktopServices, QIcon, QKeySequence, QShortcut
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtWebEngineCore import (QWebEnginePage, QWebEnginePermission, QWebEngineProfile,
-                                   QWebEngineScript, QWebEngineSettings, QWebEngineUrlRequestInterceptor)
+from PyQt6.QtWebEngineCore import (
+    QWebEnginePage,
+    QWebEnginePermission,
+    QWebEngineProfile,
+    QWebEngineScript,
+    QWebEngineSettings,
+    QWebEngineUrlRequestInterceptor,
+)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QSplitter, QStackedWidget, QVBoxLayout, QWidget
 from kuhaku_log import report  # faults go to the log instead of vanishing
@@ -109,25 +123,59 @@ TLS_PAGE = (Path(__file__).resolve().parent / "browser/tls.html").read_text(enco
 
 # Quiet by default: the usual ad and tracking hosts never load.
 BLOCKED = [
-    "doubleclick.net", "googlesyndication.com", "googleadservices.com", "adservice.google.com",
-    "google-analytics.com", "googletagmanager.com", "googletagservices.com", "adnxs.com",
-    "taboola.com", "outbrain.com", "criteo.com", "criteo.net", "amazon-adsystem.com",
-    "scorecardresearch.com", "quantserve.com", "moatads.com", "pubmatic.com", "rubiconproject.com",
-    "openx.net", "casalemedia.com", "adform.net", "smartadserver.com", "teads.tv", "hotjar.com",
-    "facebook.net", "connect.facebook.net", "ads-twitter.com", "static.ads-twitter.com",
-    "bat.bing.com", "yieldmo.com", "sharethrough.com", "media.net", "zedo.com", "adsrvr.org",
-    "3lift.com", "bidswitch.net", "mathtag.com", "serving-sys.com", "popads.net", "propellerads.com",
+    "doubleclick.net",
+    "googlesyndication.com",
+    "googleadservices.com",
+    "adservice.google.com",
+    "google-analytics.com",
+    "googletagmanager.com",
+    "googletagservices.com",
+    "adnxs.com",
+    "taboola.com",
+    "outbrain.com",
+    "criteo.com",
+    "criteo.net",
+    "amazon-adsystem.com",
+    "scorecardresearch.com",
+    "quantserve.com",
+    "moatads.com",
+    "pubmatic.com",
+    "rubiconproject.com",
+    "openx.net",
+    "casalemedia.com",
+    "adform.net",
+    "smartadserver.com",
+    "teads.tv",
+    "hotjar.com",
+    "facebook.net",
+    "connect.facebook.net",
+    "ads-twitter.com",
+    "static.ads-twitter.com",
+    "bat.bing.com",
+    "yieldmo.com",
+    "sharethrough.com",
+    "media.net",
+    "zedo.com",
+    "adsrvr.org",
+    "3lift.com",
+    "bidswitch.net",
+    "mathtag.com",
+    "serving-sys.com",
+    "popads.net",
+    "propellerads.com",
 ]
 
 
 def theme():
     """Follow Kūhaku: its saved choice, else the clock."""
+
     def load(p):
         try:
             return json.loads(p.read_text())
         except Exception:
             report()
             return {}
+
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
     choice = st.get("theme") or cfg.get("theme", "auto")
@@ -148,7 +196,11 @@ def host(uri):
 def site(h):
     """The site a host belongs to: ads.example.co.uk -> example.co.uk."""
     parts = h.lower().split(".")
-    n = 3 if len(parts) > 2 and len(parts[-1]) == 2 and parts[-2] in ("co", "com", "org", "net", "ac", "gov", "edu") else 2
+    n = (
+        3
+        if len(parts) > 2 and len(parts[-1]) == 2 and parts[-2] in ("co", "com", "org", "net", "ac", "gov", "edu")
+        else 2
+    )
     return ".".join(parts[-n:])
 
 
@@ -182,12 +234,18 @@ GOOGLE_SIGNIN = ("accounts.google.com",)
 FIREFOX_UA = b"Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0"
 
 
-IPHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 "
-             "(KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1")
-IPAD_UA = ("Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 "
-           "(KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1")
-ANDROID_UA = ("Mozilla/5.0 (Linux; Android 15; {MODEL}) AppleWebKit/537.36 "
-              "(KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36")
+IPHONE_UA = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+)
+IPAD_UA = (
+    "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+)
+ANDROID_UA = (
+    "Mozilla/5.0 (Linux; Android 15; {MODEL}) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
+)
 # Developer mode's devices: width, height (CSS pixels), pixel ratio, mobile, user agent.
 DEVICES = {
     "Full window": None,
@@ -205,6 +263,7 @@ class DevSession:
     """One DevTools session on one page, held open so Chromium keeps rendering it as the
     chosen device. Closing it ends the simulation. Chromium answers the handshake on this
     (the UI) thread, so connecting happens in the background and commands wait until then."""
+
     def __init__(self, target):
         self.target = target
         self.sock = None
@@ -219,9 +278,13 @@ class DevSession:
             h, port = DEBUG_PORT.rsplit(":", 1)
             sock = socket.create_connection((h, int(port)), timeout=10)
             key = base64.b64encode(os.urandom(16)).decode()
-            sock.sendall((f"GET /devtools/page/{self.target} HTTP/1.1\r\nHost: {h}:{port}\r\n"
-                          f"Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\n"
-                          "Sec-WebSocket-Version: 13\r\n\r\n").encode())
+            sock.sendall(
+                (
+                    f"GET /devtools/page/{self.target} HTTP/1.1\r\nHost: {h}:{port}\r\n"
+                    f"Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\n"
+                    "Sec-WebSocket-Version: 13\r\n\r\n"
+                ).encode()
+            )
             head = b""
             while b"\r\n\r\n" not in head:
                 got = sock.recv(1)
@@ -239,7 +302,7 @@ class DevSession:
                 for frame in self.queue:
                     sock.sendall(frame)
                 self.queue = []
-            while sock.recv(65536):     # answers are not needed, only read so the pipe never fills
+            while sock.recv(65536):  # answers are not needed, only read so the pipe never fills
                 pass
         except OSError:
             pass
@@ -273,6 +336,7 @@ class DevSession:
 class Quiet(QWebEngineUrlRequestInterceptor):
     """Third-party requests to ad and tracking hosts never leave the computer.
     What was stopped is noted per site, so the private mode can show it."""
+
     def __init__(self, stopped):
         super().__init__()
         self.stopped = stopped
@@ -338,8 +402,8 @@ class Watch(QObject):
 class Browser:
     def __init__(self, app):
         self.app = app
-        self.mode = "normal"                          # normal, private or developer
-        self.sets = {"normal": [], "private": []}     # developer mode shows the normal tabs
+        self.mode = "normal"  # normal, private or developer
+        self.sets = {"normal": [], "private": []}  # developer mode shows the normal tabs
         self.tabs = self.sets["normal"]
         self.front = {}
         self.profiles = {}
@@ -384,6 +448,7 @@ class Browser:
                 first = req.firstPartyUrl.host().lower().removeprefix("www.")
                 seen.setdefault(first, {}).setdefault(site(req.origin.host()), "cookies refused")
                 return False
+
             p.cookieStore().setCookieFilter(cookie)
         else:
             p = QWebEngineProfile("mado", self.app)
@@ -404,9 +469,17 @@ class Browser:
         p.downloadRequested.connect(self.on_download)
         s = p.settings()
         A = QWebEngineSettings.WebAttribute
-        for attr in (A.FullScreenSupportEnabled, A.ScrollAnimatorEnabled, A.ScreenCaptureEnabled,
-                     A.JavascriptCanAccessClipboard, A.PdfViewerEnabled, A.PluginsEnabled,
-                     A.DnsPrefetchEnabled, A.WebGLEnabled, A.Accelerated2dCanvasEnabled):
+        for attr in (
+            A.FullScreenSupportEnabled,
+            A.ScrollAnimatorEnabled,
+            A.ScreenCaptureEnabled,
+            A.JavascriptCanAccessClipboard,
+            A.PdfViewerEnabled,
+            A.PluginsEnabled,
+            A.DnsPrefetchEnabled,
+            A.WebGLEnabled,
+            A.Accelerated2dCanvasEnabled,
+        ):
             s.setAttribute(attr, True)
         s.setAttribute(A.PlaybackRequiresUserGesture, False)
         F = QWebEngineSettings.FontFamily
@@ -437,9 +510,11 @@ class Browser:
         w.setWindowTitle("Mado")
         w.setWindowIcon(QIcon.fromTheme("mado"))
         w.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+
         def closing(ev):
             self.save()
             ev.accept()
+
         w.closeEvent = closing
         w.setStyleSheet(f"background:{self.bg().name()}")
         box = QVBoxLayout(w)
@@ -447,7 +522,7 @@ class Browser:
         box.setSpacing(0)
 
         self.chrome = QWebEngineView()
-        cpage = QWebEnginePage(QWebEngineProfile(self.app), self.chrome)   # the toolbar keeps nothing
+        cpage = QWebEnginePage(QWebEngineProfile(self.app), self.chrome)  # the toolbar keeps nothing
         cpage.setBackgroundColor(self.bg())
         self.chrome.setPage(cpage)
         self.chrome.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
@@ -480,21 +555,32 @@ class Browser:
 
         keys = {
             "Ctrl+L": lambda: (self.chrome.setFocus(), self.js("editAddress()")),
-            "Ctrl+T": self.new_tab, "Ctrl+W": self.close_tab, "Ctrl+Q": self.quit,
-            "Ctrl+Tab": lambda: self.step(1), "Ctrl+PgDown": lambda: self.step(1),
-            "Ctrl+Shift+Tab": lambda: self.step(-1), "Ctrl+PgUp": lambda: self.step(-1),
+            "Ctrl+T": self.new_tab,
+            "Ctrl+W": self.close_tab,
+            "Ctrl+Q": self.quit,
+            "Ctrl+Tab": lambda: self.step(1),
+            "Ctrl+PgDown": lambda: self.step(1),
+            "Ctrl+Shift+Tab": lambda: self.step(-1),
+            "Ctrl+PgUp": lambda: self.step(-1),
             "Ctrl+F": lambda: (self.chrome.setFocus(), self.js("editFind()")),
-            "Ctrl+R": lambda: self.current and self.current.reload(), "F5": lambda: self.current and self.current.reload(),
+            "Ctrl+R": lambda: self.current and self.current.reload(),
+            "F5": lambda: self.current and self.current.reload(),
             "Alt+Left": lambda: self.current and self.current.back(),
             "Alt+Right": lambda: self.current and self.current.forward(),
-            "Ctrl+=": lambda: self.zoom(0.1), "Ctrl++": lambda: self.zoom(0.1), "Ctrl+-": lambda: self.zoom(-0.1),
+            "Ctrl+=": lambda: self.zoom(0.1),
+            "Ctrl++": lambda: self.zoom(0.1),
+            "Ctrl+-": lambda: self.zoom(-0.1),
             "Ctrl+0": lambda: self.zoom(0),
             "Ctrl+Shift+N": lambda: self.set_mode("normal" if self.mode == "private" else "private"),
-            "F12": self.toggle_developer, "Ctrl+Shift+I": self.toggle_developer, "Ctrl+Alt+I": self.toggle_developer,
+            "F12": self.toggle_developer,
+            "Ctrl+Shift+I": self.toggle_developer,
+            "Ctrl+Alt+I": self.toggle_developer,
             "Ctrl+U": lambda: self.current and self.new_tab("view-source:" + self.current.url().toString()),
         }
         for i in range(1, 10):
-            keys[f"Ctrl+{i}"] = (lambda i=i: self.tabs and self.switch(self.tabs[-1 if i == 9 else min(i, len(self.tabs)) - 1]))
+            keys[f"Ctrl+{i}"] = lambda i=i: (
+                self.tabs and self.switch(self.tabs[-1 if i == 9 else min(i, len(self.tabs)) - 1])
+            )
         self.shortcuts = []
         for k, fn in keys.items():
             sc = QShortcut(QKeySequence(k), w)
@@ -527,7 +613,9 @@ class Browser:
                 self.switch(f if f in self.tabs else self.tabs[-1])
             else:
                 self.new_tab()
-        self.window.setWindowTitle({"normal": "Mado", "private": "Mado · Private", "developer": "Mado · Developer"}[mode])
+        self.window.setWindowTitle(
+            {"normal": "Mado", "private": "Mado · Private", "developer": "Mado · Developer"}[mode]
+        )
         if mode == "developer":
             self.developer(True)
         self.push()
@@ -584,8 +672,15 @@ class Browser:
         self.stack.setContentsMargins(left, pad, W - w - left, max(0, H - h - pad))
         if self.session:
             d = DEVICES[self.device]
-            self.session.send("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=d[2],
-                              mobile=d[3], screenWidth=d[0], screenHeight=d[1])
+            self.session.send(
+                "Emulation.setDeviceMetricsOverride",
+                width=w,
+                height=h,
+                deviceScaleFactor=d[2],
+                mobile=d[3],
+                screenWidth=d[0],
+                screenHeight=d[1],
+            )
 
     def emulate(self, reload=False):
         """Render the tab in front as the chosen device: its size, pixel ratio, touch and user agent."""
@@ -600,15 +695,18 @@ class Browser:
                 self.session = DevSession(v.page().devToolsId())
                 s = self.session
                 if d[4]:
-                    s.send("Emulation.setUserAgentOverride", userAgent=d[4],
-                           platform="iPhone" if "iPhone" in d[4] else "iPad" if "iPad" in d[4] else "Linux armv8l")
+                    s.send(
+                        "Emulation.setUserAgentOverride",
+                        userAgent=d[4],
+                        platform="iPhone" if "iPhone" in d[4] else "iPad" if "iPad" in d[4] else "Linux armv8l",
+                    )
                 self.session_view = v
                 self.touch()
                 self.fit_device()
             except Exception:
                 self.session = None
         if reload:
-            QTimer.singleShot(500, v.reload)     # once the device's user agent is in place
+            QTimer.singleShot(500, v.reload)  # once the device's user agent is in place
 
     def touch(self):
         # Touch is set again for every page the tab loads: Chromium forgets it on navigation.
@@ -683,6 +781,7 @@ class Browser:
         def finished(_ok):
             view.loading, view.progress = False, 1.0
             self.changed(view)
+
         view.loadStarted.connect(started)
         view.loadProgress.connect(progress)
         view.loadFinished.connect(finished)
@@ -793,17 +892,24 @@ class Browser:
 
         def title(t):
             u = t.url().toString()
-            return "New tab" if u in ("", NEWTAB) else (t.title() if t.title() and t.title() != u else host(u) or "New tab")
+            return (
+                "New tab"
+                if u in ("", NEWTAB)
+                else (t.title() if t.title() and t.title() != u else host(u) or "New tab")
+            )
+
         state = {
             "url": "" if uri == NEWTAB else uri,
             "title": v.title() or "",
             "loading": v.loading,
             "progress": v.progress,
-            "back": v.history().canGoBack(), "forward": v.history().canGoForward(),
+            "back": v.history().canGoBack(),
+            "forward": v.history().canGoForward(),
             "tabs": [{"title": title(t), "active": t is v, "loading": t.loading} for t in self.tabs],
             "download": self.download_note,
             "ask": {"host": self.asking["host"], "what": self.asking["what"]}
-                   if self.asking and self.asking["view"] is v else None,
+            if self.asking and self.asking["view"] is v
+            else None,
             "mode": self.mode,
             "privateTabs": len(self.sets["private"]),
         }
@@ -813,9 +919,14 @@ class Browser:
             state["stopped"] = [{"host": h, "how": how} for h, how in sorted(seen.items())]
         if self.mode == "developer":
             size = self.device_size()
-            state["devices"] = [{"name": n, "kind": "full" if not d else "laptop" if not d[3] else
-                                 "tablet" if "iPad" in n else "phone", "size": f"{d[0]} × {d[1]}" if d else ""}
-                                for n, d in DEVICES.items()]
+            state["devices"] = [
+                {
+                    "name": n,
+                    "kind": "full" if not d else "laptop" if not d[3] else "tablet" if "iPad" in n else "phone",
+                    "size": f"{d[0]} × {d[1]}" if d else "",
+                }
+                for n, d in DEVICES.items()
+            ]
             state["device"] = self.device
             state["size"] = f"{size[0]} × {size[1]}" if size else ""
         self.js(f"window.update && update({json.dumps(state)})")
@@ -902,10 +1013,14 @@ class Browser:
         if t == T.Notifications:
             perm.grant()
             return
-        what = {T.MediaAudioCapture: "the microphone", T.MediaVideoCapture: "the camera",
-                T.MediaAudioVideoCapture: "the microphone and camera",
-                T.DesktopVideoCapture: "to share the screen", T.DesktopAudioVideoCapture: "to share the screen",
-                T.ClipboardReadWrite: "to read the clipboard"}.get(t)
+        what = {
+            T.MediaAudioCapture: "the microphone",
+            T.MediaVideoCapture: "the camera",
+            T.MediaAudioVideoCapture: "the microphone and camera",
+            T.DesktopVideoCapture: "to share the screen",
+            T.DesktopAudioVideoCapture: "to share the screen",
+            T.ClipboardReadWrite: "to read the clipboard",
+        }.get(t)
         if not what:
             perm.deny()
             return
@@ -926,7 +1041,7 @@ class Browser:
         if not a:
             return
         a["perm"].grant() if allow else a["perm"].deny()
-        if a["kind"] != "screen" and not a["private"]:   # sharing the screen is asked every time
+        if a["kind"] != "screen" and not a["private"]:  # sharing the screen is asked every time
             p = load_json(PERMS)
             p.setdefault(a["host"], {})[a["kind"]] = bool(allow)
             save_json(PERMS, p)
@@ -945,7 +1060,9 @@ class Browser:
         self.tls_pending[token] = (h, pem, err.url().toString(), view)
         esc = lambda s: s.replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
         page = TLS_PAGE.replace("{HOST}", esc(h)).replace("{TOKEN}", token)
-        page = page.replace("{BG}", "#121212" if self.night else "#f7f4f1").replace("{FG}", "#ececec" if self.night else "#111111")
+        page = page.replace("{BG}", "#121212" if self.night else "#f7f4f1").replace(
+            "{FG}", "#ececec" if self.night else "#111111"
+        )
         page = page.replace("{ACCENT}", "#f0705a" if self.night else "#e0301e")
         QTimer.singleShot(0, lambda: view.setHtml(page, QUrl("about:blank")))
 
@@ -982,6 +1099,7 @@ class Browser:
             self.download_note = {"name": target.name, "done": True}
             self.push()
             QTimer.singleShot(6000, self.clear_download)
+
         d.receivedBytesChanged.connect(progress)
         d.isFinishedChanged.connect(finished)
         d.accept()
@@ -1006,7 +1124,7 @@ def main():
         sock.waitForBytesWritten(1000)
         sock.disconnectFromServer()
         return 0
-    sys.argv[0] = "browser.py"                     # window class stays "browser.py" for Kūhaku
+    sys.argv[0] = "browser.py"  # window class stays "browser.py" for Kūhaku
     app = QApplication(sys.argv)
     app.setApplicationName("browser.py")
     app.setApplicationDisplayName("Mado")
@@ -1028,12 +1146,14 @@ def main():
                 b.open(got.get("urls") or [], private=bool(got.get("private")))
             else:
                 b.open(got) if got else b.show()
+
         c.readyRead.connect(read)
         c.disconnected.connect(c.deleteLater)
+
     server.newConnection.connect(incoming)
-    for u in (b.restore() or ([] if urls and not private else [NEWTAB])):
+    for u in b.restore() or ([] if urls and not private else [NEWTAB]):
         b.new_tab(u, focus=False)
-    if b.tabs:                                     # nothing to restore and a link was asked for: open() makes the tab
+    if b.tabs:  # nothing to restore and a link was asked for: open() makes the tab
         b.switch(b.tabs[-1])
     b.open(urls, private) if urls or private else b.show()
     return app.exec()

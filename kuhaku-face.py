@@ -14,6 +14,7 @@ verifying, and closed the moment that ends. Faces are kept as numbers (SFace emb
 Models: YuNet (face finder) and SFace (face recognizer) from github.com/opencv/opencv_zoo,
 checked against the checksums below before use.
 """
+
 import hashlib
 import json
 import os
@@ -27,14 +28,20 @@ MODELS = HERE / "models"
 FACE = HERE / "face"
 STORE = FACE / "embeddings.npy"
 BASE = "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/"
-YUNET = ("face_detection_yunet_2023mar.onnx", "face_detection_yunet/",
-         "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4")
-SFACE = ("face_recognition_sface_2021dec.onnx", "face_recognition_sface/",
-         "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79")
+YUNET = (
+    "face_detection_yunet_2023mar.onnx",
+    "face_detection_yunet/",
+    "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+)
+SFACE = (
+    "face_recognition_sface_2021dec.onnx",
+    "face_recognition_sface/",
+    "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
+)
 # SFace's own cosine threshold is 0.363; Kūhaku asks for more, and for several frames in a row.
 THRESHOLD = 0.45
 IN_A_ROW = 3
-DARK = 22            # mean brightness below this: shutter closed, or the infrared light is off
+DARK = 22  # mean brightness below this: shutter closed, or the infrared light is off
 
 
 def ir_camera():
@@ -58,6 +65,7 @@ def model(spec):
     p = MODELS / name
     if not p.exists():
         import subprocess
+
         MODELS.mkdir(parents=True, exist_ok=True)
         tmp = p.with_suffix(".part")
         if subprocess.run(["curl", "-fsSL", "--max-time", "120", "-o", str(tmp), BASE + sub + name]).returncode != 0:
@@ -75,6 +83,7 @@ class Eye:
 
     def __init__(self):
         import cv2
+
         self.cv2 = cv2
         dev = ir_camera()
         if dev is None:
@@ -105,8 +114,8 @@ class Eye:
         _, faces = self.detector.detect(frame)
         if faces is None or len(faces) == 0:
             return None, "noface"
-        face = max(faces, key=lambda f: f[2] * f[3])          # the nearest face
-        if face[2] < w * 0.12:                               # too far away to be sure
+        face = max(faces, key=lambda f: f[2] * f[3])  # the nearest face
+        if face[2] < w * 0.12:  # too far away to be sure
             return None, "noface"
         aligned = self.recognizer.alignCrop(frame, face)
         return self.recognizer.feature(aligned).flatten(), ""
@@ -121,6 +130,7 @@ class Eye:
 def known():
     try:
         import numpy as np
+
         return np.load(STORE)
     except Exception:
         report()
@@ -129,6 +139,7 @@ def known():
 
 def similarity(feature, known_set):
     import numpy as np
+
     f = feature / (np.linalg.norm(feature) + 1e-9)
     k = known_set / (np.linalg.norm(known_set, axis=1, keepdims=True) + 1e-9)
     return float((k @ f).max())
@@ -137,6 +148,7 @@ def similarity(feature, known_set):
 def status():
     try:
         import cv2  # noqa: F401
+
         has_cv = True
     except Exception:
         has_cv = False
@@ -172,9 +184,11 @@ def forget():
 def enroll_window():
     import threading
     import gi
+
     gi.require_version("Gtk", "3.0")
     gi.require_version("Gdk", "3.0")
     from gi.repository import Gdk, GLib, Gtk
+
     sys.path.insert(0, str(HERE))
     from kuhaku_unlock_style import window_css
 
@@ -197,7 +211,9 @@ def enroll_window():
     dots = Gtk.Label(label="", name="dots", xalign=0)
     dots.set_margin_start(20)
     box.pack_start(dots, False, False, 0)
-    note = Gtk.Label(label="Face unlock is a convenience. Your password and fingers stay stronger.", name="small", xalign=0)
+    note = Gtk.Label(
+        label="Face unlock is a convenience. Your password and fingers stay stronger.", name="small", xalign=0
+    )
     note.set_margin_start(20)
     note.set_margin_top(30)
     box.pack_start(note, False, False, 0)
@@ -223,6 +239,7 @@ def enroll_window():
 
     def work():
         import numpy as np
+
         try:
             eye = Eye()
         except Exception as e:
@@ -234,14 +251,17 @@ def enroll_window():
                 feature, why = eye.look()
                 if why == "dark":
                     if time.time() - dark_since > 3:
-                        GLib.idle_add(say, "The camera sees nothing",
-                                      "Slide the camera cover open. If it is open, the infrared light is off.")
+                        GLib.idle_add(
+                            say,
+                            "The camera sees nothing",
+                            "Slide the camera cover open. If it is open, the infrared light is off.",
+                        )
                     continue
                 dark_since = time.time()
                 if feature is None:
                     GLib.idle_add(say, "Look at the screen", "Your face, about an arm's length away.")
                     continue
-                if time.time() - last < 0.25:                # a little apart, so the views differ
+                if time.time() - last < 0.25:  # a little apart, so the views differ
                     continue
                 last = time.time()
                 got.append(feature)

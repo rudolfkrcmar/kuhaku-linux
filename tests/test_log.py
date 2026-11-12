@@ -1,4 +1,5 @@
 """kuhaku_log: report() writes each fault once per place and kind, into LOG_DIR, and never raises."""
+
 import logging
 import sys
 import types
@@ -56,8 +57,8 @@ class Report(LogCase):
 
     def test_dedups_per_place_and_kind(self):
         for i in range(5):
-            self.fail_here(ValueError(f"v{i}"))   # same line, same kind: once
-        self.fail_here(KeyError("k"))             # same line, other kind: again
+            self.fail_here(ValueError(f"v{i}"))  # same line, same kind: once
+        self.fail_here(KeyError("k"))  # same line, other kind: again
         text = self.text()
         self.assertEqual(text.count("ValueError"), 1)
         self.assertIn("v0", text)
@@ -84,7 +85,7 @@ class Report(LogCase):
         self.assertNotIn("Traceback", self.text())
         self.assertNotIn('File "', self.text())
         self.fail_here(ZeroDivisionError("zero"))
-        self.assertIn('File "', self.text())       # a short traceback for real bugs
+        self.assertIn('File "', self.text())  # a short traceback for real bugs
 
     def test_outside_except_block(self):
         kuhaku_log.report()
@@ -95,7 +96,7 @@ class Report(LogCase):
             try:
                 raise ValueError("x")
             except ValueError:
-                kuhaku_log.report()     # must not raise
+                kuhaku_log.report()  # must not raise
         with mock.patch.object(kuhaku_log, "logger", side_effect=RuntimeError("log broken")):
             kuhaku_log.note("hello")
 
@@ -103,7 +104,7 @@ class Report(LogCase):
         blocker = self.tmp / "file"
         blocker.write_text("x")
         with mock.patch.object(kuhaku_log, "LOG_DIR", blocker / "logs"):
-            self.fail_here(ValueError("x"))   # mkdir fails: a NullHandler, no exception
+            self.fail_here(ValueError("x"))  # mkdir fails: a NullHandler, no exception
         self.assertIsInstance(logging.getLogger("kuhaku").handlers[0], logging.NullHandler)
 
     def test_note(self):
@@ -122,8 +123,7 @@ class AppName(unittest.TestCase):
             self.assertEqual(kuhaku_log.app_name(), "kuhaku-system")
 
     def test_without_main_file(self):
-        with mock.patch.dict(sys.modules, {"__main__": types.SimpleNamespace()}), \
-                mock.patch.object(sys, "argv", [""]):
+        with mock.patch.dict(sys.modules, {"__main__": types.SimpleNamespace()}), mock.patch.object(sys, "argv", [""]):
             self.assertEqual(kuhaku_log.app_name(), "kuhaku")
 
 

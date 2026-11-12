@@ -1,4 +1,5 @@
 """jobs.py: the tabs and their line, room to run, "at 7:00 …", labels, and what a job cost."""
+
 import json
 import os
 import time
@@ -17,10 +18,14 @@ class PlanRoom(unittest.TestCase):
         self.assertEqual(jobs.plan_room({}), ("open", None))
         self.assertEqual(jobs.plan_room({"session": {"percent": 50, "resets": "s"}}), ("open", "s"))
         self.assertEqual(jobs.plan_room({"session": {"percent": 90, "resets": "s"}}), ("tight", "s"))
-        self.assertEqual(jobs.plan_room({"session": {"percent": 99.5, "resets": "s"},
-                                         "week": {"percent": 10, "resets": "w"}}), ("closed", "s"))
-        self.assertEqual(jobs.plan_room({"session": {"percent": 20, "resets": "s"},
-                                         "week": {"percent": 100, "resets": "w"}}), ("closed", "w"))
+        self.assertEqual(
+            jobs.plan_room({"session": {"percent": 99.5, "resets": "s"}, "week": {"percent": 10, "resets": "w"}}),
+            ("closed", "s"),
+        )
+        self.assertEqual(
+            jobs.plan_room({"session": {"percent": 20, "resets": "s"}, "week": {"percent": 100, "resets": "w"}}),
+            ("closed", "w"),
+        )
         self.assertEqual(jobs.plan_room({"session": {"percent": None}, "week": None}), ("open", None))
 
 
@@ -59,10 +64,16 @@ class ParseWhen(unittest.TestCase):
         return (datetime.fromtimestamp(ts).strftime("%H:%M") if ts else None), rest
 
     def test_times(self):
-        cases = [("at 7:00 sort my mail", ("07:00", "sort my mail")), ("at 7 sort", ("07:00", "sort")),
-                 ("@9.30 call", ("09:30", "call")), ("At 7pm, call mom", ("19:00", "call mom")),
-                 ("at 12am backup", ("00:00", "backup")), ("at 12pm lunch", ("12:00", "lunch")),
-                 ("at 11:05 AM: tea", ("11:05", "tea")), ("at 23:59 last", ("23:59", "last"))]
+        cases = [
+            ("at 7:00 sort my mail", ("07:00", "sort my mail")),
+            ("at 7 sort", ("07:00", "sort")),
+            ("@9.30 call", ("09:30", "call")),
+            ("At 7pm, call mom", ("19:00", "call mom")),
+            ("at 12am backup", ("00:00", "backup")),
+            ("at 12pm lunch", ("12:00", "lunch")),
+            ("at 11:05 AM: tea", ("11:05", "tea")),
+            ("at 23:59 last", ("23:59", "last")),
+        ]
         for text, want in cases:
             with self.subTest(text=text):
                 self.assertEqual(self.at(text), want)
@@ -119,12 +130,12 @@ class TabsTest(TempDirCase):
         self.assertEqual([x["id"] for x in t.tabs], ["1", "2", "3"])
         self.assertEqual(t.current, "3")
         t.close("3")
-        self.assertEqual(t.current, "2")        # the one to its left
+        self.assertEqual(t.current, "2")  # the one to its left
         t.current = "1"
         t.close("2")
-        self.assertEqual(t.current, "1")        # closing another keeps the current
+        self.assertEqual(t.current, "1")  # closing another keeps the current
         t.close("1")
-        self.assertEqual(len(t.tabs), 1)         # never no tab at all
+        self.assertEqual(len(t.tabs), 1)  # never no tab at all
         self.assertEqual(t.current, t.tabs[0]["id"])
         t.close("nope")
         saved = json.loads((self.tmp / "tabs.json").read_text())
@@ -132,30 +143,54 @@ class TabsTest(TempDirCase):
         self.assertEqual(len(saved["tabs"]), 1)
 
     def test_restart_puts_running_back_in_line(self):
-        data = {"current": "9", "tabs": [
-            {**jobs.Tabs.blank(object.__new__(jobs.Tabs)), "id": "1", "status": "running", "session_id": "s",
-             "question": "do it"},
-            {**jobs.Tabs.blank(object.__new__(jobs.Tabs)), "id": "2", "status": "running", "session_id": None,
-             "question": "fresh"},
-            {**jobs.Tabs.blank(object.__new__(jobs.Tabs)), "id": "3", "status": "running", "session_id": "s",
-             "question": "Kūhaku restarted while you were working on this. Continue where you stopped: x"}]}
+        data = {
+            "current": "9",
+            "tabs": [
+                {
+                    **jobs.Tabs.blank(object.__new__(jobs.Tabs)),
+                    "id": "1",
+                    "status": "running",
+                    "session_id": "s",
+                    "question": "do it",
+                },
+                {
+                    **jobs.Tabs.blank(object.__new__(jobs.Tabs)),
+                    "id": "2",
+                    "status": "running",
+                    "session_id": None,
+                    "question": "fresh",
+                },
+                {
+                    **jobs.Tabs.blank(object.__new__(jobs.Tabs)),
+                    "id": "3",
+                    "status": "running",
+                    "session_id": "s",
+                    "question": "Kūhaku restarted while you were working on this. Continue where you stopped: x",
+                },
+            ],
+        }
         t = self.tabs(data)
         self.assertEqual([x["status"] for x in t.tabs], ["queued"] * 3)
         self.assertTrue(t.tabs[0]["question"].startswith("Kūhaku restarted"))
         self.assertTrue(t.tabs[0]["question"].endswith("do it"))
         self.assertEqual(t.tabs[1]["question"], "fresh")
         self.assertEqual(t.tabs[2]["question"].count("Kūhaku restarted"), 1)
-        self.assertEqual(t.current, "1")          # an unknown current falls back to the first
+        self.assertEqual(t.current, "1")  # an unknown current falls back to the first
 
     def test_waiting_order_and_public(self):
         t = self.tabs()
         now = time.time()
-        rows = [("1", "queued", jobs.NORMAL, 10, None), ("2", "queued", jobs.FIRST, 30, None),
-                ("3", "queued", jobs.LATER, 5, None), ("4", "queued", jobs.FIRST, 20, None),
-                ("5", "queued", jobs.FIRST, 1, now + 3600), ("6", "running", jobs.FIRST, 0, None),
-                ("7", "idle", jobs.FIRST, 0, None), ("8", "queued", jobs.NORMAL, 50, now - 5)]
-        t.tabs = [{**t.blank(), "id": i, "status": s, "priority": p, "queued": q, "at": at}
-                  for i, s, p, q, at in rows]
+        rows = [
+            ("1", "queued", jobs.NORMAL, 10, None),
+            ("2", "queued", jobs.FIRST, 30, None),
+            ("3", "queued", jobs.LATER, 5, None),
+            ("4", "queued", jobs.FIRST, 20, None),
+            ("5", "queued", jobs.FIRST, 1, now + 3600),
+            ("6", "running", jobs.FIRST, 0, None),
+            ("7", "idle", jobs.FIRST, 0, None),
+            ("8", "queued", jobs.NORMAL, 50, now - 5),
+        ]
+        t.tabs = [{**t.blank(), "id": i, "status": s, "priority": p, "queued": q, "at": at} for i, s, p, q, at in rows]
         self.assertEqual([x["id"] for x in t.waiting()], ["4", "2", "1", "8", "3"])
         self.assertEqual([x["id"] for x in t.running()], ["6"])
         pub = t.public()
@@ -207,7 +242,7 @@ class Costs(TempDirCase):
         for f in files + [keep]:
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text("x")
-        jobs.erase_session(root, "../../etc")        # not a session id: nothing happens
+        jobs.erase_session(root, "../../etc")  # not a session id: nothing happens
         jobs.erase_session(root, None)
         self.assertTrue(all(f.exists() for f in files))
         jobs.erase_session(root, sid)
@@ -221,7 +256,7 @@ class Costs(TempDirCase):
             lines = (self.tmp / "jobs.jsonl").read_text().splitlines()
         self.assertEqual([json.loads(x) for x in lines], [{"a": 1}, {"b": 2}])
         with mock.patch.object(jobs, "RUNS_FILE", self.tmp / "missing/dir/jobs.jsonl"):
-            jobs.log_run({"c": 3})   # quietly nothing
+            jobs.log_run({"c": 3})  # quietly nothing
 
 
 if __name__ == "__main__":

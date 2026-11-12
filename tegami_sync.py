@@ -1,4 +1,5 @@
 """Tegami's sync: IMAP in the background (new mail, flags, folders), sending through SMTP, the outbox."""
+
 import base64
 import email
 import email.policy
@@ -28,18 +29,19 @@ from tegami_store import (
     parse,
     password,
     snippet_of,
-    when)
+    when,
+)
 
 
 # --- syncing ----------------------------------------------------------------------------
 class Sync:
     def __init__(self, store, notify):
         self.store = store
-        self.notify = notify          # callable(kind, payload), from any thread
+        self.notify = notify  # callable(kind, payload), from any thread
         self.online = True
         self.busy = False
         self.wake = threading.Event()
-        self.after = None             # called after each sync (the assistant reads what came)
+        self.after = None  # called after each sync (the assistant reads what came)
         threading.Thread(target=self.loop, daemon=True).start()
 
     def loop(self):
@@ -63,7 +65,11 @@ class Sync:
                 a_err = "offline"
                 net_fail += 1
             except imaplib.IMAP4.error as e:
-                a_err = "sign-in failed" if b"AUTH" in str(e).encode() or "auth" in str(e).lower() or "login" in str(e).lower() else str(e)[:120]
+                a_err = (
+                    "sign-in failed"
+                    if b"AUTH" in str(e).encode() or "auth" in str(e).lower() or "login" in str(e).lower()
+                    else str(e)[:120]
+                )
             except Exception as e:
                 a_err = str(e)[:120]
             self.notify("account", {"id": a["id"], "error": a_err})
@@ -139,9 +145,11 @@ class Sync:
                 continue
             name = m.group("name").strip().strip('"')
             flags = m.group("flags")
-            if "\\Trash" in flags:   # where deleted letters really go (Gmail's own bin, in any language)
+            if "\\Trash" in flags:  # where deleted letters really go (Gmail's own bin, in any language)
                 self.store.q("INSERT OR REPLACE INTO folders VALUES (?,?,?)", (a["id"], "trash", name), commit=True)
-            if name.upper() == "INBOX" or any(f in flags for f in ("\\Sent", "\\Junk", "\\Drafts", "\\Trash", "\\All", "\\Flagged", "\\Important")):
+            if name.upper() == "INBOX" or any(
+                f in flags for f in ("\\Sent", "\\Junk", "\\Drafts", "\\Trash", "\\All", "\\Flagged", "\\Important")
+            ):
                 continue
             names.append(name)
         if names:
@@ -157,11 +165,13 @@ class Sync:
                 self.push_drafts(a, M)
             except Exception:
                 report()
-                pass                  # drafts stay safe on this computer and go up next time
+                pass  # drafts stay safe on this computer and go up next time
             for role, name in self.folders(a, M).items():
                 self.sync_folder(a, M, role, name)
             # Folders the person has opened in the last two weeks stay in step as well.
-            for (name,) in self.store.q("SELECT name FROM watch WHERE acct=? AND at > ?", (a["id"], time.time() - 14 * 86400)):
+            for (name,) in self.store.q(
+                "SELECT name FROM watch WHERE acct=? AND at > ?", (a["id"], time.time() - 14 * 86400)
+            ):
                 try:
                     self.sync_folder(a, M, "f:" + name, name)
                 except Exception:
@@ -195,7 +205,7 @@ class Sync:
         folder_dir = DATA / a["id"] / role
         folder_dir.mkdir(parents=True, exist_ok=True)
         for i in range(0, len(new), 20):
-            chunk = ",".join(str(u) for u in new[i:i + 20])
+            chunk = ",".join(str(u) for u in new[i : i + 20])
             typ, resp = M.uid("fetch", chunk, "(UID FLAGS BODY.PEEK[])")
             for item in resp or []:
                 if not isinstance(item, tuple):
@@ -212,14 +222,34 @@ class Sync:
                 sender = email.utils.parseaddr(str(m.get("from", "")))
                 rule = self.store.q("SELECT cat FROM senders WHERE addr=?", (sender[1].lower(),))
                 rule = rule[0][0] if rule else None
-                self.store.q("INSERT OR REPLACE INTO msg (acct, folder, uid, msgid, sender, sender_name, recipients, subject, date, "
-                             "seen, snippet, path, refs, cat, auto) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
-                    a["id"], role, uid, str(m.get("message-id", "")), sender[1], sender[0] or sender[1],
-                    str(m.get("to", "")), str(m.get("subject", "")), when(m), int("\\Seen" in head),
-                    snippet_of(m), str(path), str(m.get("references", "")) + " " + str(m.get("in-reply-to", "")),
-                    classify(m, sender[1], None, rule, self.known), int(is_automated(m, sender[1]))), commit=True)
+                self.store.q(
+                    "INSERT OR REPLACE INTO msg (acct, folder, uid, msgid, sender, sender_name, recipients, subject, date, "
+                    "seen, snippet, path, refs, cat, auto) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        a["id"],
+                        role,
+                        uid,
+                        str(m.get("message-id", "")),
+                        sender[1],
+                        sender[0] or sender[1],
+                        str(m.get("to", "")),
+                        str(m.get("subject", "")),
+                        when(m),
+                        int("\\Seen" in head),
+                        snippet_of(m),
+                        str(path),
+                        str(m.get("references", "")) + " " + str(m.get("in-reply-to", "")),
+                        classify(m, sender[1], None, rule, self.known),
+                        int(is_automated(m, sender[1])),
+                    ),
+                    commit=True,
+                )
                 if role == "inbox" and rule == "spam":
-                    self.store.q("INSERT INTO ops (acct, folder, uid, op) VALUES (?,?,?,?)", (a["id"], role, uid, "spam"), commit=True)
+                    self.store.q(
+                        "INSERT INTO ops (acct, folder, uid, op) VALUES (?,?,?,?)",
+                        (a["id"], role, uid, "spam"),
+                        commit=True,
+                    )
             self.notify("changed", None)
         # Flags for what we keep; forget what left the server.
         if uids:
@@ -228,12 +258,15 @@ class Sync:
                 line = item.decode(errors="replace") if isinstance(item, bytes) else ""
                 m_uid = re.search(r"UID (\d+)", line)
                 if m_uid:
-                    self.store.q("UPDATE msg SET seen=? WHERE acct=? AND folder=? AND uid=?",
-                                 (int("\\Seen" in line), a["id"], role, int(m_uid.group(1))), commit=True)
+                    self.store.q(
+                        "UPDATE msg SET seen=? WHERE acct=? AND folder=? AND uid=?",
+                        (int("\\Seen" in line), a["id"], role, int(m_uid.group(1))),
+                        commit=True,
+                    )
         if role == "inbox" and uids and "gmail" in a["imap_host"]:
             self.gmail_categories(a, M, role, uids)
         keep = set(uids)
-        for (uid, path) in self.store.q("SELECT uid, path FROM msg WHERE acct=? AND folder=?", (a["id"], role)):
+        for uid, path in self.store.q("SELECT uid, path FROM msg WHERE acct=? AND folder=?", (a["id"], role)):
             if uid not in keep:
                 self.store.q("DELETE FROM msg WHERE acct=? AND folder=? AND uid=?", (a["id"], role, uid), commit=True)
                 Path(path).unlink(missing_ok=True)
@@ -248,7 +281,7 @@ class Sync:
                 report()
                 continue
             for u in (data[0] or b"").split() if typ == "OK" else []:
-                new.setdefault(int(u), gcat)          # purchases first: it wins over the others
+                new.setdefault(int(u), gcat)  # purchases first: it wins over the others
         old = dict(self.store.q("SELECT uid, gcat FROM msg WHERE acct=? AND folder=?", (a["id"], role)))
         rules = dict(self.store.q("SELECT addr, cat FROM senders"))
         # Only letters whose Gmail tab changed are sorted again (reading them is slow here).
@@ -259,24 +292,41 @@ class Sync:
             except Exception:
                 report()
                 continue
-            self.store.q("UPDATE msg SET gcat=?, cat=? WHERE acct=? AND folder=? AND uid=?",
-                         (new.get(uid), classify(m, row[0][0], new.get(uid), rules.get((row[0][0] or "").lower()), self.known),
-                          a["id"], role, uid), commit=True)
+            self.store.q(
+                "UPDATE msg SET gcat=?, cat=? WHERE acct=? AND folder=? AND uid=?",
+                (
+                    new.get(uid),
+                    classify(m, row[0][0], new.get(uid), rules.get((row[0][0] or "").lower()), self.known),
+                    a["id"],
+                    role,
+                    uid,
+                ),
+                commit=True,
+            )
 
     def backfill(self):
         """Letters downloaded before Tegami sorted mail get their category once."""
         rules = dict(self.store.q("SELECT addr, cat FROM senders"))
         known = correspondents(self.store)
         for acct, folder, uid, sender, path, gcat in self.store.q(
-                "SELECT acct, folder, uid, sender, path, gcat FROM msg WHERE cat IS NULL AND folder != 'sent'"):
+            "SELECT acct, folder, uid, sender, path, gcat FROM msg WHERE cat IS NULL AND folder != 'sent'"
+        ):
             try:
                 m = parse(Path(path).read_bytes())
             except Exception:
                 report()
                 continue
-            self.store.q("UPDATE msg SET cat=?, auto=? WHERE acct=? AND folder=? AND uid=?",
-                         (classify(m, sender, gcat, rules.get((sender or "").lower()), known), int(is_automated(m, sender)),
-                          acct, folder, uid), commit=True)
+            self.store.q(
+                "UPDATE msg SET cat=?, auto=? WHERE acct=? AND folder=? AND uid=?",
+                (
+                    classify(m, sender, gcat, rules.get((sender or "").lower()), known),
+                    int(is_automated(m, sender)),
+                    acct,
+                    folder,
+                    uid,
+                ),
+                commit=True,
+            )
 
     def drafts_folder(self, a, M):
         """The account's Drafts folder (\\Drafts, or a usual name), remembered."""
@@ -290,7 +340,13 @@ class Sync:
             if not m:
                 continue
             n = m.group("name").strip().strip('"')
-            if "\\Drafts" in m.group("flags") or n.split("/")[-1].lower() in ("drafts", "draft", "koncepty", "rozepsané", "concepts"):
+            if "\\Drafts" in m.group("flags") or n.split("/")[-1].lower() in (
+                "drafts",
+                "draft",
+                "koncepty",
+                "rozepsané",
+                "concepts",
+            ):
                 name = n
                 break
         if name:
@@ -300,7 +356,10 @@ class Sync:
     def push_drafts(self, a, M):
         """Letters being written go to the server's Drafts too, so they are there in any mail app.
         Each new version replaces the last; a sent or discarded draft is removed there."""
-        rows = self.store.q("SELECT id, data, updated, pushed, msgid, gone FROM drafts WHERE acct=? AND (gone=1 OR updated > pushed)", (a["id"],))
+        rows = self.store.q(
+            "SELECT id, data, updated, pushed, msgid, gone FROM drafts WHERE acct=? AND (gone=1 OR updated > pushed)",
+            (a["id"],),
+        )
         if not rows:
             return
         box = self.drafts_folder(a, M)
@@ -309,7 +368,7 @@ class Sync:
         for did, data, updated, pushed, msgid, gone in rows:
             if msgid:
                 typ, found = M.uid("search", None, "HEADER", "Message-ID", f'"{msgid}"')
-                for uid in (found[0].split() if typ == "OK" and found and found[0] else []):
+                for uid in found[0].split() if typ == "OK" and found and found[0] else []:
                     M.uid("store", uid, "+FLAGS", "(\\Deleted)")
                 M.expunge()
             if gone:
@@ -330,7 +389,11 @@ class Sync:
             msg.set_content(d.get("body", ""))
             typ, _ = M.append(f'"{box}"', "(\\Draft \\Seen)", imaplib.Time2Internaldate(time.time()), bytes(msg))
             if typ == "OK":
-                self.store.q("UPDATE drafts SET pushed=?, msgid=? WHERE id=? AND updated=?", (time.time(), new_id, did, updated), commit=True)
+                self.store.q(
+                    "UPDATE drafts SET pushed=?, msgid=? WHERE id=? AND updated=?",
+                    (time.time(), new_id, did, updated),
+                    commit=True,
+                )
 
     def apply_ops(self, a, M):
         ops = self.store.q("SELECT id, folder, uid, op FROM ops WHERE acct=?", (a["id"],))
@@ -381,7 +444,7 @@ class Sync:
                 S.send_message(parse(raw))
                 S.quit()
             except (OSError, socket.error):
-                return            # offline: try again later
+                return  # offline: try again later
             except Exception as e:
                 self.store.q("UPDATE outbox SET error=? WHERE id=?", (str(e)[:160], oid), commit=True)
                 continue

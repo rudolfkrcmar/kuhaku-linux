@@ -1,5 +1,6 @@
 """Kūhaku's tests. Importing this package points HOME at a throwaway folder first, so no module
 that reads Path.home() at import time can ever see (or touch) the real home folder."""
+
 import atexit
 import os
 import shutil

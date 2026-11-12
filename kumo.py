@@ -13,6 +13,7 @@ Nothing else is downloaded: folders you did not choose stay in the cloud.
     kumo now        sync right away
     kumo status     what each cloud is doing
 """
+
 import fcntl
 import hashlib
 import io
@@ -33,20 +34,25 @@ HOME = Path.home()
 CONF_DIR = HOME / ".config/kuhaku"
 STATE_DIR = HOME / ".local/state/kuhaku"
 RCLONE_CONF = CONF_DIR / "rclone.conf"
-CHOICES = CONF_DIR / "cloud.json"           # which folders, per cloud
-STATUS = STATE_DIR / "cloud.json"           # what the daemon is doing
-TRIGGER = STATE_DIR / "cloud.now"           # touched to ask for a sync now
+CHOICES = CONF_DIR / "cloud.json"  # which folders, per cloud
+STATUS = STATE_DIR / "cloud.json"  # what the daemon is doing
+TRIGGER = STATE_DIR / "cloud.now"  # touched to ask for a sync now
 LOCK = STATE_DIR / "cloud.lock"
 LOG = STATE_DIR / "cloud.log"
-EVERY = 300                                 # seconds between rounds
-MIN_RCLONE = (1, 66)                        # bisync's --recover, --resilient, --conflict-resolve
+EVERY = 300  # seconds between rounds
+MIN_RCLONE = (1, 66)  # bisync's --recover, --resilient, --conflict-resolve
 
 # The kinds of cloud. An account is one kind plus a number (see account()).
 KINDS = {
     "dropbox": {"name": "Dropbox", "type": "dropbox", "local": HOME / "Dropbox", "flags": []},
     # Google Docs, Sheets and Slides have no file to copy; they stay online.
-    "drive": {"name": "Google Drive", "type": "drive", "local": HOME / "Google Drive",
-              "flags": ["--drive-skip-gdocs"], "conf": ["scope", "drive"]},
+    "drive": {
+        "name": "Google Drive",
+        "type": "drive",
+        "local": HOME / "Google Drive",
+        "flags": ["--drive-skip-gdocs"],
+        "conf": ["scope", "drive"],
+    },
 }
 KEY = re.compile(r"^(dropbox|drive)(?:-([2-9]|[1-9]\d))?$")
 
@@ -60,13 +66,28 @@ def account(key):
     first = m.group(2) is None
     mine = _load(CHOICES).get(key, {})
     label = mine.get("label") or ""
-    local = Path(mine["local"]) if mine.get("local") else kind["local"] if first else \
-        HOME / f"{kind['name']} ({label or 'account ' + m.group(2)})"
+    local = (
+        Path(mine["local"])
+        if mine.get("local")
+        else kind["local"]
+        if first
+        else HOME / f"{kind['name']} ({label or 'account ' + m.group(2)})"
+    )
     many = first and any(k != key and k.startswith(m.group(1) + "-") for k in _remotes())
     name = kind["name"] + (f" ({label})" if label and (not first or many) else "" if first else f" {m.group(2)}")
-    return {"key": key, "kind": m.group(1), "first": first, "name": name, "label": label,
-            "email": mine.get("email", ""), "type": kind["type"], "remote": "kuhaku-" + key,
-            "local": local, "flags": kind["flags"], "conf": kind.get("conf", [])}
+    return {
+        "key": key,
+        "kind": m.group(1),
+        "first": first,
+        "name": name,
+        "label": label,
+        "email": mine.get("email", ""),
+        "type": kind["type"],
+        "remote": "kuhaku-" + key,
+        "local": local,
+        "flags": kind["flags"],
+        "conf": kind.get("conf", []),
+    }
 
 
 def _remotes():
@@ -245,7 +266,15 @@ def describe(key):
     if not last:
         return f"{n} · waiting to sync"
     mins = int((time.time() - last) // 60)
-    when = "just now" if mins < 1 else f"{mins} min ago" if mins < 60 else f"{mins // 60} h ago" if mins < 1440 else "a while ago"
+    when = (
+        "just now"
+        if mins < 1
+        else f"{mins} min ago"
+        if mins < 60
+        else f"{mins // 60} h ago"
+        if mins < 1440
+        else "a while ago"
+    )
     return f"{n} · synced {when}"
 
 
@@ -255,12 +284,16 @@ def whoami(kind, token):
     try:
         access = json.loads(token)["access_token"]
         if kind == "dropbox":
-            req = urllib.request.Request("https://api.dropboxapi.com/2/users/get_current_account", data=b"null",
-                                         headers={"Authorization": f"Bearer {access}", "Content-Type": "application/json"})
+            req = urllib.request.Request(
+                "https://api.dropboxapi.com/2/users/get_current_account",
+                data=b"null",
+                headers={"Authorization": f"Bearer {access}", "Content-Type": "application/json"},
+            )
             d = json.loads(urllib.request.urlopen(req, timeout=20).read())
             return {"email": d.get("email", ""), "name": (d.get("name") or {}).get("display_name", "")}
-        req = urllib.request.Request("https://www.googleapis.com/drive/v3/about?fields=user",
-                                     headers={"Authorization": f"Bearer {access}"})
+        req = urllib.request.Request(
+            "https://www.googleapis.com/drive/v3/about?fields=user", headers={"Authorization": f"Bearer {access}"}
+        )
         u = json.loads(urllib.request.urlopen(req, timeout=20).read()).get("user", {})
         return {"email": u.get("emailAddress", ""), "name": u.get("displayName", "")}
     except Exception:
@@ -274,7 +307,7 @@ def _known_email(key):
     if a["email"] or not connected(key):
         return a["email"]
     try:
-        rclone("lsjson", "--max-depth", "1", "--dirs-only", f"{a['remote']}:", timeout=60)   # refreshes the token
+        rclone("lsjson", "--max-depth", "1", "--dirs-only", f"{a['remote']}:", timeout=60)  # refreshes the token
         conf = json.loads(rclone("config", "dump", timeout=30).stdout or "{}")
         email = whoami(a["kind"], conf.get(a["remote"], {}).get("token", "")).get("email", "")
     except Exception:
@@ -299,8 +332,12 @@ def connect(key, open_url, done, label=""):
     def work():
         try:
             exe = rclone_path() or install_rclone()
-            proc = subprocess.Popen([exe, "--config", str(RCLONE_CONF), "authorize", p["type"], "--auth-no-open-browser"],
-                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            proc = subprocess.Popen(
+                [exe, "--config", str(RCLONE_CONF), "authorize", p["type"], "--auth-no-open-browser"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
             out, opened = [], False
             deadline = time.time() + 600
             for line in proc.stdout:
@@ -323,14 +360,31 @@ def connect(key, open_url, done, label=""):
             email = who.get("email", "")
             if email:
                 for other, a in accounts().items():
-                    if other != key and a["kind"] == p["kind"] and connected(other) and \
-                            _known_email(other).lower() == email.lower():
-                        return done(f"That is {email}, already here as {a['name']}. "
-                                    f"Sign in with the other account (sign out of {email} on the page first).")
-            r = rclone("config", "create", p["remote"], p["type"], *p.get("conf", []), "token", token,
-                       "--non-interactive", timeout=60)
+                    if (
+                        other != key
+                        and a["kind"] == p["kind"]
+                        and connected(other)
+                        and _known_email(other).lower() == email.lower()
+                    ):
+                        return done(
+                            f"That is {email}, already here as {a['name']}. "
+                            f"Sign in with the other account (sign out of {email} on the page first)."
+                        )
+            r = rclone(
+                "config",
+                "create",
+                p["remote"],
+                p["type"],
+                *p.get("conf", []),
+                "token",
+                token,
+                "--non-interactive",
+                timeout=60,
+            )
             if r.returncode != 0 or not connected(key):
-                return done("Could not save the account: " + (r.stderr.strip().splitlines() or ["unknown error"])[-1][:120])
+                return done(
+                    "Could not save the account: " + (r.stderr.strip().splitlines() or ["unknown error"])[-1][:120]
+                )
             RCLONE_CONF.chmod(0o600)
             data = _load(CHOICES)
             mine = data.setdefault(key, {})
@@ -348,6 +402,7 @@ def connect(key, open_url, done, label=""):
             done(None)
         except Exception as e:
             done(f"Could not sign in: {e}")
+
     threading.Thread(target=work, daemon=True).start()
 
 
@@ -382,9 +437,24 @@ def sync_folder(key, folder, first):
     p = account(key)
     local = p["local"] / folder
     local.mkdir(parents=True, exist_ok=True)
-    cmd = ["bisync", f"{p['remote']}:{folder}", str(local), *p["flags"],
-           "--create-empty-src-dirs", "--compare", "size,modtime", "--resilient", "--recover",
-           "--max-lock", "2m", "--conflict-resolve", "newer", "--conflict-loser", "num", "-v"]
+    cmd = [
+        "bisync",
+        f"{p['remote']}:{folder}",
+        str(local),
+        *p["flags"],
+        "--create-empty-src-dirs",
+        "--compare",
+        "size,modtime",
+        "--resilient",
+        "--recover",
+        "--max-lock",
+        "2m",
+        "--conflict-resolve",
+        "newer",
+        "--conflict-loser",
+        "num",
+        "-v",
+    ]
     # The first run (or a recovery) only copies, never deletes: whatever is newer wins.
     r = rclone(*cmd, *(["--resync", "--resync-mode", "newer"] if first else []))
     _log(f"[{key}] {folder}: exit {r.returncode}\n{r.stderr[-4000:]}")
@@ -411,8 +481,11 @@ def sync_all():
             except Exception as e:
                 error = f"{folder}: {e}"
                 _log(f"[{key}] {folder}: {e}")
-        _set(key, ready=sorted(ready & set(folders(key))), **(
-            {"state": "error", "error": error} if error else {"state": "idle", "error": None, "last": time.time()}))
+        _set(
+            key,
+            ready=sorted(ready & set(folders(key))),
+            **({"state": "error", "error": error} if error else {"state": "idle", "error": None, "last": time.time()}),
+        )
 
 
 def daemon():
@@ -431,7 +504,7 @@ def daemon():
     while True:
         due = time.time() - last >= EVERY
         if TRIGGER.exists():
-            time.sleep(4)           # let a burst of changes settle
+            time.sleep(4)  # let a burst of changes settle
             TRIGGER.unlink(missing_ok=True)
             due = True
         if due and rclone_path():
@@ -448,8 +521,12 @@ def ensure_daemon():
             fcntl.flock(f, fcntl.LOCK_UN)
     except OSError:
         return
-    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "daemon"], start_new_session=True,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve()), "daemon"],
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 if __name__ == "__main__":

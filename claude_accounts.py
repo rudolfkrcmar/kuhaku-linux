@@ -7,6 +7,7 @@ Code's CLAUDE_CONFIG_DIR, Codex's CODEX_HOME, Gemini CLI's GEMINI_CLI_HOME). The
 account is Claude's usual ~/.claude, so nothing changes until a second one is added.
 Switching is instant; no signing out.
 """
+
 import json
 import os
 import re
@@ -41,6 +42,7 @@ def kind(acct):
 
 def exe(k):
     import shutil
+
     b = KINDS[k]["bin"]
     return shutil.which(b) or str(HOME / ".local/bin" / b)
 
@@ -59,8 +61,9 @@ def load():
     # Every account belongs to a set; one account per kind in a set (older files had neither rule).
     data.setdefault("sets", list(SETS))
     if not any(kind(a) == "local" for a in data["accounts"]):
-        data["accounts"].append({"id": LOCAL_ID, "name": "Local", "set": "", "kind": "local",
-                                 "dir": str(ROOT / LOCAL_ID)})
+        data["accounts"].append(
+            {"id": LOCAL_ID, "name": "Local", "set": "", "kind": "local", "dir": str(ROOT / LOCAL_ID)}
+        )
     seen, keep = set(), []
     for i, a in enumerate(data["accounts"]):
         if kind(a) == "local":
@@ -88,8 +91,9 @@ def save(data):
 def active():
     """The Claude account the home screen uses."""
     data = load()
-    return next((a for a in data["accounts"] if a["id"] == data.get("active") and kind(a) == "claude"),
-                data["accounts"][0])
+    return next(
+        (a for a in data["accounts"] if a["id"] == data.get("active") and kind(a) == "claude"), data["accounts"][0]
+    )
 
 
 def config_dir(acct=None):
@@ -121,7 +125,7 @@ def env(base=None, ident=None, purpose=None):
         e.pop(k["var"], None)
     a = pick(ident, purpose)
     if a.get("dir"):
-        Path(a["dir"]).mkdir(parents=True, exist_ok=True)     # Codex refuses a CODEX_HOME that is not there
+        Path(a["dir"]).mkdir(parents=True, exist_ok=True)  # Codex refuses a CODEX_HOME that is not there
         e[KINDS[kind(a)]["var"]] = a["dir"]
     e["PATH"] = f"{HOME}/.local/bin:" + e.get("PATH", "/usr/bin:/bin")
     return e
@@ -145,6 +149,7 @@ def ollama_models():
     """The models Ollama has on this computer, or None when Ollama is not running. Asked at most every 10 s."""
     if time.time() - _ollama["at"] > 10:
         import urllib.request
+
         try:
             with urllib.request.urlopen(OLLAMA + "/api/tags", timeout=0.5) as r:
                 _ollama["models"] = sorted(m["name"] for m in json.load(r).get("models", []))
@@ -170,9 +175,14 @@ def set_local_model(name):
 def local_status():
     """For Settings: is Ollama here, running, and with which models."""
     import shutil
+
     models = ollama_models()
-    return {"installed": bool(shutil.which("ollama")) or models is not None, "running": models is not None,
-            "models": models or [], "model": local_model()}
+    return {
+        "installed": bool(shutil.which("ollama")) or models is not None,
+        "running": models is not None,
+        "models": models or [],
+        "model": local_model(),
+    }
 
 
 def flags(purpose=None, acct=None):
@@ -187,8 +197,9 @@ def signed_in(acct):
     if kind(acct) == "local":
         return bool(ollama_models())
     d = config_dir(acct)
-    return {"claude": d / ".credentials.json", "codex": d / "auth.json",
-            "gemini": d / ".gemini" / "oauth_creds.json"}[kind(acct)].exists()
+    return {"claude": d / ".credentials.json", "codex": d / "auth.json", "gemini": d / ".gemini" / "oauth_creds.json"}[
+        kind(acct)
+    ].exists()
 
 
 def ready(k=None):
@@ -198,9 +209,18 @@ def ready(k=None):
 
 def listing():
     data = load()
-    return [{"id": a["id"], "name": a["name"], "set": a["set"], "kind": kind(a), "label": label(a),
-             "active": a["id"] == data.get("active"), "signedIn": signed_in(a)}
-            for a in data["accounts"]]
+    return [
+        {
+            "id": a["id"],
+            "name": a["name"],
+            "set": a["set"],
+            "kind": kind(a),
+            "label": label(a),
+            "active": a["id"] == data.get("active"),
+            "signedIn": signed_in(a),
+        }
+        for a in data["accounts"]
+    ]
 
 
 def login_command(acct):
@@ -208,7 +228,7 @@ def login_command(acct):
     k = kind(acct)
     prefix = f"{KINDS[k]['var']}={shlex.quote(acct['dir'])} " if acct.get("dir") else ""
     if k == "local":
-        return ""                        # nothing to sign in to: Ollama runs on this computer
+        return ""  # nothing to sign in to: Ollama runs on this computer
     if k == "gemini":
         # Gemini CLI signs in on its first question; choose Google sign-in so it does not ask how.
         settings = Path(acct["dir"]) / ".gemini" / "settings.json"
@@ -224,6 +244,7 @@ def ask(prompt, system, purpose=None, cwd=None, timeout=300, schema=None):
     anything). With a schema the answer is parsed JSON. Claude callers keep their own richer call."""
     import subprocess
     import tempfile
+
     a = pick(purpose=purpose)
     k = kind(a)
     text = system + "\n\n" + prompt
@@ -232,20 +253,43 @@ def ask(prompt, system, purpose=None, cwd=None, timeout=300, schema=None):
     with tempfile.TemporaryDirectory() as tmp:
         if k in ("codex", "local"):
             out = Path(tmp) / "answer.txt"
-            argv = [exe(k), "exec", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral",
-                    "-o", str(out), "-"]
+            argv = [
+                exe(k),
+                "exec",
+                "--sandbox",
+                "read-only",
+                "--skip-git-repo-check",
+                "--ephemeral",
+                "-o",
+                str(out),
+                "-",
+            ]
             if k == "local":
                 Path(a["dir"]).mkdir(parents=True, exist_ok=True)
                 argv[2:2] = ["--oss", "--local-provider", "ollama"] + (["-m", local_model()] if local_model() else [])
             if schema:
                 (Path(tmp) / "schema.json").write_text(json.dumps(schema))
                 argv[-1:-1] = ["--output-schema", str(Path(tmp) / "schema.json")]
-            r = subprocess.run(argv, input=text, capture_output=True, text=True, timeout=timeout,
-                               cwd=cwd or str(HOME), env=env(purpose=purpose))
+            r = subprocess.run(
+                argv,
+                input=text,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=cwd or str(HOME),
+                env=env(purpose=purpose),
+            )
             answer = out.read_text().strip() if out.exists() else ""
         elif k == "gemini":
-            r = subprocess.run([exe(k), "--approval-mode", "plan", "-p", text], capture_output=True, text=True,
-                               timeout=timeout, cwd=cwd or str(HOME), env=env(purpose=purpose), stdin=subprocess.DEVNULL)
+            r = subprocess.run(
+                [exe(k), "--approval-mode", "plan", "-p", text],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=cwd or str(HOME),
+                env=env(purpose=purpose),
+                stdin=subprocess.DEVNULL,
+            )
             answer = r.stdout.strip()
         else:
             raise RuntimeError("ask() is for OpenAI, Gemini and local accounts")
@@ -332,7 +376,7 @@ def add(name, k="claude"):
     name = (name or "").strip()[:40] or "Work"
     known = find(name, k)
     if known:
-        return known["id"]   # one account per kind in a set: the one already there
+        return known["id"]  # one account per kind in a set: the one already there
     data = load()
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "account"
     if k != "claude":

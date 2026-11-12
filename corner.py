@@ -5,6 +5,7 @@ below it). On the right: the date, time, Wi‑Fi and battery, as on the home scr
 the red dot (the open apps, as cards), the red line, which takes you home to Kūhaku (the app stays open), and a cross that
 closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku in front, the bar steps away.
 """
+
 import os
 import subprocess
 import sys
@@ -12,6 +13,7 @@ import time
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Pango", "1.0")
@@ -35,8 +37,18 @@ def tablet_mode():
         return False
 
 
-DAY = {"bg": (0.969, 0.957, 0.945), "fg": (0.067, 0.067, 0.067), "muted": (0.4, 0.4, 0.4), "accent": (0.878, 0.188, 0.118)}
-NIGHT = {"bg": (0.071, 0.071, 0.071), "fg": (0.925, 0.925, 0.925), "muted": (0.6, 0.6, 0.6), "accent": (0.941, 0.439, 0.353)}
+DAY = {
+    "bg": (0.969, 0.957, 0.945),
+    "fg": (0.067, 0.067, 0.067),
+    "muted": (0.4, 0.4, 0.4),
+    "accent": (0.878, 0.188, 0.118),
+}
+NIGHT = {
+    "bg": (0.071, 0.071, 0.071),
+    "fg": (0.925, 0.925, 0.925),
+    "muted": (0.6, 0.6, 0.6),
+    "accent": (0.941, 0.439, 0.353),
+}
 
 
 def scale():
@@ -73,7 +85,9 @@ class Corner:
         w.move(self.geo.x, self.geo.y)
         self.s = scale()
         w.set_size_request(self.geo.width, round(H * self.s))
-        w.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK)
+        w.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
+        )
         w.connect("draw", self.draw)
         w.connect("button-press-event", self.click)
         w.connect("motion-notify-event", lambda _w, e: self.set_hover(self.where(e.x)))
@@ -93,9 +107,20 @@ class Corner:
         """Maximised apps begin below the bar, never under it."""
         xid = self.win.get_window().get_xid()
         g = self.geo
-        subprocess.run(["xprop", "-id", str(xid), "-f", "_NET_WM_STRUT_PARTIAL", "32cccccccccccc", "-set",
-                        "_NET_WM_STRUT_PARTIAL", f"0,0,{g.y + round(H * self.s)},0,0,0,0,0,{g.x},{g.x + g.width - 1},0,0"],
-                       capture_output=True)
+        subprocess.run(
+            [
+                "xprop",
+                "-id",
+                str(xid),
+                "-f",
+                "_NET_WM_STRUT_PARTIAL",
+                "32cccccccccccc",
+                "-set",
+                "_NET_WM_STRUT_PARTIAL",
+                f"0,0,{g.y + round(H * self.s)},0,0,0,0,0,{g.x},{g.x + g.width - 1},0,0",
+            ],
+            capture_output=True,
+        )
 
     def refit(self):
         mon = Gdk.Display.get_default().get_primary_monitor() or Gdk.Display.get_default().get_monitor(0)
@@ -145,7 +170,9 @@ class Corner:
             return
         self.filled.add(xid)
         try:
-            cls = subprocess.run(["xprop", "-id", str(xid), "WM_CLASS"], capture_output=True, text=True, timeout=2).stdout
+            cls = subprocess.run(
+                ["xprop", "-id", str(xid), "WM_CLASS"], capture_output=True, text=True, timeout=2
+            ).stdout
         except Exception:
             report()
             return
@@ -197,8 +224,10 @@ class Corner:
         cr.set_line_width(1.4)
         cr.set_line_cap(1)
         r = 4.5
-        cr.move_to(x - r, mid - r); cr.line_to(x + r, mid + r)
-        cr.move_to(x + r, mid - r); cr.line_to(x - r, mid + r)
+        cr.move_to(x - r, mid - r)
+        cr.line_to(x + r, mid + r)
+        cr.move_to(x + r, mid - r)
+        cr.line_to(x - r, mid + r)
         cr.stroke()
         # Home: the red line (longer on hover, as on the home screen).
         lw = 26 if self.hover == "home" else 20
@@ -252,6 +281,7 @@ class Corner:
         w = self.where(e.x)
         if w == "apps":
             from rundot import overview
+
             overview()
         elif w == "home":
             subprocess.Popen(["wmctrl", "-k", "on"])

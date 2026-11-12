@@ -11,6 +11,7 @@ At either end of the row the screen only gives a little and springs back.
 Swipe up with three or four fingers and every open screen lies as a small card
 along the bottom, Kūhaku first (see Overview).
 """
+
 import os
 import signal
 import subprocess
@@ -19,6 +20,7 @@ import time
 import cairo
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
@@ -30,14 +32,14 @@ from kuhaku_log import report  # faults go to the log instead of vanishing
 SWIPE = 1
 UP, DOWN, LEFT, RIGHT = 1, 2, 3, 4
 FINGERS = 3
-DISTANCE = 55.0      # percent of Touchégg's travel that counts as a full swipe
-COMMIT = 0.33        # let go past this and the swipe completes
-SCALE = 1.0          # full-size snapshots: the sliding screens stay sharp
-GAP = 18             # a dark seam between the two screens
-UP_DISTANCE = 26.0   # swipe up this far (percent) and the cards are fully out
+DISTANCE = 55.0  # percent of Touchégg's travel that counts as a full swipe
+COMMIT = 0.33  # let go past this and the swipe completes
+SCALE = 1.0  # full-size snapshots: the sliding screens stay sharp
+GAP = 18  # a dark seam between the two screens
+UP_DISTANCE = 26.0  # swipe up this far (percent) and the cards are fully out
 UP_COMMIT = 0.2
 PID_FILE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "kuhaku-gestures.pid")
-NAV_STEP = 30.0      # a longer sideways swipe in the overview moves one card per this much
+NAV_STEP = 30.0  # a longer sideways swipe in the overview moves one card per this much
 ACCENT = {"day": (0.878, 0.188, 0.118), "night": (0.941, 0.439, 0.353)}
 
 
@@ -57,9 +59,15 @@ def ui_scale():
 
 def describe(wins):
     """Class, name, type and state of several windows at once: one xprop each, in parallel."""
-    procs = {w: subprocess.Popen(["xprop", "-id", w, "WM_CLASS", "_NET_WM_NAME", "_NET_WM_WINDOW_TYPE",
-                                  "_NET_WM_STATE"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-             for w in wins}
+    procs = {
+        w: subprocess.Popen(
+            ["xprop", "-id", w, "WM_CLASS", "_NET_WM_NAME", "_NET_WM_WINDOW_TYPE", "_NET_WM_STATE"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        for w in wins
+    }
     info = {}
     for w, proc in procs.items():
         d = {}
@@ -181,7 +189,7 @@ class Deck:
     def __init__(self):
         screen = Gdk.Screen.get_default()
         self.w, self.h = screen.get_width(), screen.get_height()
-        self.shots = {}           # last look at each screen: "kuhaku" or a window id
+        self.shots = {}  # last look at each screen: "kuhaku" or a window id
         self.edge = False
         self.front = self.back = None
         self.active = False
@@ -212,14 +220,19 @@ class Deck:
     def connect(self):
         try:
             self.bus = Gio.DBusConnection.new_for_address_sync(
-                "unix:abstract=touchegg", Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT, None, None)
+                "unix:abstract=touchegg", Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT, None, None
+            )
         except GLib.Error:
             GLib.timeout_add_seconds(3, lambda: self.connect() and False)
             return
-        for name, cb in (("OnGestureBegin", self.on_begin), ("OnGestureUpdate", self.on_update),
-                         ("OnGestureEnd", self.on_end)):
-            self.bus.signal_subscribe(None, "io.github.joseexposito.Touchegg", name, None, None,
-                                      Gio.DBusSignalFlags.NONE, cb)
+        for name, cb in (
+            ("OnGestureBegin", self.on_begin),
+            ("OnGestureUpdate", self.on_update),
+            ("OnGestureEnd", self.on_end),
+        ):
+            self.bus.signal_subscribe(
+                None, "io.github.joseexposito.Touchegg", name, None, None, Gio.DBusSignalFlags.NONE, cb
+            )
         self.bus.connect("closed", lambda *a: GLib.timeout_add_seconds(3, lambda: self.connect() and False))
 
     @staticmethod
@@ -232,8 +245,7 @@ class Deck:
         self.gesture = None
         if kind != SWIPE:
             return
-        if self.ov.visible or (direction == UP and fingers in (3, 4)
-                               and not self.anim and not self.win.get_visible()):
+        if self.ov.visible or (direction == UP and fingers in (3, 4) and not self.anim and not self.win.get_visible()):
             self.gesture = "overview"
             self.ov.begin(direction, pct)
             return
@@ -345,6 +357,7 @@ class Deck:
     def settle(self, where, tries):
         """Apps sometimes pull focus back right after a switch (Electron does);
         check for a moment and put the chosen screen in front again."""
+
         def check(left=[tries]):
             active = self.active_window()
             ok = (showing_desktop() and is_home(active)) if where == "kuhaku" else active == where
@@ -352,6 +365,7 @@ class Deck:
                 self.go(where, None)
             left[0] -= 1
             return left[0] > 0 and not ok
+
         if where:
             GLib.timeout_add(150, check)
 
@@ -462,12 +476,12 @@ class Overview:
 
     def __init__(self, deck):
         self.deck = deck
-        self.visible = False      # on screen at all
-        self.open = False         # fully out and taking input
-        self.following = False    # fingers on the pad
-        self.mode = None          # what the current gesture does: "open" or "nav"
+        self.visible = False  # on screen at all
+        self.open = False  # fully out and taking input
+        self.following = False  # fingers on the pad
+        self.mode = None  # what the current gesture does: "open" or "nav"
         self.p = self.target = 0.0
-        self.q = 0.0              # the chosen card growing to the whole screen
+        self.q = 0.0  # the chosen card growing to the whole screen
         self.picking = None
         self.anim = None
         self.cards = []
@@ -480,8 +494,9 @@ class Overview:
         self.s = ui_scale()
         self.win = Gtk.Window(type=Gtk.WindowType.POPUP)
         self.win.set_app_paintable(True)
-        self.win.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK
-                            | Gdk.EventMask.KEY_PRESS_MASK)
+        self.win.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.KEY_PRESS_MASK
+        )
         self.win.connect("draw", self.draw)
         self.win.connect("button-press-event", self.on_click)
         self.win.connect("motion-notify-event", self.on_motion)
@@ -523,7 +538,7 @@ class Overview:
         elif direction == UP:
             if self.open:
                 self.pick(self.sel)
-            else:                 # still sliding away: catch it again
+            else:  # still sliding away: catch it again
                 self.mode = "open"
                 self.following = True
                 self.update(pct)
@@ -549,8 +564,9 @@ class Overview:
     def show(self):
         d = self.deck
         root = {}
-        for line in out("xprop", "-root", "_NET_CLIENT_LIST", "_NET_ACTIVE_WINDOW",
-                        "_NET_SHOWING_DESKTOP").splitlines():
+        for line in out(
+            "xprop", "-root", "_NET_CLIENT_LIST", "_NET_ACTIVE_WINDOW", "_NET_SHOWING_DESKTOP"
+        ).splitlines():
             key, sep, val = line.partition("#") if "#" in line else line.partition(" = ")
             root[key.split("(")[0].strip()] = val
         clients = [w.strip() for w in root.get("_NET_CLIENT_LIST", "").split(",") if w.strip().startswith("0x")]
@@ -573,8 +589,15 @@ class Overview:
         self.cards = [{"key": "kuhaku", "xid": home, "name": "Kūhaku", "icon": None, "hidden": False}]
         for w in row:
             app = app_for(info[w]["classes"])
-            self.cards.append({"key": w, "xid": w, "name": app[0] if app else (info[w]["name"] or "App"),
-                               "icon": app[1] if app else None, "hidden": hidden(w)})
+            self.cards.append(
+                {
+                    "key": w,
+                    "xid": w,
+                    "name": app[0] if app else (info[w]["name"] or "App"),
+                    "icon": app[1] if app else None,
+                    "hidden": hidden(w),
+                }
+            )
         for c in self.cards:
             c["shot"], c["thumb"] = d.shots.get(c["key"]), None
         self.sel = [c["key"] for c in self.cards].index(self.origin)
@@ -588,8 +611,9 @@ class Overview:
         self.visible = True
         self.win.show_all()
         self.win.get_window().raise_()
-        GLib.idle_add(self.prepare, [self.cards[self.sel], "soft"]
-                      + [c for i, c in enumerate(self.cards) if i != self.sel])
+        GLib.idle_add(
+            self.prepare, [self.cards[self.sel], "soft"] + [c for i, c in enumerate(self.cards) if i != self.sel]
+        )
 
     def prepare(self, todo):
         """In idle moments: the softened background, then fresh pictures of the
@@ -613,6 +637,7 @@ class Overview:
 
     def soften(self, surf):
         """The screen behind the cards: blurred (shrunk and grown again) and dimmed."""
+
         def shrink(src, k):
             sw, sh = src.get_width(), src.get_height()
             dst = cairo.ImageSurface(cairo.FORMAT_RGB24, max(1, sw // k), max(1, sh // k))
@@ -623,6 +648,7 @@ class Overview:
             c.get_source().set_extend(cairo.EXTEND_PAD)
             c.paint()
             return dst
+
         small = shrink(shrink(surf, 4), 6)
         soft = cairo.ImageSurface(cairo.FORMAT_RGB24, self.w, self.h)
         c = cairo.Context(soft)
@@ -669,7 +695,7 @@ class Overview:
             cr.get_source().set_filter(cairo.FILTER_GOOD)
             cr.paint()
             cr.restore()
-        else:                      # not seen yet: its icon on paper
+        else:  # not seen yet: its icon on paper
             cr.set_source_rgb(*paper())
             cr.paint()
             size = int(min(56 * self.s, th * 0.4))
@@ -722,7 +748,10 @@ class Overview:
     def hit(self, x, y):
         pad = self.gap / 2
         for i, c in enumerate(self.cards):
-            if c["x"] - pad <= x <= c["x"] + self.tw + pad and self.top - 16 * self.s <= y <= self.top + self.th + 56 * self.s:
+            if (
+                c["x"] - pad <= x <= c["x"] + self.tw + pad
+                and self.top - 16 * self.s <= y <= self.top + self.th + 56 * self.s
+            ):
                 return i
         return None
 
@@ -831,8 +860,10 @@ class Overview:
 
     def grab(self):
         seat = Gdk.Display.get_default().get_default_seat()
-        if seat.grab(self.win.get_window(), Gdk.SeatCapabilities.KEYBOARD, False,
-                     None, None, None, None) == Gdk.GrabStatus.SUCCESS:
+        if (
+            seat.grab(self.win.get_window(), Gdk.SeatCapabilities.KEYBOARD, False, None, None, None, None)
+            == Gdk.GrabStatus.SUCCESS
+        ):
             self.grabbed = True
 
     def ungrab(self):
@@ -923,8 +954,9 @@ class Overview:
                 cr.set_source_rgb(*accent)
                 cr.set_line_width(2.5 * s)
                 cr.stroke()
-            lh = self.label(cr, card, x + self.tw / 2, y + self.th + 18 * s, self.tw,
-                            (1, 1, 1) if chosen else (0.82, 0.82, 0.82))
+            lh = self.label(
+                cr, card, x + self.tw / 2, y + self.th + 18 * s, self.tw, (1, 1, 1) if chosen else (0.82, 0.82, 0.82)
+            )
             if card["key"] == self.origin:  # where you came from
                 cr.new_path()
                 cr.arc(x + self.tw / 2, y + self.th + 18 * s + lh + 10 * s, 2.5 * s, 0, 6.2832)
