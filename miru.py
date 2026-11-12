@@ -301,7 +301,8 @@ class Miru:
         self.cloud_mode = None      # the cloud whose setup page is showing
         self.drives = [d["path"] for d in usb_drives()]
         self.clouds = self.cloud_places()
-        GLib.timeout_add_seconds(2, self.watch_drives)
+        self.cloud_last = self.cloud_syncs()
+        self.watch()
         if any(kumo.folders(k) for k in kumo.accounts()):
             kumo.ensure_daemon()
         self.view.load_html(PAGE.replace("{THEME}", "night" if self.night else "day"), "file:///")
@@ -352,17 +353,47 @@ class Miru:
                         "path": str(p["local"]) if ready else "cloud:" + key})
         return out
 
+    def cloud_syncs(self):
+        return {c["cloud"]: kumo.status(c["cloud"]).get("last") for c in self.clouds}
+
+    def watch(self):
+        """Told, not asking: the kernel says when a disk appears or goes (/dev), the system when
+        something is mounted, and Kumo's status file when a sync starts or ends. Nothing is
+        checked on a timer except the "synced 3 min ago" words, twice a minute."""
+        self.watch_due = 0
+        self.monitors = []
+
+        def soon(*_):
+            if not self.watch_due:
+                self.watch_due = GLib.timeout_add(400, fire)
+
+        def fire():
+            self.watch_due = 0
+            self.watch_drives()
+            return False
+        dev = Gio.File.new_for_path("/dev").monitor_directory(Gio.FileMonitorFlags.NONE, None)
+        dev.connect("changed", lambda _m, f, _o, _e: f.get_basename().startswith(("sd", "nvme", "mmcblk")) and soon())
+        self.monitors.append(dev)
+        mounts = Gio.UnixMountMonitor.get()
+        mounts.connect("mounts-changed", soon)
+        self.monitors.append(mounts)
+        for f in (kumo.STATUS, kumo.CHOICES):
+            m = Gio.File.new_for_path(str(f)).monitor_file(Gio.FileMonitorFlags.NONE, None)
+            m.connect("changed", soon)
+            self.monitors.append(m)
+        GLib.timeout_add_seconds(30, lambda: self.watch_drives() or True)
+
     def watch_drives(self):
         """Plugging a stick in or out shows up in the places without a reload."""
         clouds = self.cloud_places()
         if clouds != self.clouds:
             # A sync finished (or started): new words in the side bar, and new files if we are in there.
-            was = {c["cloud"]: kumo.status(c["cloud"]).get("last") for c in self.clouds}
-            self.clouds = clouds
+            was, self.clouds = self.cloud_last, clouds
+            self.cloud_last = self.cloud_syncs()
             if self.folder is not None and self.cloud_mode is None:
                 key, _ = kumo.which_cloud(self.folder)
                 self.js("cloudTick", {"places": self.places(), "reload": bool(key) and
-                                      kumo.status(key).get("last") != was.get(key)})
+                                      self.cloud_last.get(key) != was.get(key)})
         now = [d["path"] for d in usb_drives()]
         if now != self.drives:
             self.drives = now
