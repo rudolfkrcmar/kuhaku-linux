@@ -28,11 +28,6 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import touchkeys  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
-try:
-    from terminal import theme
-except Exception:
-    theme = lambda: "night"  # noqa: E731
-
 COLORS = {"night": ("#121212", "#ececec", "#9a9a9a", "#f0705a"), "day": ("#f7f4f1", "#111111", "#666666", "#e0301e")}
 USER = pwd.getpwuid(os.getuid()).pw_name
 LOGIN1 = "org.freedesktop.login1"

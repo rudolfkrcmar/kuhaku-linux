@@ -1,37 +1,10 @@
 """The look shared by Kūhaku's unlock windows (fingers, face): the lock screen's colours,
 Inter in light weights, and the red line."""
-import json
-import time
-from pathlib import Path
-
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa: E402
-from kuhaku_log import report  # faults go to the log instead of vanishing
 
 COLORS = {"night": ("#121212", "#ececec", "#9a9a9a", "#f0705a"), "day": ("#f7f4f1", "#111111", "#666666", "#e0301e")}
-
-
-def theme():
-    try:
-        from terminal import theme as t
-        return t()
-    except Exception:
-        report()
-    home = Path.home()
-
-    def load(p):
-        try:
-            return json.loads(p.read_text())
-        except Exception:
-            report()
-            return {}
-    cfg = load(home / ".config/kuhaku/config.json")
-    choice = load(home / ".local/state/kuhaku/state.json").get("theme") or cfg.get("theme", "auto")
-    if choice in ("day", "night"):
-        return choice
-    h = time.localtime().tm_hour
-    return "night" if h >= cfg.get("night_from", 20) or h < cfg.get("night_until", 7) else "day"
 
 
 def window_css():
