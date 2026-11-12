@@ -103,44 +103,6 @@ class Finger:
             self.proc.terminate()
 
 
-FACE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kuhaku-face.py")
-
-
-def face_enrolled():
-    return os.path.exists(os.path.join(os.path.dirname(FACE), "face", "embeddings.npy"))
-
-
-class Face:
-    """Looks for the enrolled face for a few seconds, in its own process (the camera closes with it).
-    look() again (a key, the mouse, waking from sleep) when it has given up."""
-
-    def __init__(self, on_match):
-        self.on_match = on_match
-        self.proc = None
-        self.stopped = False
-        self.look()
-
-    def look(self):
-        if self.stopped or (self.proc and self.proc.poll() is None):
-            return
-        try:
-            self.proc = subprocess.Popen(
-                ["python3", FACE, "verify", "10"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-        except Exception:
-            report()
-            return
-        proc = self.proc
-        threading.Thread(
-            target=lambda: proc.wait() == 0 and not self.stopped and GLib.idle_add(self.on_match), daemon=True
-        ).start()
-
-    def stop(self):
-        self.stopped = True
-        if self.proc and self.proc.poll() is None:
-            self.proc.terminate()
-
-
 class Lock:
     hint: Gtk.Label
     error: Gtk.Label
@@ -197,8 +159,7 @@ class Lock:
         )
         over.add(self.entry)
         self.finger = None
-        self.face = None
-        ways = ["Password"] + (["finger"] if finger_enrolled() else []) + (["face"] if face_enrolled() else [])
+        ways = ["Password"] + (["finger"] if finger_enrolled() else [])
         hint = ways[0] if len(ways) == 1 else ", ".join(ways[:-1]) + " or " + ways[-1]
         self.hint = Gtk.Label(label=hint, name="hint", xalign=0)
         self.hint.set_halign(Gtk.Align.START)
@@ -224,11 +185,6 @@ class Lock:
         w.show_all()
         self.grabbed = False
         GLib.timeout_add(100, self.grab)
-        if "face" in hint:
-            self.face = Face(self.close)
-            w.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
-            w.connect("button-press-event", lambda *_: self.wake())
-            w.connect("motion-notify-event", lambda *_: self.wake())
         if "finger" in hint:
             self.finger = Finger(self.close, lambda: (self.win and self.error.set_text("Not this finger"), False)[1])
 
@@ -258,14 +214,7 @@ class Lock:
         self.win.get_window().raise_()
         return True
 
-    def wake(self):
-        """Someone is here (a key, the mouse, back from sleep): look for the face again if it gave up."""
-        if self.face:
-            self.face.look()
-        return False
-
     def on_key(self, _w, ev):
-        self.wake()
         if ev.keyval == Gdk.KEY_Escape:
             self.entry.set_text("")
             return True
@@ -298,8 +247,6 @@ class Lock:
             return False
         if self.finger:
             self.finger.stop()
-        if self.face:
-            self.face.stop()
         Gdk.Display.get_default().get_default_seat().ungrab()
         touchkeys.front(False)
         Gtk.StyleContext.remove_provider_for_screen(Gdk.Screen.get_default(), self.css)
@@ -382,8 +329,6 @@ class Watcher:
             self.show(on_shown=self.release)
         else:
             self.inhibit()
-            if self.lock and self.lock.win:  # back from sleep: look for the face again
-                GLib.timeout_add(1500, self.lock.wake)
 
     def on_session(self, *args):
         if args[4] == "Lock":

@@ -192,11 +192,10 @@ class Panels(Home):
         return QUIET if msg.get("quiet") else Reply("prefs", self.read_prefs())
 
     def _unlock(self, msg):
-        # Fingers and face: their own windows do the teaching; Settings is told again when they close.
+        # Fingers: their own windows do the teaching; Settings is told again when they close.
         what, finger = msg.get("what"), str(msg.get("finger") or "")
         teach = {
             "add-finger": ["python3", str(HERE / "kuhaku-finger.py")],
-            "face-setup": ["python3", str(HERE / "kuhaku-face.py"), "enroll"],
             "guided": ["python3", str(HERE / "kuhaku-unlock-setup.py")],
         }
         if what in teach:
@@ -217,8 +216,6 @@ class Panels(Home):
             subprocess.run(["fprintd-delete", me, "-f", finger], capture_output=True, timeout=15)
         elif what == "forget-fingers":
             subprocess.run(["fprintd-delete", me], capture_output=True, timeout=15)
-        elif what == "face-forget":
-            (HERE / "face" / "embeddings.npy").unlink(missing_ok=True)
         return Reply("prefs", self.read_prefs())
 
     def _account(self, msg):

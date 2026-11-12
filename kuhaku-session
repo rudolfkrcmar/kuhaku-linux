@@ -106,6 +106,13 @@ for kv in "numbersign full" "3 full" "dollar area" "4 area" "percent record" "5 
   done
 done
 
+# The Print key (on ThinkPads, between AltGr and Ctrl): pick a part of the screen, like Cmd+Shift+4.
+# Shift+Print takes the whole screen, Ctrl+Print copies the part instead of saving it.
+for kv in "Print area" "<Shift>Print full" "<Primary>Print area-clip" "<Alt>Print area"; do
+  key=${kv%% *}; act=${kv#* }
+  xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$key" -n -t string -s "$DIR/kuhaku-capture $act" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$key" -s "$DIR/kuhaku-capture $act"
+done
+
 # Claude's safety net: never wipe disks, delete whole folders outright, or send secrets away.
 python3 "$DIR/kuhaku-guard.py" install 2>/dev/null
 

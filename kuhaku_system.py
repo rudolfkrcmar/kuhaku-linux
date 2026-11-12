@@ -494,7 +494,7 @@ FINGER_ORDER = [
 
 
 def read_unlock():
-    """Fingers and face for the lock screen: the reader, the known fingers, the infrared camera."""
+    """Fingers for the lock screen: the reader and the known fingers."""
     reader, fingers = None, []
     if shutil.which("fprintd-list"):
         try:
@@ -508,16 +508,7 @@ def read_unlock():
             fingers = [f for f in FINGER_ORDER if f in got]
         except Exception:
             report()
-    camera = any(
-        p.name.startswith("video") and (p / "name").read_text().strip().endswith(": Integrated I")
-        for p in Path("/sys/class/video4linux").glob("video*")
-        if (p / "name").exists()
-    )
-    return {
-        "reader": reader,
-        "fingers": fingers,
-        "face": {"camera": camera, "enrolled": (HERE / "face" / "embeddings.npy").exists()},
-    }
+    return {"reader": reader, "fingers": fingers}
 
 
 def read_trackpad():

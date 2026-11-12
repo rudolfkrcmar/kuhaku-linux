@@ -102,7 +102,7 @@ computer, not only the home screen's.
 | Where | What |
 |---|---|
 | `~/Projects/kuhaku-linux` | This project: the only place Kūhaku is changed. |
-| `~/.local/share/kuhaku` | The running copy, written only by `dev/install` (which refuses to overwrite changes made there). Also holds what is never in git: the dictation venv, face data, models, Mado's profile. |
+| `~/.local/share/kuhaku` | The running copy, written only by `dev/install` (which refuses to overwrite changes made there). Also holds what is never in git: the dictation venv, models, Mado's profile. |
 | `~/.config/kuhaku/` | Choices: `config.json`, cloud folders, accounts, `rclone.conf` (mode 600). |
 | `~/.local/state/kuhaku/` | What changes as it runs: tabs, answers, `claude.log`, `jobs.jsonl` (for Kiroku), cloud sync status, `logs/`. |
 | `system/` | Copies of the system settings Kūhaku changes (`kuhaku-backup` refreshes them, with the home folder written as `$HOME`). |

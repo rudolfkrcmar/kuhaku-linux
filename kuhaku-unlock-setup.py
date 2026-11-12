@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Set up unlocking, one quiet step at a time: fingers first (three is reliable), then the face.
+"""Set up unlocking with fingers, one quiet step at a time (three fingers are reliable).
 
-Each step opens the window that does the work (kuhaku-finger.py, kuhaku-face.py enroll) and
+Each step opens the window that does the work (kuhaku-finger.py) and
 comes back here when it closes. Opened from Settings → Unlock, the Apps page ("Unlock"),
 or by asking Claude.
 """
@@ -35,17 +35,6 @@ def fingers():
     except Exception:
         report()
         return None, []
-
-
-def face():
-    try:
-        out = subprocess.run(
-            [sys.executable, str(HERE / "kuhaku-face.py"), "status"], capture_output=True, text=True, timeout=15
-        ).stdout
-        return json.loads(out or "{}")
-    except Exception:
-        report()
-        return {}
 
 
 class Setup:
@@ -119,10 +108,9 @@ class Setup:
     def intro(self):
         self.screen(
             "Unlock",
-            "Open this computer with a touch or a look.",
-            "First a few fingers on the reader in the power button, then your face with the infrared "
-            "camera above the screen. About three minutes. Your password always works too, and it is "
-            "still the one asked when the computer starts.",
+            "Open this computer with a touch.",
+            "A few fingers on the reader in the power button. About two minutes. Your password always "
+            "works too, and it is still the one asked when the computer starts.",
             [("Begin", self.fingers), ("Not now", self.win.destroy)],
         )
 
@@ -130,19 +118,19 @@ class Setup:
         reader, known = fingers()
         if not reader:
             self.screen(
-                "Step 1 of 2 · Fingers",
+                "Fingers",
                 "No fingerprint reader answered.",
-                "Ask Claude to look at the fingerprint service. You can still set up your face.",
-                [("Go on to the face", self.face), ("Close", self.win.destroy)],
+                "Ask Claude to look at the fingerprint service.",
+                [("Close", self.win.destroy)],
             )
             return
         n = len(known)
         if n >= WANT:
             self.screen(
-                "Step 1 of 2 · Fingers",
+                "Fingers",
                 f"{n} fingers known.",
                 "That is reliable: if one finger is dry or at an angle, another works.",
-                [("Go on to the face", self.face), ("Add another finger", self.teach)],
+                [("Finish", self.done), ("Add another finger", self.teach)],
             )
             return
         left = WANT - n
@@ -153,64 +141,18 @@ class Setup:
             else f"{n} known. {left} more make{'s' if left == 1 else ''} it reliable: a dry or tilted finger still works."
         )
         self.screen(
-            "Step 1 of 2 · Fingers",
+            "Fingers",
             "Teach a finger." if n == 0 else "Another finger.",
             text,
-            [("Teach a finger", self.teach), ("Skip to the face", self.face)],
+            [("Teach a finger", self.teach), ("Finish" if n else "Not now", self.done if n else self.win.destroy)],
         )
 
     def teach(self):
         self.run([str(HERE / "kuhaku-finger.py")], self.fingers)
 
-    def face(self):
-        f = face()
-        if not f.get("camera") or not f.get("ready"):
-            self.screen(
-                "Step 2 of 2 · Face",
-                "The infrared camera did not answer.",
-                "Slide the little cover above the screen open, then try again.",
-                [("Try again", self.face), ("Finish without face", self.done)],
-            )
-            return
-        if f.get("enrolled"):
-            self.screen(
-                "Step 2 of 2 · Face",
-                "Your face is known.",
-                "Learn it again if you change glasses or it misses you often.",
-                [("Finish", self.done), ("Learn again", self.learn_face)],
-            )
-            return
-        self.screen(
-            "Step 2 of 2 · Face",
-            "Now your face.",
-            "Slide the camera cover open, sit as you usually do and look at the screen. Turn your head a "
-            "little when asked. Only measurements are kept, never pictures, and the camera is on only "
-            "while the lock screen is up. A convenience: your password and fingers are stronger.",
-            [("Set up face", self.learn_face), ("Skip", self.done)],
-        )
-
-    def learn_face(self):
-        self.run([str(HERE / "kuhaku-face.py"), "enroll"], self.after_face)
-
-    def after_face(self):
-        if face().get("enrolled"):
-            self.done()
-        else:
-            self.screen(
-                "Step 2 of 2 · Face",
-                "The face was not learned.",
-                "More light on your face, or the camera cover open, usually helps.",
-                [("Try again", self.learn_face), ("Finish without face", self.done)],
-            )
-
     def done(self):
         _, known = fingers()
-        has_face = bool(face().get("enrolled"))
-        ways = (
-            ["your password"]
-            + ([f"{len(known)} finger{'s' if len(known) != 1 else ''}"] if known else [])
-            + (["your face"] if has_face else [])
-        )
+        ways = ["your password"] + ([f"{len(known)} finger{'s' if len(known) != 1 else ''}"] if known else [])
         self.screen(
             "Done",
             "Unlocking is set up.",

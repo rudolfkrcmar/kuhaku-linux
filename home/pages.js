@@ -14,8 +14,8 @@ function openPage(name, section) {
   if (name === 'apps') { appQuery = ''; renderApps(); }
   if (name === 'settings') {
     native({ type: 'panel', action: 'prefs' });
+    if (section) settingsCat = catOf(section);
     renderSettings();
-    if (section) requestAnimationFrame(() => { const t = document.getElementById('sec-' + section); if (t) el.scrollTop = t.offsetTop - 120; });
   }
 }
 $('pageClose').addEventListener('click', () => closePage());
@@ -89,7 +89,19 @@ const OPT = (key, options, current) => '<div class="opts grow">' + options.map((
 const SLIDE = (key, label, value) => value == null ? '' : `<div class="srow"><span class="k">${label}</span>
     <div class="slider" data-slide="${key}"><i style="width:${value}%"></i><b style="left:${value}%"></b></div>
     <span class="val" id="val-${key}">${value}%</span></div>`;
-let acctAdding = false, onlySection = null, unlockForget = null;
+let acctAdding = false, onlySection = null, unlockForget = null, settingsCat = 'general';
+// Settings in categories: a quiet list on the left, one category at a time on the right.
+const SETTINGS_CATS = [
+  ['general', 'General', ['appearance', 'time', 'updates']],
+  ['sound', 'Sound', ['sound']],
+  ['display', 'Display', ['display']],
+  ['input', 'Keyboard and trackpad', ['keys', 'trackpad']],
+  ['unlock', 'Lock and unlock', ['unlock']],
+  ['power', 'Power and network', ['power']],
+  ['claude', 'AI', ['claude']],
+  ['about', 'This computer', ['about', 'tools']],
+];
+const catOf = (section) => (SETTINGS_CATS.find(([, , secs]) => secs.includes(section)) || ['general'])[0];
 function renderSettings() {
   const p = prefs;
   let h = '<div class="inner narrow"><h1>Settings</h1>';
@@ -103,19 +115,22 @@ function renderSettings() {
   h += `<div class="p-label" id="sec-display"><span>Display</span></div><div class="p-rows">
     ${SLIDE('brightness', 'Brightness', p.brightness)}
     ${screensHtml(p.displays)}</div>`;
+  h += `<div class="p-label" id="sec-keys"><span>Screenshots</span></div><div class="p-rows">
+    ${[['Print', 'Pick a part of the screen'], ['Shift + Print', 'The whole screen'], ['Ctrl + Print', 'Copy a part, without saving'],
+       ['Ctrl + Shift + 5', 'Record the screen']].map(([k, v]) => `<div class="srow"><span class="k">${k}</span><span class="grow">${v}</span></div>`).join('')}</div>`;
   if (p.trackpad) h += `<div class="p-label" id="sec-trackpad"><span>Trackpad</span></div><div class="p-rows">
     <div class="srow"><span class="k">Tap to click</span>${OPT('tap', [[1, 'On'], [0, 'Off']], p.trackpad.tap)}</div>
     <div class="srow"><span class="k">Scrolling</span>${OPT('natural', [[1, 'Natural, like a Mac'], [0, 'Classic']], p.trackpad.natural)}</div>
     <div class="srow"><span class="k">Speed</span>${OPT('speed', [[-0.3, 'Slow'], [0, 'Medium'], [0.3, 'Fast'], [0.6, 'Fastest']], p.trackpad.speed)}</div></div>`;
   const ul = p.unlock;
-  if (ul && (ul.reader || ul.face.camera)) {
+  if (ul && ul.reader) {
     const NICE = (f) => f.replace('-finger', '').replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
     const fs = ul.fingers || [];
     h += `<div class="p-label" id="sec-unlock"><span>Unlock</span></div><div class="p-rows">`;
-    if (!fs.length || (ul.face.camera && !ul.face.enrolled)) h += `<div class="srow"><span class="k">Set up</span><div class="grow"><div class="opts">
+    if (!fs.length) h += `<div class="srow"><span class="k">Set up</span><div class="grow"><div class="opts">
         <span class="opt" data-act2="unlock" data-what="guided">Guided setup</span></div>
-        <div class="p-sub" style="margin-top:6px">Three fingers, then your face, one step at a time. About three minutes.</div></div></div>`;
-    if (ul.reader) h += `<div class="srow"><span class="k">Fingers</span><div class="grow"><div class="opts">
+        <div class="p-sub" style="margin-top:6px">Three fingers, one at a time. About two minutes.</div></div></div>`;
+    h += `<div class="srow"><span class="k">Fingers</span><div class="grow"><div class="opts">
         ${fs.map((f) => unlockForget === f ? `<span class="opt aidel" data-act2="unlock" data-what="forget-finger" data-v="${f}">Forget ${NICE(f).toLowerCase()}?</span>`
           : `<span class="opt sel" title="Click to forget" data-act2="unlock-ask" data-v="${f}">${NICE(f)}</span>`).join('')}
         ${fs.length < 10 ? `<span class="opt" data-act2="unlock" data-what="add-finger">${fs.length ? 'Add a finger' : 'Teach a finger'}</span>` : ''}
@@ -123,10 +138,6 @@ function renderSettings() {
           : '<span class="opt" data-act2="unlock-ask">Forget all</span>') : ''}</div>
         <div class="p-sub" style="margin-top:6px">${fs.length >= 3 ? 'Opens the lock screen with any of these fingers, or your password.'
           : 'The reader is the power button. Three or more fingers make it much more reliable.'}</div></div></div>`;
-    if (ul.face.camera) h += `<div class="srow"><span class="k">Face</span><div class="grow"><div class="opts">
-        ${ul.face.enrolled ? '<span class="opt sel">Set up</span><span class="opt" data-act2="unlock" data-what="face-setup">Learn again</span><span class="opt" data-act2="unlock" data-what="face-forget">Forget face</span>'
-          : '<span class="opt" data-act2="unlock" data-what="face-setup">Set up face</span>'}</div>
-        <div class="p-sub" style="margin-top:6px">With the infrared camera, only while the lock screen is up. A convenience: your password and fingers are stronger.</div></div></div>`;
     h += '</div>';
   }
   const tm = p.time;
@@ -183,7 +194,7 @@ function renderSettings() {
      ['Storage', a.disk && `${a.disk[0]} GB free of ${a.disk[1]} GB`], ['Kernel', a.kernel]]
       .filter(([, v]) => v).map(([k, v]) => `<div class="srow"><span class="k">${k}</span><span class="grow">${esc(v)}</span></div>`).join('') + '</div>';
   const tools = (appList || []).filter((x) => x.system);
-  if (tools.length) h += `<div class="p-label"><span>System tools</span></div><div class="tools">` +
+  if (tools.length) h += `<div class="p-label" id="sec-tools"><span>System tools</span></div><div class="tools">` +
     tools.map((t) => `<span data-act2="tool" data-v="${esc(t.id)}">${esc(t.name)}</span>`).join('') + '</div>';
   $('page').innerHTML = h + '</div>';
   // Opened for one thing (power, from the battery): only that part shows, and the rest is one click away.
@@ -194,8 +205,27 @@ function renderSettings() {
       [...inner.children].forEach((n) => { if (n !== keep && n !== keep.nextElementSibling && n.tagName !== 'H1') n.remove(); });
       inner.querySelector('h1').textContent = keep.textContent.trim().replace(/^./, (c) => c.toUpperCase());
       inner.insertAdjacentHTML('beforeend', '<div class="p-foot"><button class="p-link" data-act2="all-settings">All settings</button></div>');
+      return;
     }
   }
+  settingsInCategories();
+}
+
+function settingsInCategories() {
+  const inner = $('page').querySelector('.inner');
+  const part = (id) => { const l = document.getElementById('sec-' + id); return l ? [l, l.nextElementSibling] : []; };
+  const cats = SETTINGS_CATS.filter(([, , secs]) => secs.some((x) => document.getElementById('sec-' + x)));
+  if (!cats.some(([id]) => id === settingsCat)) settingsCat = cats[0][0];
+  const [, title, secs] = cats.find(([id]) => id === settingsCat);
+  const body = secs.flatMap(part);
+  inner.classList.remove('narrow'); inner.classList.add('settings');
+  inner.innerHTML = '<h1>Settings</h1><div class="scols"><nav class="snav">' +
+    cats.map(([id, label]) => `<span class="${id === settingsCat ? 'sel' : ''}" data-cat="${id}">${label}</span>`).join('') +
+    `</nav><div class="sbody"><h2>${title}</h2></div></div>`;
+  const b = inner.querySelector('.sbody');
+  body.forEach((n) => b.appendChild(n));
+  // One part only: its small heading would repeat the category's name.
+  if (secs.filter((x) => document.getElementById('sec-' + x)).length === 1) b.querySelector('.p-label').remove();
 }
 
 function screensHtml(d) {
@@ -221,6 +251,8 @@ $('page').addEventListener('click', (e) => {
     return native({ type: 'panel', action: 'pref', key: 'display', value: JSON.parse(disp.dataset.disp) });
   }
   const app = e.target.closest('[data-app]'); if (app) return launch(app.dataset.app);
+  const cat = e.target.closest('[data-cat]');
+  if (cat) { settingsCat = cat.dataset.cat; acctAdding = false; renderSettings(); $('page').scrollTop = 0; return; }
   const o = e.target.closest('[data-pref]');
   if (o) {
     // A set whose Claude is not signed in yet is not chosen by a click; it opens its sign-in.

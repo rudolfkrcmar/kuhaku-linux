@@ -37,6 +37,20 @@ from kuhaku_system import (
 )
 
 
+def output_name(sink, plain=False):
+    """A sound output in plain words: "Laptop speakers", "Screen 2 (HDMI)", not the sound chip's long name."""
+    desc = sink.get("description") or sink["name"]
+    card = (sink.get("properties") or {}).get("device.description", "")
+    part = desc[len(card) :].strip() if card and desc.startswith(card) and desc != card else desc
+    part = part.replace(" (EQ)", "").replace("Built-in Audio ", "")
+    if part in ("Speaker", "Speakers", "Analog Stereo", "Speaker + Headphones"):
+        part = "Laptop speakers"
+    m = re.fullmatch(r"HDMI / DisplayPort (\d+) Output", part)
+    if m:
+        part = f"Screen {m.group(1)} (HDMI / DisplayPort)"
+    return part + " (plain)" if plain else part
+
+
 class Settings(Home):
     # --- Kūhaku settings page --------------------------------------------
     def read_prefs(self):
@@ -44,16 +58,19 @@ class Settings(Home):
         _, default_sink, _ = run(["pactl", "get-default-sink"])
         outputs = []
         try:
-            for k in json.loads(sinks_json):
+            sinks = json.loads(sinks_json)
+            # A tuned chain (a PipeWire filter in front of the speakers) plays through the raw device:
+            # that one is offered as the plain version.
+            targets = (str((k.get("properties") or {}).get("filter.smart.target", "")) for k in sinks)
+            tuned = set(re.findall(r'node\.name = "([^"]+)"', " ".join(targets)))
+            for k in sinks:
                 if "Raw" in k.get("description", "") or k["name"] in ("mb81_speakers", "mb81_speakers_eq_out"):
                     continue
-                outputs.append(
-                    {
-                        "id": k["name"],
-                        "name": k.get("description", k["name"]).replace(" (EQ)", "").replace("Built-in Audio ", ""),
-                        "active": k["name"] == default_sink.strip(),
-                    }
-                )
+                active = k["name"] == default_sink.strip()
+                ports = {pt.get("name"): pt.get("availability") for pt in k.get("ports") or []}
+                if not active and ports.get(k.get("active_port")) == "not available":
+                    continue  # an HDMI or headphone socket with nothing plugged in
+                outputs.append({"id": k["name"], "name": output_name(k, k["name"] in tuned), "active": active})
         except Exception:
             report()
 

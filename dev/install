@@ -10,7 +10,7 @@ copy since then is noticed and never overwritten:
                            (review them with git diff, commit, then install)
     dev/install --status   only say what differs
 
-Files the project does not track (the dictation venv, face data, browser profile, models)
+Files the project does not track (the dictation venv, browser profile, models)
 are never touched.
 """
 import hashlib

@@ -33,7 +33,7 @@ os/image/work/
 # Local safety copies
 *.bak-*
 
-# Face unlock: downloaded models and the person's face (never commit)
+# Downloaded models (voice), never committed; face/ is what an older face unlock left behind
 models/
 face/
 uitests/shots/*.now.png

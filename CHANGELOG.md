@@ -15,7 +15,13 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 - Tsukuru ignores a new-file request when no project is open, instead of failing.
 
 ### Changed
+- Settings is divided into categories: a quiet list on the left, one category at a time.
+- The Print key (between AltGr and Ctrl on ThinkPads) picks a part of the screen; Shift+Print takes it all, Ctrl+Print copies a part.
+- Sound outputs have plain names ("Laptop speakers", "Screen 1"), and sockets with nothing plugged in are hidden.
 - On battery the computer switches to power saver by itself; plugged in, the mode chosen before comes back.
+
+### Removed
+- Face unlock. A flat picture from the infrared camera, without depth or liveness, can be fooled by a photo; fingers and the password remain.
 
 ### For developers
 - Every shell script passes ShellCheck, in `dev/check` and on GitHub. Paths are quoted throughout (the install scripts broke on a folder with a space); the few places that split words on purpose say so.
