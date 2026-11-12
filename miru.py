@@ -524,7 +524,7 @@ class Miru:
     # --- the right-click menu ----------------------------------------------------
     def unique(self, folder, name):
         target, stem, ext, n = folder / name, Path(name).stem, Path(name).suffix, 1
-        if Path(name).is_dir() or not ext:
+        if (folder / name).is_dir() or not ext:
             stem, ext = name, ""
         while target.exists():
             n += 1

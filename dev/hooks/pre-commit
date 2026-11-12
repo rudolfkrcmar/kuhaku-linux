@@ -1,0 +1,3 @@
+#!/bin/sh
+# Turned on with: git config core.hooksPath dev/hooks
+exec "$(git rev-parse --show-toplevel)/dev/check" quick

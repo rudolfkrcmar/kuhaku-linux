@@ -22,6 +22,7 @@ import json
 import os
 import re
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -35,13 +36,20 @@ PRECIOUS = [HOME / p for p in (
     "Dropbox", "Google Drive", "Mail", ".local/share/kuhaku/mail")]
 
 SECRETS = re.compile(r"""(
-    \.ssh/(id_[a-z0-9_]+(?!\.pub)\b|[^/\s]*_key\b) | \.gnupg/ | /keyrings/ | \.git-credentials |
+    \.ssh/(id_[a-z0-9_]+(?!\.pub)\b|[^/\s]*_key\b) | \.ssh/?(\*|(?=["'\s)]|$)) | \.gnupg\b | /keyrings/ | \.git-credentials |
     \.claude/\.credentials | \.config/gh/hosts | \.config/kuhaku/rclone\.conf | \.config/rclone/ |
     /Cookies\b | /Login\ Data\b | /Local\ State\b | \.netrc | \.aws/credentials | \.docker/config\.json |
     /etc/shadow | \.mozilla\b | mado-chromium | \.config/(google-chrome|chromium|BraveSoftware)\b | \.config/kuhaku/(accounts|mail)[^/\s]*\.json | tegami[^/\s]*token
 )""", re.X | re.I)
-SENDERS = re.compile(r"\b(curl|wget|nc|ncat|netcat|socat|scp|sftp|rsync|ssh|telnet|ftp|gh|mail|sendmail|mutt|"
-                     r"requests|urllib|http\.client|fetch|axios|smtplib|/dev/tcp/)\b")
+# A sender is a command (at the start, or after a pipe, ;, &, ( or a space), not a word inside a path:
+# "~/.ssh/id_rsa" holds "ssh" but sends nothing. Libraries count wherever they appear.
+SENDERS = re.compile(r"(?:^|[\s|;&(`])(curl|wget|nc|ncat|netcat|socat|scp|sftp|rsync|ssh|telnet|ftp|gh|mail|sendmail|"
+                     r"mutt|rclone)(?=[\s;|&)]|$)|\b(requests|urllib|http\.client|fetch|axios|smtplib)\b|/dev/(tcp|udp)/")
+# Logging in with a key is using it, not sending it: `ssh -i ~/.ssh/id_x host`.
+KEY_USE = re.compile(r"""(\s-i\s*|IdentityFile[= ])("[^"]*"|'[^']*'|\S+)""")
+WRAPPERS = {"sudo", "doas", "env", "nice", "ionice", "nohup", "time", "command", "exec", "xargs", "timeout",
+            "stdbuf", "setsid", "chronic", "flock", "strace", "unbuffer"}
+WATCHED = {"rm", "find", "rsync", "git", "cd", "bash", "sh", "dash", "zsh", "eval"}
 DISK = re.compile(r"""(
     \bmkfs(\.\w+)?\b | \bwipefs\b | \bblkdiscard\b | \bsgdisk\b.*-(Z|o|-zap) |
     \bdd\b[^|;&]*\bof=/dev/(sd|nvme|mmcblk|vd|hd|mapper|dm-) |
@@ -77,9 +85,13 @@ def segments(cmd):
             words = shlex.split(part, comments=True)
         except ValueError:
             words = part.split()
-        while words and (words[0] in ("sudo", "doas", "env", "nice", "nohup", "time", "command", "exec", "xargs")
-                         or re.fullmatch(r"\w+=.*", words[0]) or (words[0].startswith("-") and len(words) > 1)):
+        while words and re.fullmatch(r"\w+=.*", words[0]):
             words = words[1:]
+        if words and Path(words[0]).name in WRAPPERS:
+            # sudo -u root rm …, nice -n 5 rm …, timeout 10 git push …: the command is the first
+            # watched word after the wrapper and its options.
+            at = next((i for i, w in enumerate(words[1:], 1) if Path(w).name in WATCHED), None)
+            words = words[at:] if at else []
         if words:
             yield words
 
@@ -131,7 +143,7 @@ def check_delete(words, cwd):
 def check_bash(cmd, cwd):
     if DISK.search(cmd):
         stop("this would wipe or reformat a disk or the encryption keys.")
-    if SECRETS.search(cmd) and SENDERS.search(cmd):
+    if SECRETS.search(KEY_USE.sub(" ", cmd)) and SENDERS.search(cmd):
         stop("this would send passwords, keys, tokens or browser cookies over the network.")
     if re.search(r"authorized_keys", cmd) and re.search(r">>?|tee|cp|mv|ssh-copy-id|sed\s+-i", cmd):
         stop("this would let a new key log in to this computer.")
@@ -139,16 +151,43 @@ def check_bash(cmd, cwd):
         if words[0] == "cd":
             cwd = str(expand(words[1] if len(words) > 1 else "~", cwd))
             continue
+        tool = Path(words[0]).name
+        if tool in ("bash", "sh", "dash", "zsh") and "-c" in words[:-1]:
+            check_bash(words[words.index("-c") + 1], cwd)   # the script inside bash -c '…'
+            continue
+        if tool == "eval":
+            check_bash(" ".join(words[1:]), cwd)
+            continue
         check_delete(words, cwd)
-        if Path(words[0]).name == "git" and "push" in words:
-            force = any(w in ("-f", "--force") or w.startswith("--force") or w.startswith("+") for w in words)
-            if force and (any(re.search(r"(^|[:+/])(main|master)$", w) for w in words) or
-                          not any(not w.startswith("-") for w in words[words.index("push") + 2:])):
-                stop("force-pushing over a main branch rewrites its history for everyone. "
-                     "Push to a new branch instead.")
+        if tool == "git" and "push" in words:
+            check_push(words, cwd)
         if Path(words[0]).name == "git" and "clean" in words and any("x" in w for w in words if w.startswith("-")) \
                 and expand(".", cwd) == HOME:
             stop("git clean -x in the home folder would delete the user's files.")
+
+
+def current_branch(cwd):
+    try:
+        out = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--abbrev-ref", "HEAD"],
+                             capture_output=True, text=True, timeout=3)
+        return out.stdout.strip() if out.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def check_push(words, cwd):
+    """Force-pushing over main or master: named in the push, or the branch being pushed."""
+    after = words[words.index("push") + 1:]
+    force = any(w in ("-f", "--force") or w.startswith("--force") or
+                (w.startswith("-") and not w.startswith("--") and "f" in w) for w in after)
+    places = [w for w in after if not w.startswith("-")]
+    refs = places[1:]                                   # the first is the remote
+    force = force or any(r.startswith("+") for r in refs)
+    if not force:
+        return
+    main = re.compile(r"(^|[:+/])(main|master)$")
+    if any(main.search(r) for r in refs) or (not refs and current_branch(cwd) in ("main", "master", "")):
+        stop("force-pushing over a main branch rewrites its history for everyone. Push to a new branch instead.")
 
 
 def check(event):

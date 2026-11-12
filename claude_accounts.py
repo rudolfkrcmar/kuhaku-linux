@@ -330,6 +330,9 @@ def add(name, k="claude"):
     """A new account of one kind; name is the set it belongs to."""
     k = k if k in CLOUD else "claude"
     name = (name or "").strip()[:40] or "Work"
+    known = find(name, k)
+    if known:
+        return known["id"]   # one account per kind in a set: the one already there
     data = load()
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "account"
     if k != "claude":
