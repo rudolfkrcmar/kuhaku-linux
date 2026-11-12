@@ -77,6 +77,19 @@ class is assembled from mixins kept by subject:
 | `kuhaku_config.py` | Where things live, the defaults, and the instructions Claude is given. |
 | `kuhaku_base.py` | `Home`, the base of every mixin: the state and methods they share, declared once so the type checker and the reader both know them. |
 
+### The apps, file by file
+
+Each app keeps its window in one file and its other parts beside it, by subject:
+
+| App | Files |
+|---|---|
+| Tegami (mail) | `tegami.py` the window · `tegami_core.py` the `Mail` class, assembled from `tegami_attachments`, `tegami_invitations`, `tegami_accounts` and `tegami_claude` (what they share: `tegami_parts`) · `tegami_store` the local store · `tegami_sync` IMAP and SMTP · `tegami_ai` the assistant, with `tegami_ai_writing` (the owner's voice), `tegami_ai_base` (models, answer shapes, the Claude call) and `tegami_ai_parts` |
+| Miru (files) | `miru.py` the window · `miru_files.py` kinds, sizes, USB drives, PDF pages, 3D meshes · `kumo.py` Dropbox and Google Drive |
+| Mado (web) | `browser.py` the window and tabs · `browser_web.py` page scripts, trackers, DevTools session, request filter · `browser_webkit.py` the WebKit fallback |
+| Tsukuru (code) | `tsukuru.py` the window · `tsukuru_tools.py` git, GitHub/GitLab/Railway sign-ins, saved state · `tsukuru_chat.py` the chat with Claude |
+| Touch keyboard | `kuhaku-tablet.py` · `tablet_keyboard.py` the keyboard window · `tablet_keys.py` layouts and key drawings · `tablet_ink.py` pen writing · `tablet_x11.py` typing into X11 · `tablet_base.py` |
+| Gestures | `kuhaku-gestures.py` the swipe between screens · `gestures_overview.py` the cards · `gestures_common.py` windows, icons and swipe distances |
+
 Claude runs with the permissions chosen in Settings ("Anything, without asking" by default).
 Underneath sits **`kuhaku-guard.py`**, a Claude Code `PreToolUse` hook installed into
 `~/.claude/settings.json` at every login. It stops only what cannot be undone: wiping disks,

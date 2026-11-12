@@ -10,6 +10,7 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 - Tsukuru ignores a new-file request when no project is open, instead of failing.
 
 ### For developers
+- No Python file is over 1,000 lines: mail's core, its assistant, Miru, Mado, Tsukuru, the touch keyboard and the gestures are divided by subject (see ARCHITECTURE.md, "The apps, file by file").
 - Every Python file is type-checked by mypy (was five). The home screen's parts declare what they share in `kuhaku_base.Home`.
 - Licenses are checked: `tests/test_licenses.py` keeps every bundled library and vendored folder listed in `THIRD_PARTY_NOTICES.md`, with its version and license text, under an allowed license. CodeMirror and WirePlumber now ship their license texts; the GPL text the LGPL libraries build on is in `lib/LICENSES/`.
 - GitHub: issue forms, a pull request checklist, `SECURITY.md` with private reporting, Dependabot for the CI actions, and main protected from deletion and force-pushes.

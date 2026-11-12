@@ -8,6 +8,7 @@ import zipfile
 from unittest import mock
 
 import miru
+import miru_files
 from tests.util import TempDirCase, fake_completed
 
 
@@ -26,17 +27,17 @@ class HumanSize(unittest.TestCase):
         ]
         for n, want in cases:
             with self.subTest(n=n):
-                self.assertEqual(miru.human_size(n), want)
+                self.assertEqual(miru_files.human_size(n), want)
 
 
 class Natural(unittest.TestCase):
     def test_numbers_sort_by_value(self):
         names = ["file10.txt", "File2.txt", "file1.txt", "a", "B"]
-        self.assertEqual(sorted(names, key=miru.natural), ["a", "B", "file1.txt", "File2.txt", "file10.txt"])
+        self.assertEqual(sorted(names, key=miru_files.natural), ["a", "B", "file1.txt", "File2.txt", "file10.txt"])
         # Names starting with a digit and with a letter compare without a TypeError.
-        self.assertEqual(sorted(["b", "10", "2", "a1"], key=miru.natural), ["2", "10", "a1", "b"])
-        self.assertLess(miru.natural("IMG_9.jpg"), miru.natural("IMG_10.jpg"))
-        self.assertEqual(miru.natural("Abc"), miru.natural("aBC"))
+        self.assertEqual(sorted(["b", "10", "2", "a1"], key=miru_files.natural), ["2", "10", "a1", "b"])
+        self.assertLess(miru_files.natural("IMG_9.jpg"), miru_files.natural("IMG_10.jpg"))
+        self.assertEqual(miru_files.natural("Abc"), miru_files.natural("aBC"))
 
 
 class KindOf(TempDirCase):
@@ -54,7 +55,7 @@ class KindOf(TempDirCase):
             ("application/octet-stream", "other"),
         ]:
             with self.subTest(mime=mime):
-                self.assertEqual(miru.kind_of(f, mime), kind)
+                self.assertEqual(miru_files.kind_of(f, mime), kind)
 
     def test_sniffs_unknown_files(self):
         text = self.tmp / "notes"
@@ -65,16 +66,16 @@ class KindOf(TempDirCase):
         latin.write_bytes("caf\xe9".encode("latin-1"))
         empty = self.tmp / "empty"
         empty.write_bytes(b"")
-        self.assertEqual(miru.kind_of(text, "application/octet-stream"), "text")
-        self.assertEqual(miru.kind_of(binary, "application/octet-stream"), "other")
-        self.assertEqual(miru.kind_of(latin, "application/octet-stream"), "other")
-        self.assertEqual(miru.kind_of(empty, "application/octet-stream"), "other")
-        self.assertEqual(miru.kind_of(self.tmp / "missing", "application/octet-stream"), "other")
+        self.assertEqual(miru_files.kind_of(text, "application/octet-stream"), "text")
+        self.assertEqual(miru_files.kind_of(binary, "application/octet-stream"), "other")
+        self.assertEqual(miru_files.kind_of(latin, "application/octet-stream"), "other")
+        self.assertEqual(miru_files.kind_of(empty, "application/octet-stream"), "other")
+        self.assertEqual(miru_files.kind_of(self.tmp / "missing", "application/octet-stream"), "other")
 
     def test_mime_of_real_files(self):
         f = self.tmp / "page.html"
         f.write_text("<html><body>hi</body></html>")
-        mime, desc = miru.mime_of(f)
+        mime, desc = miru_files.mime_of(f)
         self.assertEqual(mime, "text/html")
         self.assertTrue(desc)
 
@@ -182,8 +183,8 @@ LSBLK = {
 class UsbDrives(TempDirCase):
     def drives(self, payload):
         out = payload if isinstance(payload, str) else json.dumps(LSBLK).replace("MOUNTED", str(self.tmp))
-        with mock.patch.object(miru.subprocess, "run", return_value=fake_completed(out)) as run:
-            found = miru.usb_drives()
+        with mock.patch.object(miru_files.subprocess, "run", return_value=fake_completed(out)) as run:
+            found = miru_files.usb_drives()
         self.assertEqual(run.call_args.args[0][:2], ["lsblk", "-J"])
         return found
 
@@ -219,21 +220,21 @@ class UsbDrives(TempDirCase):
     def test_bad_output(self):
         self.assertEqual(self.drives("not json"), [])
         self.assertEqual(self.drives("{}"), [])
-        with mock.patch.object(miru.subprocess, "run", side_effect=FileNotFoundError("lsblk")):
-            self.assertEqual(miru.usb_drives(), [])
+        with mock.patch.object(miru_files.subprocess, "run", side_effect=FileNotFoundError("lsblk")):
+            self.assertEqual(miru_files.usb_drives(), [])
 
 
 class PdfPages(unittest.TestCase):
     def test_parse(self):
         out = "Title: x\nPages:          12\nPage size:      612 x 792 pts (letter)\n"
-        with mock.patch.object(miru.subprocess, "run", return_value=fake_completed(out)):
-            pages, ratio = miru.pdf_pages("/x.pdf")
+        with mock.patch.object(miru_files.subprocess, "run", return_value=fake_completed(out)):
+            pages, ratio = miru_files.pdf_pages("/x.pdf")
         self.assertEqual(pages, 12)
         self.assertAlmostEqual(ratio, 792 / 612)
-        with mock.patch.object(miru.subprocess, "run", return_value=fake_completed("")):
-            self.assertEqual(miru.pdf_pages("/x.pdf"), (0, 1.414))
-        with mock.patch.object(miru.subprocess, "run", side_effect=OSError):
-            self.assertEqual(miru.pdf_pages("/x.pdf"), (0, 1.414))
+        with mock.patch.object(miru_files.subprocess, "run", return_value=fake_completed("")):
+            self.assertEqual(miru_files.pdf_pages("/x.pdf"), (0, 1.414))
+        with mock.patch.object(miru_files.subprocess, "run", side_effect=OSError):
+            self.assertEqual(miru_files.pdf_pages("/x.pdf"), (0, 1.414))
 
 
 class Mesh(TempDirCase):
@@ -243,7 +244,7 @@ class Mesh(TempDirCase):
         f = self.tmp / "a.stl"
         rec = struct.pack("<3f", 0, 0, 1) + b"".join(struct.pack("<3f", *v) for v in self.TRI) + b"\0\0"
         f.write_bytes(b"\0" * 80 + struct.pack("<I", 2) + rec * 2)
-        out = miru.load_mesh(f)
+        out = miru_files.load_mesh(f)
         self.assertEqual(out.shape, (18,))
         self.assertEqual(list(out[:9]), [0, 0, 0, 1, 0, 0, 0, 1, 0])
 
@@ -254,12 +255,12 @@ class Mesh(TempDirCase):
             + "".join(f"vertex {x} {y} {z}\n" for x, y, z in self.TRI)
             + "endloop\nendfacet\nendsolid\n"
         )
-        self.assertEqual(list(miru.load_mesh(f)), [0, 0, 0, 1, 0, 0, 0, 1, 0])
+        self.assertEqual(list(miru_files.load_mesh(f)), [0, 0, 0, 1, 0, 0, 0, 1, 0])
 
     def test_obj_quads_and_negative_indices(self):
         f = self.tmp / "a.obj"
         f.write_text("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1/1 2/2 3/3 4/4\nf -4 -3 -2\n")
-        out = miru.load_mesh(f)
+        out = miru_files.load_mesh(f)
         self.assertEqual(out.shape, (27,))  # a quad is two triangles, plus one more
         self.assertEqual(list(out[9:18]), [0, 0, 0, 1, 1, 0, 0, 1, 0])
 
@@ -274,7 +275,7 @@ class Mesh(TempDirCase):
         )
         with zipfile.ZipFile(f, "w") as z:
             z.writestr("3D/3dmodel.model", model)
-        self.assertEqual(list(miru.load_mesh(f)), [10, 0, 5, 11, 0, 5, 10, 1, 5])
+        self.assertEqual(list(miru_files.load_mesh(f)), [10, 0, 5, 11, 0, 5, 10, 1, 5])
 
 
 class FileOps(TempDirCase):

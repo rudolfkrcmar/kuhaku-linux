@@ -17,7 +17,7 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango
 
 from tablet_base import NOTES_FRONT, THEMES, current_theme, draw_ink, ease, is_finger, log, pressure, recognize
-from tablet_keyboard import text_at
+from tablet_keys import text_at
 
 # --- the pen anywhere --------------------------------------------------------------------
 
