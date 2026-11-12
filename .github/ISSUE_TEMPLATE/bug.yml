@@ -1,0 +1,29 @@
+name: Something does not work
+description: A fault in Kūhaku or one of its apps.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [Home screen, Mado (web), Tegami (mail), Miru (files), Tsukuru (code), Kansei, Kiroku, Terminal, Install or system, Something else]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Settings shows it, or `cat ~/.local/share/kuhaku/VERSION`.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: The matching lines from `~/.local/state/kuhaku/logs/`, if any. Remove anything personal first.
+      render: text

@@ -17,8 +17,15 @@ components from others, each under its own license:
 | six 1.17.0 | `lib/six.py` | MIT |
 | typing_extensions 4.16.0 | `lib/typing_extensions.py` | PSF-2.0 |
 
-The full license texts of the Python libraries are in `lib/*.dist-info/`.
-The OFL text for the fonts is in `login/OFL.txt`.
+License texts: the Python libraries' are in `lib/*.dist-info/`, with the GNU GPL 3.0 that
+the LGPL builds on in `lib/LICENSES/GPL-3.0.txt`; CodeMirror's in `ide/vendor/codemirror/LICENSE`;
+WirePlumber's in `wireplumber/LICENSE`; the fonts' OFL in `login/OFL.txt`.
+
+The LGPL libraries are shipped as their unchanged Python source, so they can be replaced with any
+other version by replacing their files in `lib/`.
+
+`tests/test_licenses.py` keeps this list honest: every library and vendored folder must be listed
+here with its version and licence text, under a licence on its allowed list.
 
 Hardware notes for the MacBook8,1 (sleep, speakers) follow
 pmgart/macbook8-1-debian-guide; its files are not included and are fetched separately.
@@ -30,3 +37,5 @@ The install image (`kuhaku-amd64.iso`) is a Debian 13 system with Kūhaku added.
 **Source code.** The source of every Debian package in the image is available from Debian at https://deb.debian.org/debian and, for the exact versions, https://snapshot.debian.org. Kūhaku's own source is this repository. If you would like the complete corresponding source of any GPL-licensed part on a medium, open an issue in this repository and it will be provided at no more than the cost of making the copy; this offer is valid for three years after the release that contained it.
 
 Software that is **not** in the image: Claude Code and the Claude desktop app are downloaded from Anthropic on the installed computer and are covered by Anthropic's own terms.
+The voice features' engines (faster-whisper for dictation, Piper for speech) and their models are
+likewise installed separately on the computer, each under its own license.

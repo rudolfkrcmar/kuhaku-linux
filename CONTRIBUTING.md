@@ -33,6 +33,14 @@ If a screenshot test fails because the look changed on purpose, accept the new l
 - **Safety:** commands run as argument lists, never through a shell string. Anything Claude might be tricked into doing that cannot be undone belongs in `kuhaku-guard.py`, with a test.
 - **Privacy:** the repository is public. No personal paths, names, accounts or tokens (a test checks for home paths).
 
+## Others' code and licenses
+
+Kūhaku's own code is MIT. Python libraries it needs at run time are bundled, unchanged, in `lib/`
+(refresh one with `pip install --target lib --upgrade <name>==<version>`); browser code lives in
+`ide/vendor/`. Whatever is added must be under a license on the allowed list in
+`tests/test_licenses.py`, ship its license text, and get a row in `THIRD_PARTY_NOTICES.md`. The
+test fails until all three are true. Widening the allowed list is a decision, not a fix.
+
 ## Releases
 
 Bump `VERSION`, add a section to `CHANGELOG.md`, commit, then tag: `git tag -a v0.3.0 -m "Kūhaku 0.3.0"` and push the tag. `os/release.sh` builds the package and image.

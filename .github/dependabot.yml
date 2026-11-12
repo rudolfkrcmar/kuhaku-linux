@@ -1,0 +1,8 @@
+# Keeps the GitHub Actions used by CI up to date. Kūhaku's Python libraries are bundled in lib/
+# on purpose and refreshed by hand (see CONTRIBUTING.md).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

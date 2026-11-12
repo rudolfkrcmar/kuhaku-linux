@@ -37,3 +37,6 @@ os/image/work/
 models/
 face/
 uitests/shots/*.now.png
+
+# pip leaves this behind when lib/ is refreshed
+lib/.lock
