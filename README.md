@@ -30,6 +30,12 @@ Kūhaku is made for Claude to simply do things: by default it edits files, runs 
 
 The installer asks which you want. **Careful** lets Claude read, search and edit files but not run commands. You can switch any time in Settings, under "May do".
 
+Under that freedom sits a safety net, `kuhaku-guard.py`, a Claude Code hook that stops only what cannot be undone, whoever asked for it (you, or words hidden in an email or web page): wiping a disk or the encryption keys, deleting your home folder, its main folders or a whole project outright (Claude moves them to the Trash instead), force-pushing over a main branch, sending keys, passwords, tokens or browser data over the network, and adding a login key. Everything else stays free.
+
+## Developing
+
+`dev/check` compiles everything, runs the tests in `tests/` and loads every page off-screen to catch script errors; `dev/check quick` (no pages) runs before each commit. Best-effort code never hides a fault: it calls `report()` from `kuhaku_log.py`, which writes it once to `~/.local/state/kuhaku/logs/<app>.log`.
+
 ## Privacy
 
 This repository holds code and shared settings only. Mail accounts, Claude notes, browser profiles and package lists stay on your computer; they are listed in `.gitignore`, and `kuhaku-backup` writes your home folder and user name as `$HOME` and `USER`.
