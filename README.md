@@ -1,5 +1,7 @@
 # Kūhaku (空白)
 
+[![check](https://github.com/rudolfkrcmar/kuhaku-linux/actions/workflows/check.yml/badge.svg)](https://github.com/rudolfkrcmar/kuhaku-linux/actions/workflows/check.yml)
+
 *"Blank space."* A calm, full screen home for Claude on Linux.
 
 Kūhaku replaces the usual desktop with one quiet screen: you say what you want, Claude does it, and the answer comes back in large, light type. Around it sits a small set of apps in the same spare design:

@@ -35,7 +35,7 @@ def check(page):
     win.set_default_size(1280, 800)
     settings = WebKit2.Settings()
     settings.set_allow_file_access_from_file_urls(True)
-    view = WebKit2.WebView(settings=settings)
+    view = WebKit2.WebView(settings=settings, web_context=WebKit2.WebContext.new_ephemeral())  # leaves nothing behind
     win.add(view)
     win.show_all()
     loop = GLib.MainLoop()

@@ -1,0 +1,30 @@
+# Every push and pull request: format, lint, types, unit tests, every page, and the UI tests
+# (screenshots are compared only on the maintainer's machine, where the fonts match).
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: GTK, WebKit and a virtual screen
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends \
+            python3-gi python3-gi-cairo python3-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 \
+            gir1.2-gdkpixbuf-2.0 gir1.2-pango-1.0 python3-psutil python3-numpy \
+            xvfb xauth dbus-x11 fonts-dejavu-core git
+      - name: ruff and mypy
+        run: python3 -m pip install --user --break-system-packages -q ruff mypy
+      - name: dev/check
+        env:
+          KUHAKU_SHOTS: skip
+          NO_AT_BRIDGE: "1"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          git config --global user.name ci && git config --global user.email ci@localhost
+          xvfb-run -a -s "-screen 0 1440x900x24" dbus-run-session -- dev/check

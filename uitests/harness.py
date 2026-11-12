@@ -62,7 +62,7 @@ class Page:
                 None,
             )
         )
-        self.view = WebKit2.WebView.new_with_user_content_manager(ucm)
+        self.view = WebKit2.WebView(user_content_manager=ucm, web_context=WebKit2.WebContext.new_ephemeral())
         self.view.set_settings(settings)
         self.win.add(self.view)
         self.win.show_all()
