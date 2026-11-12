@@ -10,8 +10,10 @@ terminal with Ctrl+` (or Ctrl+Alt+Return).
 import json
 import os
 import re
+import select
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import threading
@@ -46,7 +48,9 @@ from kuhaku_settings import Settings
 from kuhaku_system import (
     _limits_cache,
     bluetooth_icon_state,
+    follow_power,
     load_json,
+    on_mains,
     open_windows,
     pgrep_x,
     read_battery,
@@ -114,6 +118,8 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         GLib.timeout_add(1500, self.push_windows)
         GLib.timeout_add_seconds(60, self.push_theme)
         self.recording = None
+        self.plugged = None
+        GLib.timeout_add_seconds(3, self.watch_power)
         threading.Thread(target=self.listen_fifo, daemon=True).start()
         try:
             from osd import Osd
@@ -285,41 +291,73 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         if not overview():
             self.js("openRuns()")
 
+    def watch_power(self):
+        """Unplugged: power saver; plugged in: the mode from before (kuhaku_system.follow_power)."""
+        plugged = on_mains()
+        if plugged != self.plugged:
+            self.plugged = plugged
+            threading.Thread(target=follow_power, args=(plugged,), daemon=True).start()
+        return True
+
     # --- commands from keyboard shortcuts (kuhaku-capture writes to the FIFO) -
     def listen_fifo(self):
-        try:
-            if FIFO.exists():
-                FIFO.unlink()
-            os.mkfifo(FIFO)
-        except OSError:
-            return
+        """Reads the commands the keys send. Kept open for reading and writing, so it never waits
+        for a writer and never sees an end; if the FIFO is deleted or replaced (another copy
+        starting, a cleanup), it is made again, so the capture keys never go quiet."""
+        fd, ino, buf = -1, None, b""
         while True:
-            with open(FIFO) as f:
-                for line in f:
-                    parts = line.split()
-                    if len(parts) == 2 and parts[0] == "capture":
-                        GLib.idle_add(self.capture, parts[1])
-                    elif parts == ["menu"]:
-                        GLib.idle_add(self.show_menu)
-                    elif len(parts) >= 2 and parts[0] == "note":  # e.g. airplane mode (F8)
-                        try:
-                            n = json.loads(line.split(None, 1)[1])
-                            GLib.idle_add(lambda n=n: self.note(n.get("title", ""), n.get("detail", "")) and False)
-                        except Exception:
-                            report()
-                    elif parts == ["notices"]:  # F9
-                        GLib.idle_add(self.open_panel, "notices")
-                    elif parts == ["display"]:  # F7
-                        GLib.idle_add(self.key_js, "openPage('settings', 'display')")
-                    elif parts == ["talk"]:  # F10
-                        GLib.idle_add(self.key_js, "if (page) closePage(); if (panel) closePanel(); talk()")
-                    elif len(parts) >= 2 and parts[0] == "continue":  # from Kiroku: a past job in a new tab
-                        GLib.idle_add(self.continue_thread, parts[1], " ".join(parts[2:]))
-                    elif len(parts) >= 2 and parts[0] == "ask":  # from another app: a new job
-                        try:
-                            GLib.idle_add(self.ask_new_tab, json.loads(line.split(None, 1)[1]).get("text", ""))
-                        except Exception:
-                            report()
+            try:
+                try:
+                    st = os.stat(FIFO)
+                    if not stat.S_ISFIFO(st.st_mode):
+                        raise FileNotFoundError(FIFO)
+                except FileNotFoundError:
+                    if FIFO.exists():
+                        FIFO.unlink()
+                    os.mkfifo(FIFO)
+                    st = os.stat(FIFO)
+                if st.st_ino != ino:
+                    if fd >= 0:
+                        os.close(fd)
+                    fd, ino, buf = os.open(FIFO, os.O_RDWR | os.O_NONBLOCK), st.st_ino, b""
+                if not select.select([fd], [], [], 5)[0]:
+                    continue
+                buf += os.read(fd, 4096)
+                *done, buf = buf.split(b"\n")
+                for raw in done:
+                    try:
+                        self.fifo_line(raw.decode("utf-8", "replace"))
+                    except Exception:
+                        report()
+            except Exception:
+                report()
+                time.sleep(2)
+
+    def fifo_line(self, line):
+        parts = line.split()
+        if len(parts) == 2 and parts[0] == "capture":
+            GLib.idle_add(self.capture, parts[1])
+        elif parts == ["menu"]:
+            GLib.idle_add(self.show_menu)
+        elif len(parts) >= 2 and parts[0] == "note":  # e.g. airplane mode (F8)
+            try:
+                n = json.loads(line.split(None, 1)[1])
+                GLib.idle_add(lambda n=n: self.note(n.get("title", ""), n.get("detail", "")) and False)
+            except Exception:
+                report()
+        elif parts == ["notices"]:  # F9
+            GLib.idle_add(self.open_panel, "notices")
+        elif parts == ["display"]:  # F7
+            GLib.idle_add(self.key_js, "openPage('settings', 'display')")
+        elif parts == ["talk"]:  # F10
+            GLib.idle_add(self.key_js, "if (page) closePage(); if (panel) closePanel(); talk()")
+        elif len(parts) >= 2 and parts[0] == "continue":  # from Kiroku: a past job in a new tab
+            GLib.idle_add(self.continue_thread, parts[1], " ".join(parts[2:]))
+        elif len(parts) >= 2 and parts[0] == "ask":  # from another app: a new job
+            try:
+                GLib.idle_add(self.ask_new_tab, json.loads(line.split(None, 1)[1]).get("text", ""))
+            except Exception:
+                report()
 
     def show_menu(self):
         """The power key: Kūhaku comes forward with its menu open (lock, log out, restart, shut down)."""

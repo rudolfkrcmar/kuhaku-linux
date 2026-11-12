@@ -31,6 +31,7 @@ HERE = Path(__file__).resolve().parent
 HOME = Path.home()
 sys.path.insert(0, str(HERE))
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_menus import style_menus
 from tegami_core import Mail
 from terminal import theme
 
@@ -39,6 +40,7 @@ class Tegami:
     def __init__(self):
         self.night = theme() == "night"
         Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", self.night)
+        style_menus(self.night)  # the spelling menu in Kūhaku's look, readable at night
         self.win = Gtk.Window(title="Tegami")
         self.win.set_decorated(False)
         self.win.set_icon_name("tegami")

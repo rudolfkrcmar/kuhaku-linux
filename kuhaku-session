@@ -53,7 +53,8 @@ if grep -qiE "touch|pen|stylus|wacom" /proc/bus/input/devices 2>/dev/null; then
 fi
 
 # No window frames: every app's minimise, close and clock are in Kūhaku's bar.
-[ -d "$HOME/.themes/Kuhaku" ] || { mkdir -p "$HOME/.themes"; cp -r "$DIR/system/themes/Kuhaku" "$HOME/.themes/"; }
+# Copied every start, so a Kūhaku update brings its theme along too.
+mkdir -p "$HOME/.themes/Kuhaku" && cp -r "$DIR/system/themes/Kuhaku/." "$HOME/.themes/Kuhaku/"
 xfconf-query -c xfwm4 -p /general/theme -s Kuhaku 2>/dev/null
 xfconf-query -c xfwm4 -p /general/button_layout -s "|" 2>/dev/null
 xfconf-query -c xfwm4 -p /general/show_dock_shadow -s false 2>/dev/null
@@ -74,6 +75,8 @@ done
 for prop in handle-brightness-keys general-notification; do
   xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -n -t bool -s false 2>/dev/null || xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -s false
 done
+# Notices that still come (low battery, apps) wear Kūhaku's look, not the default bubble.
+xfconf-query -c xfce4-notifyd -p /theme -n -t string -s Kuhaku 2>/dev/null || xfconf-query -c xfce4-notifyd -p /theme -s Kuhaku
 
 # The ThinkPad Fn row, the Kūhaku way: F7 display, F8 airplane mode, F9 notifications,
 # F10 talk with Claude, F11 lock, F12 (star) the browser. F9 to F11 arrive as Launch1-3

@@ -6,8 +6,16 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 ## Unreleased
 
 ### Fixed
+- The screenshot keys work again: the home screen's command line is reopened if it goes missing, and one bad command no longer stops it.
+- The volume card comes back after the sound server restarts (after sleep or a new headset).
+- The charging bolt shows beside the battery on the home screen when plugged in.
+- Right-click menus in Tegami and Mado wear Kūhaku's look and stay readable at night.
+- Notices from the power manager and apps appear in Kūhaku's look.
 - The volume and brightness display no longer logs a fault on every check on computers without a battery or backlight.
 - Tsukuru ignores a new-file request when no project is open, instead of failing.
+
+### Changed
+- On battery the computer switches to power saver by itself; plugged in, the mode chosen before comes back.
 
 ### For developers
 - Every shell script passes ShellCheck, in `dev/check` and on GitHub. Paths are quoted throughout (the install scripts broke on a folder with a space); the few places that split words on purpose say so.

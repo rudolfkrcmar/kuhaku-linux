@@ -71,6 +71,29 @@ def on_mains():
     return False
 
 
+PROFILE_ON_MAINS = STATE_DIR / "profile-on-mains"  # the power mode to go back to when plugged in
+
+
+def follow_power(plugged):
+    """On battery the computer saves power by itself; plugged in, the mode chosen before comes back.
+    A mode picked by hand while on battery stays until the next unplug."""
+    try:
+        if plugged:
+            if PROFILE_ON_MAINS.exists():
+                run(["powerprofilesctl", "set", PROFILE_ON_MAINS.read_text().strip() or "balanced"])
+                PROFILE_ON_MAINS.unlink()
+            return
+        code, cur, _ = run(["powerprofilesctl", "get"])
+        cur = cur.strip()
+        if code or not cur or cur == "power-saver":
+            return
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        PROFILE_ON_MAINS.write_text(cur)
+        run(["powerprofilesctl", "set", "power-saver"])
+    except Exception:
+        report()
+
+
 def read_battery():
     for bat in [b for b in [find_battery()] if b]:
         try:

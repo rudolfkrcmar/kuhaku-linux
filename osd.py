@@ -118,10 +118,20 @@ class Osd:
 
     # --- sources ------------------------------------------------------------
     def watch_volume(self):
-        try:
-            proc = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE, text=True)
-        except FileNotFoundError:
-            return
+        # pactl subscribe ends whenever the sound server restarts (after sleep, a new headset);
+        # start it again, or the volume keys go silent for the rest of the session.
+        while True:
+            try:
+                self.follow_volume()
+            except FileNotFoundError:
+                return
+            except Exception:
+                report()
+            time.sleep(2)
+
+    def follow_volume(self):
+        proc = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE, text=True)
+        self.volume = read_volume() or self.volume  # the server may have changed while away
         for line in proc.stdout or []:
             if "on sink #" in line or "on server" in line:
                 vol = read_volume()
@@ -137,6 +147,7 @@ class Osd:
                     self.mic_muted = m
                     if not first:
                         GLib.idle_add(self.message, "Microphone", "Muted" if m else "On")
+        proc.wait()
 
     def read_brightness(self):
         b = self.backlight

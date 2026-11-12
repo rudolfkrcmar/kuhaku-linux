@@ -35,6 +35,7 @@ gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk, JavaScriptCore, WebKit2
 
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_menus import style_menus
 
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
@@ -241,6 +242,7 @@ class Browser(Gtk.Application):
         STATE.parent.mkdir(parents=True, exist_ok=True)
         self.night = theme() == "night"
         Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", self.night)
+        style_menus(self.night)
         # Pages and the new tab follow Kūhaku's day or night, not the system theme.
         base = "Mint-Y" if Path("/usr/share/themes/Mint-Y").is_dir() else "Adwaita"  # Debian has no Mint themes
         Gtk.Settings.get_default().set_property(
@@ -802,6 +804,7 @@ class Browser(Gtk.Application):
         if night != self.night:
             self.night = night
             Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", night)
+            style_menus(night)
             bg = (0.071, 0.071, 0.071) if night else (0.969, 0.957, 0.945)
             self.chrome.set_background_color(Gdk.RGBA(*bg, 1))
             self.chrome.load_uri((HERE / "browser.html").as_uri() + f"?theme={'night' if night else 'day'}")
