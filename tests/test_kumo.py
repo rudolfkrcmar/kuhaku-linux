@@ -2,6 +2,7 @@
 (when rclone is installed) a real two-way sync against a local folder posing as Dropbox."""
 import json
 import os
+import pwd
 import shutil
 import time
 import unittest
@@ -12,7 +13,8 @@ from tests.util import TempDirCase, fake_completed
 
 import kumo
 
-REAL_RCLONE = Path(os.environ.get("REAL_HOME_FOR_TESTS") or "/home/ruda") / ".local/bin/rclone"
+# The real rclone, if this computer has one (found through the account, not $HOME, which tests change).
+REAL_RCLONE = Path(shutil.which("rclone") or Path(pwd.getpwuid(os.getuid()).pw_dir) / ".local/bin/rclone")
 
 
 class KumoCase(TempDirCase):

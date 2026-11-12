@@ -82,7 +82,7 @@ class Static(unittest.TestCase):
 
     def test_no_personal_paths(self):
         """The repository is public: no one's home folder is written into the code."""
-        for f in SOURCES:
+        for f in SOURCES + sorted((ROOT / "tests").glob("*.py")):
             with self.subTest(file=f.name):
                 self.assertIsNone(re.search(r"/home/[a-z][a-z0-9_-]+/", f.read_text(encoding="utf-8")))
 
