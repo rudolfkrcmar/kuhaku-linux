@@ -41,6 +41,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkX11, GLib, Gtk, Pango, PangoCairo  # noqa: E402,F401
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 CONFIG_DIR = HOME / ".config" / "kuhaku"
@@ -84,6 +85,7 @@ def load_json(path, default):
     try:
         return {**default, **json.loads(Path(path).read_text())}
     except Exception:
+        report()
         return dict(default)
 
 
@@ -649,6 +651,7 @@ def pressure(event):
         ok, p = r if isinstance(r, tuple) else (r is not None, r)
         return p if ok and 0 < p <= 1 else 0.5
     except Exception:
+        report()
         return 0.5
 
 
@@ -2053,7 +2056,7 @@ def running_pid():
         if "kuhaku-tablet" in Path(f"/proc/{pid}/cmdline").read_text():
             return pid
     except Exception:
-        pass
+        report()
     return None
 
 

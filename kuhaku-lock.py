@@ -27,6 +27,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import touchkeys  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 try:
     from terminal import theme
 except Exception:
@@ -44,6 +45,7 @@ def password_ok(password):
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
         return p.returncode == 0
     except Exception:
+        report()
         return False
 
 
@@ -55,6 +57,7 @@ def finger_enrolled():
         out = subprocess.run(["fprintd-list", USER], capture_output=True, text=True, timeout=5).stdout
         return " - #" in out
     except Exception:
+        report()
         return False
 
 
@@ -77,6 +80,7 @@ class Finger:
                                              stderr=subprocess.STDOUT, text=True)
                 out = self.proc.communicate()[0]
             except Exception:
+                report()
                 return
             if self.stopped:
                 return
@@ -118,6 +122,7 @@ class Face:
             self.proc = subprocess.Popen(["python3", FACE, "verify", "10"], stdout=subprocess.DEVNULL,
                                          stderr=subprocess.DEVNULL)
         except Exception:
+            report()
             return
         proc = self.proc
         threading.Thread(target=lambda: proc.wait() == 0 and not self.stopped and GLib.idle_add(self.on_match),

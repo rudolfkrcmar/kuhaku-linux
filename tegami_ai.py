@@ -24,6 +24,7 @@ from pathlib import Path
 
 import claude_accounts as accounts
 import keepawake
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 FAST = "haiku"          # reading and sorting many letters
@@ -128,6 +129,7 @@ def body_text(path, limit=3000):
     try:
         m = email.message_from_bytes(Path(path).read_bytes(), policy=email.policy.default)
     except Exception:
+        report()
         return ""
     text = ""
     try:
@@ -138,7 +140,7 @@ def body_text(path, limit=3000):
             text = re.sub(r"<br\s*/?>|</p>|</div>", "\n", text, flags=re.I)
             text = html.unescape(re.sub(r"<[^>]+>", " ", text))
     except Exception:
-        pass
+        report()
     return own_words(text)[:limit]
 
 
@@ -459,7 +461,7 @@ class Assistant:
             try:
                 self.suggest(acct, folder, uid)
             except Exception:
-                pass
+                report()
 
     # what the owner sees -------------------------------------------------------------------------
     def info(self, acct, folder, uid):

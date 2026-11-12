@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 import threading
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 MAC = sys.platform == "darwin"
 if not MAC:
@@ -50,7 +51,7 @@ def release():
                 else:
                     _call("UnInhibit", GLib.Variant("(u)", (_cookie,)))
             except Exception:
-                pass
+                report()
             _cookie = None
 
 

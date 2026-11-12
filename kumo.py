@@ -27,6 +27,7 @@ import time
 import urllib.request
 import zipfile
 from pathlib import Path
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 CONF_DIR = HOME / ".config/kuhaku"
@@ -109,6 +110,7 @@ def rclone_version(path):
         m = re.search(r"v(\d+)\.(\d+)", out)
         return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
     except Exception:
+        report()
         return (0, 0)
 
 
@@ -148,6 +150,7 @@ def _load(p):
     try:
         return json.loads(p.read_text())
     except Exception:
+        report()
         return {}
 
 
@@ -261,6 +264,7 @@ def whoami(kind, token):
         u = json.loads(urllib.request.urlopen(req, timeout=20).read()).get("user", {})
         return {"email": u.get("emailAddress", ""), "name": u.get("displayName", "")}
     except Exception:
+        report()
         return {}
 
 

@@ -13,6 +13,7 @@ import time
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 
@@ -27,6 +28,7 @@ def load():
     try:
         return json.loads(CONFIG.read_text())
     except Exception:
+        report()
         return []
 
 
@@ -59,6 +61,7 @@ def name_of(data):
         c = icalendar.Calendar.from_ical(data)
         return str(c.get("X-WR-CALNAME") or "Calendar")
     except Exception:
+        report()
         return "Calendar"
 
 
@@ -91,6 +94,7 @@ def refresh(force=False):
                 try:
                     fetch(cal, i)
                 except Exception:
+                    report()
                     pass  # offline: the copy on disk stays in use
 
 
@@ -107,6 +111,7 @@ def events(start, end):
             c = icalendar.Calendar.from_ical(f.read_bytes())
             items = recurring_ical_events.of(c).between(start, end)
         except Exception:
+            report()
             continue
         for ev in items:
             s, e = ev.get("DTSTART"), ev.get("DTEND")

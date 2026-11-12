@@ -21,6 +21,7 @@ import uuid
 from pathlib import Path
 
 import claude_accounts as accounts
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 MODES = {"auto": "bypassPermissions", "plan": "plan", "ask": "default"}
@@ -123,6 +124,7 @@ def rel(root, p):
     try:
         return str(Path(p).relative_to(root))
     except Exception:
+        report()
         return str(p or "")
 
 

@@ -17,6 +17,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 BRIGHT_MARK = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "kuhaku-brightness-asked"
 W, H = 380, 104          # volume, brightness: label, number and a line
@@ -38,6 +39,7 @@ def read_volume():
         levels = [int(x) for x in re.findall(r"(\d+)%", vol)]
         return (round(sum(levels) / len(levels)) if levels else 0, "yes" in mute)
     except Exception:
+        report()
         return None
 
 
@@ -94,6 +96,7 @@ class Osd:
             b = self.backlight
             return round(100 * int((b / "brightness").read_text()) / int((b / "max_brightness").read_text()))
         except Exception:
+            report()
             return None
 
     def poll_brightness(self):
@@ -115,6 +118,7 @@ class Osd:
         try:
             return (self.mains / "online").read_text().strip() == "1"
         except Exception:
+            report()
             return None
 
     def battery_level(self):
@@ -125,6 +129,7 @@ class Osd:
                     return min(100, round(100 * int((b / now).read_text()) / int((b / full).read_text())))
             return int((b / "capacity").read_text())
         except Exception:
+            report()
             return 0
 
     def poll_power(self):

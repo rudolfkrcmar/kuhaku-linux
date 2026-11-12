@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -42,6 +43,7 @@ def reader():
         name, stages = dev.get_cached_property("name"), dev.get_cached_property("num-enroll-stages")
         return (name.unpack() if name else "Fingerprint reader", stages.unpack() if stages else 0)
     except Exception:
+        report()
         return None
 
 
@@ -50,6 +52,7 @@ def known():
     try:
         out = subprocess.run(["fprintd-list", USER], capture_output=True, text=True, timeout=8).stdout
     except Exception:
+        report()
         return []
     got = set(re.findall(r"#\d+:\s*(\S+)", out))
     return [f for f in ORDER if f in got]
@@ -65,6 +68,7 @@ def forget(finger):
     try:
         return subprocess.run(argv, capture_output=True, timeout=15).returncode == 0
     except Exception:
+        report()
         return False
 
 

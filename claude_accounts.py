@@ -13,6 +13,7 @@ import re
 import shlex
 import time
 from pathlib import Path
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 FILE = HOME / ".config" / "kuhaku" / "claude-accounts.json"
@@ -52,7 +53,7 @@ def load():
     try:
         data = json.loads(FILE.read_text())
     except Exception:
-        pass
+        report()
     if not data or not data.get("accounts"):
         data = {"accounts": [{"id": "private", "name": "Private", "dir": None}], "active": "private"}
     # Every account belongs to a set; one account per kind in a set (older files had neither rule).

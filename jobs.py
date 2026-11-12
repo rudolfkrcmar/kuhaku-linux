@@ -13,6 +13,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 PER_JOB_MB = 450
 RESERVE_MB = 1200
@@ -25,7 +26,7 @@ def mem_available_mb():
             if line.startswith("MemAvailable:"):
                 return int(line.split()[1]) // 1024
     except Exception:
-        pass
+        report()
     return 4096
 
 
@@ -177,6 +178,7 @@ def cpu_seconds(pid):
         f = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
         return sum(int(x) for x in f[11:15]) / TICK
     except Exception:
+        report()
         return None
 
 
@@ -187,6 +189,7 @@ def memory_mb(pid):
         p = psutil.Process(pid)
         return sum(x.memory_info().rss for x in [p] + p.children(recursive=True)) / 2**20
     except Exception:
+        report()
         return None
 
 
@@ -212,6 +215,7 @@ def battery_watts():
             return None
         return int((BATTERY / "current_now").read_text()) * int((BATTERY / "voltage_now").read_text()) / 1e12
     except Exception:
+        report()
         return None
 
 

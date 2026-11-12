@@ -65,6 +65,7 @@ from PyQt6.QtWebEngineCore import (QWebEnginePage, QWebEnginePermission, QWebEng
                                    QWebEngineScript, QWebEngineSettings, QWebEngineUrlRequestInterceptor)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QSplitter, QStackedWidget, QVBoxLayout, QWidget
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 SOCKET = f"kuhaku-mado-{os.getuid()}"
 
@@ -131,6 +132,7 @@ def theme():
         try:
             return json.loads(p.read_text())
         except Exception:
+            report()
             return {}
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
@@ -145,6 +147,7 @@ def host(uri):
     try:
         return (urllib.parse.urlparse(uri or "").hostname or "").removeprefix("www.")
     except Exception:
+        report()
         return ""
 
 
@@ -170,6 +173,7 @@ def load_json(p):
     try:
         return json.loads(p.read_text())
     except Exception:
+        report()
         return {}
 
 
@@ -400,7 +404,7 @@ class Browser:
             chrome = re.search(r"Chrome/(\S+)", ua).group(1)
             p.clientHints().setFullVersionList({"Chromium": chrome, "Not(A:Brand": "24.0.0.0"})
         except Exception:
-            pass
+            report()
         p.quiet = Quiet(self.stopped["private" if private else "normal"])
         p.setUrlRequestInterceptor(p.quiet)
         p.downloadRequested.connect(self.on_download)
@@ -428,7 +432,7 @@ class Browser:
         try:
             self.app.styleHints().setColorScheme(Qt.ColorScheme.Dark if self.night else Qt.ColorScheme.Light)
         except Exception:
-            pass
+            report()
 
     def bg(self):
         return QColor("#121212") if self.night else QColor("#f7f4f1")
@@ -652,6 +656,7 @@ class Browser:
         try:
             return [u for u in json.loads(STATE.read_text()).get("tabs", []) if u][:20]
         except Exception:
+            report()
             return []
 
     def save(self):
@@ -825,6 +830,7 @@ class Browser:
         try:
             msg = json.loads(text)
         except Exception:
+            report()
             return
         kind, v = msg.get("type"), self.current
         if kind == "perm":

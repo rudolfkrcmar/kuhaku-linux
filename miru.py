@@ -39,6 +39,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, WebKit2
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kumo  # Dropbox and Google Drive, only the folders you choose
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 TEXT_LIMIT = 1_000_000
@@ -59,6 +60,7 @@ def usb_drives():
                              capture_output=True, text=True, timeout=3).stdout
         tree = json.loads(out).get("blockdevices", [])
     except Exception:
+        report()
         return []
     found = []
 
@@ -115,6 +117,7 @@ def theme():
         try:
             return json.loads(p.read_text())
         except Exception:
+            report()
             return {}
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
@@ -164,7 +167,7 @@ def kind_of(path, mime):
             head.decode("utf-8")
             return "text"
     except Exception:
-        pass
+        report()
     return "other"
 
 
@@ -176,6 +179,7 @@ def pdf_pages(path):
         ratio = float(size.group(2)) / float(size.group(1)) if size else 1.414
         return (int(m.group(1)) if m else 0), ratio
     except Exception:
+        report()
         return 0, 1.414
 
 
@@ -641,6 +645,7 @@ class Miru:
         try:
             msg = json.loads(result.get_js_value().to_string())
         except Exception:
+            report()
             return
         kind = msg.get("type")
         if kind == "close":

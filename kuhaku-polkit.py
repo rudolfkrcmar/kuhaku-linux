@@ -21,6 +21,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Polkit, PolkitAgent  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import touchkeys  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 try:
     from terminal import theme
 except Exception:
@@ -43,7 +44,7 @@ def log(*a):
         with open(os.path.join(GLib.get_user_runtime_dir(), "kuhaku-polkit.log"), "a") as f:
             f.write(time.strftime("%H:%M:%S ") + " ".join(map(str, a)) + "\n")
     except Exception:
-        pass
+        report()
 
 
 class Prompt:

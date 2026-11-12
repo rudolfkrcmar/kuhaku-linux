@@ -30,6 +30,7 @@ HOME = Path.home()
 sys.path.insert(0, str(HERE))
 from terminal import theme  # noqa: E402
 from tegami_core import Mail  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 
 class Tegami:
@@ -88,6 +89,7 @@ class Tegami:
         try:
             msg = json.loads(result.get_js_value().to_string())
         except Exception:
+            report()
             return
         self.mail.handle(msg)
 

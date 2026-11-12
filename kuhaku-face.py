@@ -20,6 +20,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent
 MODELS = HERE / "models"
@@ -44,6 +45,7 @@ def ir_camera():
             name = (d / "name").read_text().strip()
             index = int((d / "index").read_text().strip()) if (d / "index").exists() else 0
         except Exception:
+            report()
             continue
         if index == 0 and (name.endswith(": Integrated I") or " IR " in f" {name} " or "Infrared" in name):
             found.append(int(d.name[5:]))
@@ -113,7 +115,7 @@ class Eye:
         try:
             self.cap.release()
         except Exception:
-            pass
+            report()
 
 
 def known():
@@ -121,6 +123,7 @@ def known():
         import numpy as np
         return np.load(STORE)
     except Exception:
+        report()
         return None
 
 
@@ -148,6 +151,7 @@ def verify(seconds=10.0):
     try:
         eye = Eye()
     except Exception:
+        report()
         return False
     try:
         run, end = 0, time.time() + seconds

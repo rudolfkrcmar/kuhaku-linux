@@ -48,6 +48,7 @@ MAX_FILE = 4_000_000
 
 sys.path.insert(0, str(HERE))
 from terminal import THEMES, theme, rgba  # noqa: E402  (same colours as Kūhaku Terminal)
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 
 CLAUDE_NOTES = HOME / ".claude" / "CLAUDE.md"
@@ -59,6 +60,7 @@ def run(argv, cwd=None, timeout=20, strip=True):
         r = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, timeout=timeout)
         return r.returncode, r.stdout.strip() if strip else r.stdout.rstrip("\n"), r.stderr.strip()
     except Exception as e:
+        report()
         return 1, "", str(e)
 
 
@@ -135,7 +137,7 @@ def connections():
                 out["gitlab"] = out["gitlab"] or json.loads(raw).get("username")
                 out["gitlab_hosts"].append(host)
         except Exception:
-            pass
+            report()
     return out
 
 
@@ -214,6 +216,7 @@ def load_state():
     try:
         return json.loads(STATE.read_text())
     except Exception:
+        report()
         return {"recent": []}
 
 
@@ -467,6 +470,7 @@ class Tsukuru:
         try:
             return str(Path(p).relative_to(self.root))
         except Exception:
+            report()
             return str(p)
 
     def watch(self, p):
@@ -694,6 +698,7 @@ class Tsukuru:
         try:
             return fn()
         except Exception as e:
+            report()
             return e
 
     def watch_login(self):
@@ -757,6 +762,7 @@ class Tsukuru:
         try:
             msg = json.loads(result.get_js_value().to_string())
         except Exception:
+            report()
             return
         kind = msg.get("type")
         if os.environ.get("TSUKURU_DEBUG"):
@@ -795,6 +801,7 @@ class Tsukuru:
                 try:
                     return chat.commit_message(root, d)
                 except Exception:
+                    report()
                     return ""
 
             def done(text):

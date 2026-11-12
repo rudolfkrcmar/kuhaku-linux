@@ -32,6 +32,7 @@ sys.path.insert(0, str(HERE))
 import claude_accounts as accounts  # noqa: E402
 import jobs  # noqa: E402
 from kansei import theme  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 STATE = HOME / ".local/state/kuhaku"
@@ -166,6 +167,7 @@ def jobs_start():
         with open(jobs.RUNS_FILE) as fh:
             return json.loads(fh.readline())["start"]
     except Exception:
+        report()
         return time.time() + 1
 
 
@@ -290,6 +292,7 @@ def from_tabs(runs):
     try:
         tabs = json.loads((STATE / "tabs.json").read_text())["tabs"]
     except Exception:
+        report()
         return runs
     for t in tabs:
         if t.get("status") not in ("running", "queued") or t.get("anon"):
@@ -313,6 +316,7 @@ def anonymous_sessions():
     try:
         return {t.get("session_id") for t in json.loads((STATE / "tabs.json").read_text())["tabs"] if t.get("anon")}
     except Exception:
+        report()
         return set()
 
 
@@ -461,6 +465,7 @@ class Kiroku:
         try:
             msg = json.loads(result.get_js_value().to_string())
         except Exception:
+            report()
             return
         k = msg.get("type")
         if k == "thread":

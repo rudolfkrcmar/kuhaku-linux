@@ -17,6 +17,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 # Outside apps that should open filling the screen, as Kūhaku's own apps do (WM_CLASS parts).
 FILL_CLASSES = ("com.anthropic.Claude", "\"slack\"", "io.tangencylabs.solidcraft")
@@ -48,6 +49,7 @@ def root_prop(name):
     try:
         return subprocess.run(["xprop", "-root", name], capture_output=True, text=True, timeout=2).stdout
     except Exception:
+        report()
         return ""
 
 
@@ -146,6 +148,7 @@ class Corner:
         try:
             cls = subprocess.run(["xprop", "-id", str(xid), "WM_CLASS"], capture_output=True, text=True, timeout=2).stdout
         except Exception:
+            report()
             return
         if any(c in cls for c in FILL_CLASSES):
             subprocess.Popen(["wmctrl", "-i", "-r", hex(xid), "-b", "add,maximized_vert,maximized_horz"])

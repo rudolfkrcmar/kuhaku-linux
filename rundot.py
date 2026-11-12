@@ -12,6 +12,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkX11", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk  # noqa: F401 (GdkX11 gives windows their XID)
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 SIZE = 44            # same box as .rundot on the home screen: left 44, bottom 36
 LEFT, BOTTOM = 44, 36
@@ -42,6 +43,7 @@ def x(cmd):
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout
     except Exception:
+        report()
         return ""
 
 
@@ -195,6 +197,7 @@ class RunDot:
             pb = GdkPixbuf.Pixbuf.new_from_file_at_size(GLib.filename_from_uri(uri)[0], 20, 20)
             return Gtk.Image.new_from_pixbuf(pb)
         except Exception:
+            report()
             return None
 
     def go(self, cmd):

@@ -25,6 +25,7 @@ gi.require_version("GdkX11", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, Gio, GLib, Gtk, Pango, PangoCairo
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 SWIPE = 1
 UP, DOWN, LEFT, RIGHT = 1, 2, 3, 4
@@ -414,6 +415,7 @@ class Deck:
                 ox = oy = 0
                 pix = Gdk.pixbuf_get_from_window(Gdk.get_default_root_window(), 0, 0, self.w, self.h)
         except Exception:
+            report()
             return None
         if not pix:
             return None

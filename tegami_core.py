@@ -74,6 +74,7 @@ import claude_accounts as accounts  # noqa: E402
 import keepawake  # noqa: E402
 import desktop  # noqa: E402
 import tegami_google as google  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 
 # --- accounts ----------------------------------------------------------------------
@@ -81,6 +82,7 @@ def load_accounts():
     try:
         return json.loads(CONFIG.read_text())
     except Exception:
+        report()
         return []
 
 
@@ -219,6 +221,7 @@ def when(m):
     try:
         return email.utils.parsedate_to_datetime(m["date"]).timestamp()
     except Exception:
+        report()
         return time.time()
 
 
@@ -347,6 +350,7 @@ class Sync:
             try:
                 self.push_drafts(a, M)
             except Exception:
+                report()
                 pass                  # drafts stay safe on this computer and go up next time
             for role, name in self.folders(a, M).items():
                 self.sync_folder(a, M, role, name)
@@ -355,12 +359,12 @@ class Sync:
                 try:
                     self.sync_folder(a, M, "f:" + name, name)
                 except Exception:
-                    pass
+                    report()
         finally:
             try:
                 M.logout()
             except Exception:
-                pass
+                report()
 
     def sync_folder(self, a, M, role, name):
         typ, data = M.select(f'"{name}"', readonly=False)
@@ -435,6 +439,7 @@ class Sync:
             try:
                 typ, data = M.uid("search", None, f"UID {uids[0]}:*", "X-GM-RAW", f'"category:{gcat}"')
             except Exception:
+                report()
                 continue
             for u in (data[0] or b"").split() if typ == "OK" else []:
                 new.setdefault(int(u), gcat)          # purchases first: it wins over the others
@@ -446,6 +451,7 @@ class Sync:
             try:
                 m = parse(Path(row[0][1]).read_bytes())
             except Exception:
+                report()
                 continue
             self.store.q("UPDATE msg SET gcat=?, cat=? WHERE acct=? AND folder=? AND uid=?",
                          (new.get(uid), classify(m, row[0][0], new.get(uid), rules.get((row[0][0] or "").lower()), self.known),
@@ -460,6 +466,7 @@ class Sync:
             try:
                 m = parse(Path(path).read_bytes())
             except Exception:
+                report()
                 continue
             self.store.q("UPDATE msg SET cat=?, auto=? WHERE acct=? AND folder=? AND uid=?",
                          (classify(m, sender, gcat, rules.get((sender or "").lower()), known), int(is_automated(m, sender)),
@@ -581,7 +588,7 @@ class Sync:
                         M.append(f'"{roles["sent"]}"', "(\\Seen)", imaplib.Time2Internaldate(time.time()), raw)
                     M.logout()
                 except Exception:
-                    pass
+                    report()
             self.store.q("DELETE FROM outbox WHERE id=?", (oid,), commit=True)
             Path(path).unlink(missing_ok=True)
             self.notify("sent", {"id": oid})
@@ -776,7 +783,7 @@ class Mail:
                     info = subprocess.run(["pdfinfo", str(target)], capture_output=True, text=True, timeout=10).stdout
                     n = int((re.search(r"^Pages:\s+(\d+)", info, re.M) or [0, 0])[1])
                 except Exception:
-                    pass
+                    report()
                 out.update(kind="pdf", pages=[p.as_uri() for p in pages], total=n or len(pages))
             elif ctype.startswith("image/"):
                 out.update(kind="image", src=target.as_uri())
@@ -948,12 +955,12 @@ class Mail:
                         uri = f"data:{part.get_content_type()};base64," + base64.b64encode(data).decode()
                         body_html = body_html.replace(f"cid:{cid}", uri)
         except Exception:
-            pass
+            report()
         try:
             tp = m.get_body(preferencelist=("plain",))
             body_text = tp.get_content() if tp else ""
         except Exception:
-            pass
+            report()
         files = []
         for part in m.iter_attachments():
             fn = part.get_filename()
@@ -1008,6 +1015,7 @@ class Mail:
                 msg.add_attachment(data, maintype=maintype or "application", subtype=subtype or "octet-stream",
                                    filename=os.path.basename(f.get("name") or "file"))
             except Exception:
+                report()
                 continue
         oid = hashlib.sha1(str(msg["Message-ID"]).encode()).hexdigest()[:16]
         out = DATA / "outbox"
@@ -1046,6 +1054,7 @@ class Mail:
                 return ("Gmail needs an app password: Google account, Security, App passwords."
                         if kind == "Gmail" else "The address or password was not accepted")
             except Exception as e:
+                report()
                 return f"Could not reach {imap_h}: {e}"[:160]
 
         def done(err):
@@ -1269,6 +1278,7 @@ class Mail:
             r = self.store.q("SELECT sender_name, subject FROM msg WHERE acct=? AND folder=? AND uid=?", (acct, folder, int(uid)))
             return f"{r[0][0]}: {r[0][1]}" if r else key
         except Exception:
+            report()
             return key
 
     def act(self, actions):
@@ -1279,6 +1289,7 @@ class Mail:
                 acct, folder, uid = split_key(x.get("key", ""))
                 uid = int(uid)
             except Exception:
+                report()
                 continue
             row = self.store.q("SELECT path FROM msg WHERE acct=? AND folder=? AND uid=?", (acct, folder, uid))
             if not row:
@@ -1389,6 +1400,7 @@ class Mail:
                 try:
                     acct, folder, uid = split_key(key)
                 except Exception:
+                    report()
                     continue
                 self.store.q("UPDATE msg SET seen=1 WHERE acct=? AND folder=? AND uid=?", (acct, folder, int(uid)), commit=True)
                 self.store.q("INSERT INTO ops (acct, folder, uid, op) VALUES (?,?,?,?)", (acct, folder, int(uid), "seen"), commit=True)

@@ -19,6 +19,7 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from kuhaku_unlock_style import window_css  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 WANT = 3
 
@@ -30,6 +31,7 @@ def fingers():
         d = json.loads(out or "{}")
         return d.get("reader"), d.get("fingers") or []
     except Exception:
+        report()
         return None, []
 
 
@@ -39,6 +41,7 @@ def face():
                              capture_output=True, text=True, timeout=15).stdout
         return json.loads(out or "{}")
     except Exception:
+        report()
         return {}
 
 

@@ -23,6 +23,7 @@ import urllib.request
 from pathlib import Path
 
 import desktop
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 CLIENT = HOME / ".config" / "kuhaku" / "google-oauth-client.json"
@@ -55,11 +56,13 @@ def client():
                     f.unlink()     # the secret lives in one place only
                     break
             except Exception:
+                report()
                 continue
     try:
         c = json.loads(CLIENT.read_text())["installed"]
         return {"id": c["client_id"], "secret": c.get("client_secret", "")}
     except Exception:
+        report()
         return None
 
 

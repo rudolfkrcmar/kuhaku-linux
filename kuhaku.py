@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_accounts as accounts  # noqa: E402
 import keepawake  # noqa: E402
 import jobs  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
@@ -89,6 +90,7 @@ def load_json(path, default):
     try:
         return {**default, **json.loads(path.read_text())}
     except Exception:
+        report()
         return dict(default)
 
 
@@ -125,7 +127,7 @@ def read_battery():
             status = (bat / "status").read_text().strip()
             return {"level": cap, "charging": status in ("Charging", "Full")}
         except Exception:
-            pass
+            report()
     return None
 
 
@@ -134,6 +136,7 @@ def read_wifi():
         out = subprocess.run(["nmcli", "-t", "-f", "TYPE,STATE", "device"],
                              capture_output=True, text=True, timeout=3).stdout
     except Exception:
+        report()
         return None
     lines = [l.split(":") for l in out.splitlines()]
     if any(t == "wifi" and s == "connected" for t, s, *_ in lines):
@@ -149,6 +152,7 @@ def wifi_signal():
                              capture_output=True, text=True, timeout=3).stdout
         return next((int(l.split(":")[1]) for l in out.splitlines() if l.startswith("*")), 0)
     except Exception:
+        report()
         return 0
 
 
@@ -158,6 +162,7 @@ def run(argv, timeout=15):
                              env={**os.environ, "LC_ALL": "C"})
         return out.returncode, out.stdout, out.stderr
     except Exception as e:
+        report()
         return 1, "", str(e)
 
 
@@ -328,6 +333,7 @@ def daily_tokens():
                         u = m["usage"]
                         day = datetime.fromisoformat(e["timestamp"].replace("Z", "+00:00")).astimezone().strftime("%Y-%m-%d")
                     except Exception:
+                        report()
                         continue
                     entries.append(((m.get("id"), e.get("requestId")), day, u.get("output_tokens", 0),
                                     u.get("input_tokens", 0) + u.get("cache_creation_input_tokens", 0),
@@ -358,7 +364,7 @@ def plan_limits():
         try:
             _limits_cache[1] = json.loads(LIMITS_FILE.read_text())   # last known numbers after a restart
         except Exception:
-            pass
+            report()
     return _limits_cache[1]
 
 
@@ -447,7 +453,7 @@ def read_unlock():
             got = set(re.findall(r"#\d+:\s*(\S+)", out))
             fingers = [f for f in FINGER_ORDER if f in got]
         except Exception:
-            pass
+            report()
     camera = any(p.name.startswith("video") and (p / "name").read_text().strip().endswith(": Integrated I")
                  for p in Path("/sys/class/video4linux").glob("video*") if (p / "name").exists())
     return {"reader": reader, "fingers": fingers, "face": {"camera": camera,
@@ -571,6 +577,7 @@ def list_apps():
                 apps[name] = {"id": a.get_id(), "name": name, "about": a.get_description() or "",
                               "system": "Settings" in cats.split(";") or "System" in cats.split(";")}
         except Exception:
+            report()
             continue
     return sorted(apps.values(), key=lambda x: x["name"].lower())
 
@@ -605,6 +612,7 @@ def app_index():
                 if k:
                     index.setdefault(k, entry)
         except Exception:
+            report()
             continue
     _APP_INDEX = index
     return index
@@ -615,6 +623,7 @@ def open_windows():
     try:
         out = subprocess.run(["wmctrl", "-lx"], capture_output=True, text=True, timeout=3).stdout
     except Exception:
+        report()
         return []
     index, wins = app_index(), []
     for line in out.splitlines():
@@ -647,7 +656,7 @@ def launch_app(app_id):
         if info:
             info.launch([], None)
     except Exception:
-        pass
+        report()
 
 
 def short(text, n=140):
@@ -867,6 +876,7 @@ class Kuhaku:
         try:
             msg = json.loads(result.get_js_value().to_string())
         except Exception:
+            report()
             return
         kind = msg.get("type")
         if kind == "ask":
@@ -1077,7 +1087,7 @@ class Kuhaku:
                         try:
                             GLib.idle_add(self.ask_new_tab, json.loads(line.split(None, 1)[1]).get("text", ""))
                         except Exception:
-                            pass
+                            report()
 
     def ask_new_tab(self, text):
         """A job from another app: a new tab of its own, started at once, with Kūhaku in front."""
@@ -1126,6 +1136,7 @@ class Kuhaku:
         try:
             return [json.loads(l) for l in jobs.RUNS_FILE.read_text().splitlines() if l.strip()]
         except Exception:
+            report()
             return []
 
     def show_menu(self):
@@ -1202,7 +1213,7 @@ class Kuhaku:
                                 .replace(" (EQ)", "").replace("Built-in Audio ", ""),
                                 "active": k["name"] == default_sink.strip()})
         except Exception:
-            pass
+            report()
 
         def percent(cmd):
             _, out, _ = run(cmd)
@@ -1214,7 +1225,7 @@ class Kuhaku:
             try:
                 bright = round(100 * int((bl / "brightness").read_text()) / int((bl / "max_brightness").read_text()))
             except Exception:
-                pass
+                report()
         _, profile, _ = run(["powerprofilesctl", "get"])
         mem = disk = None
         try:
@@ -1222,7 +1233,7 @@ class Kuhaku:
             st = os.statvfs(str(HOME))
             disk = [round(st.f_bavail * st.f_frsize / 1e9), round(st.f_blocks * st.f_frsize / 1e9)]
         except Exception:
-            pass
+            report()
         os_name = re.search(r'PRETTY_NAME="([^"]+)"', Path("/etc/os-release").read_text())
         cpu = re.search(r"model name\s*:\s*(.+)", Path("/proc/cpuinfo").read_text())
         try:
@@ -1858,6 +1869,7 @@ class Kuhaku:
         try:
             return json.loads(ANSWERS_FILE.read_text())
         except Exception:
+            report()
             return []
 
     def cancel(self, tab_id=None):
@@ -1874,7 +1886,7 @@ class Kuhaku:
             try:
                 os.killpg(proc.pid, signal.SIGTERM)
             except Exception:
-                pass
+                report()
 
     def quit(self, *_):
         # Running jobs stay "running" in tabs.json, so after a restart they continue from the line.
@@ -1882,7 +1894,7 @@ class Kuhaku:
             try:
                 os.killpg(proc.pid, signal.SIGTERM)
             except Exception:
-                pass
+                report()
         for p in (self.recorder, self.whisper):
             if p and p.poll() is None:
                 p.terminate()

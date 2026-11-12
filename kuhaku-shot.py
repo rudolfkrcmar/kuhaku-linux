@@ -24,6 +24,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango, PangoCairo
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 FOLDER = HOME / "Pictures" / "Screenshots"
@@ -39,7 +40,7 @@ def theme():
         if t in ("day", "night"):
             return t
     except Exception:
-        pass
+        report()
     h = time.localtime().tm_hour
     return "night" if (h >= 20 or h < 7) else "day"
 
@@ -61,6 +62,7 @@ def windows_top_first():
         ids = re.findall(r"0x[0-9a-f]+", subprocess.run(["xprop", "-root", "_NET_CLIENT_LIST_STACKING"],
                                                         capture_output=True, text=True, timeout=2).stdout)
     except Exception:
+        report()
         return out
     for xid in reversed(ids):
         try:
@@ -68,6 +70,7 @@ def windows_top_first():
             types = subprocess.run(["xprop", "-id", xid, "_NET_WM_WINDOW_TYPE", "_NET_WM_STATE", "_NET_FRAME_EXTENTS"],
                                    capture_output=True, text=True, timeout=2).stdout
         except Exception:
+            report()
             continue
         if "DESKTOP" in types or "DOCK" in types or "HIDDEN" in types or "IsViewable" not in info:
             continue

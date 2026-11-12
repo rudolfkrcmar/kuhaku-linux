@@ -22,6 +22,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15"
@@ -51,6 +52,7 @@ def night():
         try:
             return json.loads(p.read_text())
         except Exception:
+            report()
             return {}
     cfg = load(HOME / ".config/kuhaku/config.json")
     choice = load(HOME / ".local/state/kuhaku/state.json").get("theme") or cfg.get("theme", "auto")

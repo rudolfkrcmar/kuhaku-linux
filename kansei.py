@@ -24,6 +24,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
@@ -35,6 +36,7 @@ def theme():
         try:
             return json.loads(p.read_text())
         except Exception:
+            report()
             return {}
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
@@ -50,6 +52,7 @@ def sh(argv, timeout=8):
         r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, env={**os.environ, "LC_ALL": "C"})
         return r.stdout
     except Exception:
+        report()
         return ""
 
 
@@ -57,6 +60,7 @@ def read(p, default=""):
     try:
         return Path(p).read_text().strip()
     except Exception:
+        report()
         return default
 
 
@@ -68,6 +72,7 @@ def app_names():
             try:
                 txt = f.read_text(errors="replace")
             except Exception:
+                report()
                 continue
             name = re.search(r"^Name=(.+)$", txt, re.M)
             ex = re.search(r"^Exec=(.+)$", txt, re.M)
@@ -94,7 +99,7 @@ class Collector:
             try:
                 p.cpu_percent(None)
             except Exception:
-                pass
+                report()
 
     def sample(self):
         now = time.time()
@@ -139,7 +144,7 @@ class Collector:
             else:
                 watts = int(read(bdir / "current_now", "0")) * int(read(bdir / "voltage_now", "0")) / 1e12
         except Exception:
-            pass
+            report()
         battery = None
         if bat:
             full, design = read(bdir / "energy_full") or read(bdir / "charge_full"), read(bdir / "energy_full_design") or read(bdir / "charge_full_design")
@@ -175,7 +180,7 @@ class Collector:
                             wr = max(0, (io.write_bytes - last[1]) / max(0.2, now - last[2]))
                         self.prev_io[i["pid"]] = (io.read_bytes, io.write_bytes, now)
                     except Exception:
-                        pass
+                        report()
                 exe = os.path.basename(i["exe"] or "") or i["name"]
                 cmd = " ".join(i["cmdline"] or [])[:300]
                 app = None
@@ -269,7 +274,7 @@ class Collector:
                     try:
                         m = psutil.Process(int(kv["MainPID"])).memory_info().rss
                     except Exception:
-                        pass
+                        report()
                 services.append({"unit": kv.get("Id", ""), "desc": kv.get("Description", ""), "pid": kv.get("MainPID", ""), "mem": m})
         services.sort(key=lambda s: -(s["mem"] or 0))
         user_units = sh(["systemctl", "--user", "list-units", "--type=service", "--state=running", "--no-legend", "--plain", "--no-pager"])
@@ -281,7 +286,7 @@ class Collector:
                 u = psutil.disk_usage(part.mountpoint)
                 mounts.append({"mount": part.mountpoint, "device": part.device, "fs": part.fstype, "total": u.total, "used": u.used, "pct": u.percent})
             except Exception:
-                pass
+                report()
         return {"host": socket.gethostname(), "os": os_name.group(1) if os_name else "Linux", "kernel": os.uname().release,
                 "cpu": re.sub(r"\s+", " ", cpu.group(1)) if cpu else "", "cores": psutil.cpu_count(), "threads": psutil.cpu_count(),
                 "model": read("/sys/class/dmi/id/product_name"), "firmware": read("/sys/class/dmi/id/bios_version"),
@@ -406,6 +411,7 @@ class Kansei:
         try:
             msg = json.loads(result.get_js_value().to_string())
         except Exception:
+            report()
             return
         k = msg.get("type")
         if k == "tab":

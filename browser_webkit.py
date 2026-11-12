@@ -30,6 +30,7 @@ gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("JavaScriptCore", "4.1")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk, JavaScriptCore, WebKit2
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
@@ -140,6 +141,7 @@ def theme():
         try:
             return json.loads(p.read_text())
         except Exception:
+            report()
             return {}
     cfg = load(HOME / ".config/kuhaku/config.json")
     st = load(HOME / ".local/state/kuhaku/state.json")
@@ -154,6 +156,7 @@ def host(uri):
     try:
         return urllib.parse.urlparse(uri or "").hostname.removeprefix("www.")
     except Exception:
+        report()
         return ""
 
 
@@ -237,7 +240,7 @@ class Browser(Gtk.Application):
             try:
                 self.context.allow_tls_certificate_for_host(Gio.TlsCertificate.new_from_pem(pem, -1), h)
             except Exception:
-                pass
+                report()
 
         self.settings = WebKit2.Settings()
         self.settings.set_enable_smooth_scrolling(True)
@@ -304,13 +307,14 @@ class Browser(Gtk.Application):
             try:
                 self.content.add_filter(s.save_finish(res))
             except Exception:
-                pass
+                report()
         store.save("kuhaku-quiet-2", data, None, done)
 
     def restore(self):
         try:
             return [u for u in json.loads(STATE.read_text()).get("tabs", []) if u][:20]
         except Exception:
+            report()
             return []
 
     def save(self):
@@ -443,6 +447,7 @@ class Browser(Gtk.Application):
         try:
             return json.loads(PERMS.read_text())
         except Exception:
+            report()
             return {}
 
     def answer_permission(self, allow):
@@ -484,6 +489,7 @@ class Browser(Gtk.Application):
         try:
             return set(json.loads(NATIVE_HOSTS.read_text()))
         except Exception:
+            report()
             return set(NATIVE_SEED)
 
     def is_honest(self, host):
@@ -589,13 +595,14 @@ class Browser(Gtk.Application):
                 try:
                     s.set_property(spec.name, self.settings.get_property(spec.name))
                 except Exception:
-                    pass
+                    report()
         return s
 
     def trusted(self):
         try:
             return json.loads(TRUSTED.read_text())
         except Exception:
+            report()
             return {}
 
     def on_tls_error(self, view, uri, cert, _errors):
@@ -614,6 +621,7 @@ class Browser(Gtk.Application):
             msg = json.loads(result.get_js_value().to_json(0))
             h, token = msg["h"], msg["t"]
         except Exception:
+            report()
             return
         if h not in self.tls_pending or self.tls_pending[h][3] != token:
             return
@@ -707,6 +715,7 @@ class Browser(Gtk.Application):
         try:
             msg = json.loads(result.get_js_value().to_string())
         except Exception:
+            report()
             return
         kind, v = msg.get("type"), self.current
         if kind == "perm":

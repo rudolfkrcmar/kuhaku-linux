@@ -7,6 +7,7 @@ from pathlib import Path
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa: E402
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 COLORS = {"night": ("#121212", "#ececec", "#9a9a9a", "#f0705a"), "day": ("#f7f4f1", "#111111", "#666666", "#e0301e")}
 
@@ -16,13 +17,14 @@ def theme():
         from terminal import theme as t
         return t()
     except Exception:
-        pass
+        report()
     home = Path.home()
 
     def load(p):
         try:
             return json.loads(p.read_text())
         except Exception:
+            report()
             return {}
     cfg = load(home / ".config/kuhaku/config.json")
     choice = load(home / ".local/state/kuhaku/state.json").get("theme") or cfg.get("theme", "auto")
