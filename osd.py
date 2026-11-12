@@ -89,7 +89,7 @@ class Osd:
         self.win.connect("draw", self.draw)
         self.win.realize()
         # Clicks pass straight through.
-        self.win.input_shape_combine_region(cairo.Region())
+        self.win.input_shape_combine_region(cairo.Region(cairo.RectangleInt(0, 0, 0, 0)))  # an empty region
 
         self.volume = read_volume()
         self.mic_muted = read_mic_mute()
