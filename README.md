@@ -6,7 +6,7 @@ Kūhaku replaces the usual desktop with one quiet screen: you say what you want,
 
 - **Mado** (窓, window): the web, quietly. A browser on Qt WebEngine (Chromium), with a WebKitGTK fallback.
 - **Tegami** (手紙, letter): mail that works offline.
-- **Miru** (見る, to look): files and previews.
+- **Miru** (見る, to look): files and previews, with Dropbox and Google Drive: only the folders you choose, kept in sync both ways (Kumo, 雲).
 - **Tsukuru** (作る, to make): a code editor for making things with Claude.
 - **Kansei** (管制, mission control): everything the computer is doing, live.
 - **Kiroku** (記録, the record): every job an AI has done here, with model, time, tokens, cost and energy.

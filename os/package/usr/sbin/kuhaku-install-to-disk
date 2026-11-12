@@ -1,18 +1,22 @@
 #!/bin/bash
 # Installs the running live Kūhaku onto a computer's own drive. Run as root by the installer.
 #
-#   kuhaku-install-to-disk DISK USER "Full Name" MODE ZONE HIDE ADD [CARRY]   (the password comes on stdin)
+#   kuhaku-install-to-disk DISK USER "Full Name" MODE ZONE HIDE ADD [CARRY [KEYS [LANG]]]   (the password comes on stdin)
 #   MODE: how freely Claude may work, bypassPermissions (default) or acceptEdits.
 #   ZONE: time zone, e.g. Europe/Prague (UTC if unknown).
 #   HIDE: Kūhaku's own apps left out, comma separated (kept installed, only hidden), or "-".
 #   ADD:  programs by others to fetch from their makers once online, comma separated, or "-".
+#   CARRY: the carried files' archive, or "-" for none.
+#   KEYS: keyboard as XKB "layout" or "layout:variant", e.g. cz:qwerty (us if not given).
+#   LANG: language and formats, e.g. cs_CZ (en_US if not given).
 #
 # One password does everything: it unlocks the encrypted drive when the computer starts
 # (asked on the boot screen), it is the account password, and it opens the carried files.
 # After the drive is unlocked Kūhaku logs in by itself, so it is asked only once.
 # Progress is printed as "STEP n text" and "PCT n" lines for the installer screen.
 set -euo pipefail
-DISK="$1"; USERNAME="$2"; FULLNAME="$3"; MODE="${4:-bypassPermissions}"; ZONE="${5:-UTC}"; HIDE="${6:--}"; ADD="${7:--}"; CARRY="${8:-}"
+DISK="$1"; USERNAME="$2"; FULLNAME="$3"; MODE="${4:-bypassPermissions}"; ZONE="${5:-UTC}"; HIDE="${6:--}"; ADD="${7:--}"; CARRY="${8:-}"; KEYS="${9:-us}"; LANGUAGE_="${10:-en_US}"
+[ "$CARRY" = - ] && CARRY=""
 IFS= read -r PASS
 T=/target
 SQUASH=/run/live/medium/live/filesystem.squashfs
@@ -30,11 +34,14 @@ say "Disk $DISK: $(lsblk -dno MODEL,SIZE "$DISK" | xargs)"
 [ -f "$SQUASH" ] || fail "not running from the Kūhaku stick"
 [[ "$USERNAME" =~ ^[a-z][a-z0-9-]{0,30}$ ]] || fail "name must be lowercase letters"
 [[ "$ZONE" =~ ^[A-Za-z0-9_+/-]+$ && "$ZONE" != *..* && -f "/usr/share/zoneinfo/$ZONE" ]] || ZONE=UTC
+[[ "$KEYS" =~ ^[a-z]{2,6}(:[a-z0-9_]{1,24})?$ ]] || KEYS=us
+[[ "$LANGUAGE_" =~ ^[a-z]{2,3}_[A-Z]{2}$ ]] || LANGUAGE_=en_US
+XKB_LAYOUT="${KEYS%%:*}"; XKB_VARIANT=""; [[ "$KEYS" == *:* ]] && XKB_VARIANT="${KEYS#*:}"
 case "$MODE" in bypassPermissions|acceptEdits) ;; *) fail "unknown mode $MODE" ;; esac
 [[ "$FULLNAME" != *[:$'\n']* ]] || fail "the name cannot contain a colon"
 # Only names from the installer's lists.
 OURS="tsukuru tegami miru notes kansei"
-THEIRS="claude-desktop firefox-esr thunderbird libreoffice gimp inkscape krita vlc audacity blender freecad"
+THEIRS="claude-desktop firefox-esr thunderbird libreoffice gimp inkscape krita vlc audacity blender freecad solidcraft"
 pick() { local out="" x; for x in ${1//,/ }; do [[ " $2 " == *" $x "* ]] && out="$out $x"; done; echo "${out# }"; }
 HIDE=$(pick "$HIDE" "$OURS"); ADD=$(pick "$ADD" "$THEIRS")
 case "$DISK" in *nvme*|*mmcblk*) P=p ;; *) P= ;; esac
@@ -100,6 +107,22 @@ echo "MODULES=dep" > "$T/etc/initramfs-tools/conf.d/kuhaku"
 # …but always the display drivers, so the boot screen (and its password line) is Kūhaku's.
 printf 'i915\namdgpu\nnouveau\nbochs\nvirtio_gpu\nsimpledrm\n' >> "$T/etc/initramfs-tools/modules"
 echo "FRAMEBUFFER=y" > "$T/etc/initramfs-tools/conf.d/kuhaku-splash"
+# The keyboard chosen in the installer, for the desktop and for the start screen: the drive's
+# password is typed there before anything else runs, so the start files carry the same keymap.
+say "Keyboard: $XKB_LAYOUT${XKB_VARIANT:+ ($XKB_VARIANT)}; language: $LANGUAGE_"
+cat > "$T/etc/default/keyboard" <<K
+# Chosen in Kūhaku's installer. See keyboard(5).
+XKBMODEL="pc105"
+XKBLAYOUT="$XKB_LAYOUT"
+XKBVARIANT="$XKB_VARIANT"
+XKBOPTIONS=""
+BACKSPACE="guess"
+K
+if [ -x "$T/bin/setupcon" ] || [ -x "$T/usr/bin/setupcon" ]; then
+  echo "KEYMAP=y" > "$T/etc/initramfs-tools/conf.d/kuhaku-keymap"
+else
+  say "NOTE console-setup is missing: the start screen keeps the US keyboard"
+fi
 printf '[Daemon]\nTheme=kuhaku\nShowDelay=0\n' > "$T/etc/plymouth/plymouthd.conf"
 # The installed system is quiet and has no menu.
 sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/; s/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=3"/' "$T/etc/default/grub"
@@ -118,6 +141,19 @@ rm -f /etc/apt/sources.list.d/*live-medium* 2>/dev/null || true
 userdel -r admin >/dev/null 2>&1 || true
 # The person.
 ln -sf "/usr/share/zoneinfo/$ZONE" /etc/localtime; echo "$ZONE" > /etc/timezone
+# Language and formats: made if the system does not have it yet; C.UTF-8 if that fails.
+L="$LANGUAGE_.UTF-8"
+if ! locale -a 2>/dev/null | grep -qix "${LANGUAGE_}.utf-\?8"; then
+  if [ -f /etc/locale.gen ] && grep -q "^# *\$L UTF-8" /etc/locale.gen; then
+    sed -i "s/^# *\(\$L UTF-8\)/\1/" /etc/locale.gen
+  else
+    echo "\$L UTF-8" >> /etc/locale.gen
+  fi
+  locale-gen >/dev/null 2>&1 || localedef -i "$LANGUAGE_" -f UTF-8 "\$L" >/dev/null 2>&1 || L=C.UTF-8
+fi
+locale -a 2>/dev/null | grep -qix "${LANGUAGE_}.utf-\?8" || L=C.UTF-8
+printf 'LANG=%s\n' "\$L" > /etc/default/locale
+setupcon --save-only >/dev/null 2>&1 || true
 CH
 # The person (name passed as an argument, never pasted into a script: quotes in a name are fine).
 chroot "$T" useradd -m -s /bin/bash -c "$FULLNAME" -G sudo,audio,video,netdev,plugdev,users "$USERNAME"
@@ -129,7 +165,9 @@ mkdir -p "$T/etc/kuhaku"; echo "$MODE" > "$T/etc/kuhaku/permission-mode"
 say "Programs: hidden ${HIDE:-none}; to fetch ${ADD:-none}"
 printf '%s\n' $HIDE > "$T/etc/kuhaku/hidden-apps"
 [[ " $ADD " == *" claude-desktop "* ]] || rm -f "$T/etc/apt/sources.list.d/claude-desktop.list"
-printf '%s\n' $ADD | grep -vx -e claude-desktop -e '' > "$T/etc/kuhaku/programs" || true
+printf '%s\n' $ADD | grep -vx -e claude-desktop -e solidcraft -e '' > "$T/etc/kuhaku/programs" || true
+# SolidCraft is not in Debian: fetched from its maker's releases and checked (kuhaku-solidcraft.service).
+[[ " $ADD " == *" solidcraft "* ]] && { touch "$T/etc/kuhaku/solidcraft"; chroot "$T" systemctl enable kuhaku-solidcraft.service >/dev/null 2>&1 || true; }
 [ -s "$T/etc/kuhaku/programs" ] && chroot "$T" systemctl enable kuhaku-programs.service >/dev/null 2>&1 || true
 # The drive password was just typed at start: log straight in after that.
 mkdir -p "$T/etc/lightdm/lightdm.conf.d"

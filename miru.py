@@ -37,6 +37,9 @@ gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, WebKit2
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import kumo  # Dropbox and Google Drive, only the folders you choose
+
 HOME = Path.home()
 TEXT_LIMIT = 1_000_000
 WEB_IMAGES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "image/bmp", "image/x-icon",
@@ -291,8 +294,12 @@ class Miru:
         self.files = []
         self.folder = None          # the folder being browsed, if Miru is the Files app
         self.hidden = False
+        self.cloud_mode = None      # the cloud whose setup page is showing
         self.drives = [d["path"] for d in usb_drives()]
+        self.clouds = self.cloud_places()
         GLib.timeout_add_seconds(2, self.watch_drives)
+        if any(kumo.folders(k) for k in kumo.accounts()):
+            kumo.ensure_daemon()
         self.view.load_html(PAGE.replace("{THEME}", "night" if self.night else "day"), "file:///")
         self.view.connect("load-changed", lambda v, e: e == WebKit2.LoadEvent.FINISHED and self.start())
         self.win.show_all()
@@ -328,11 +335,30 @@ class Miru:
         for d in usb_drives():
             if d["path"] not in seen:
                 res.append(d)
+        res += self.cloud_places()
         res.append({"name": "Trash", "path": str(HOME / ".local/share/Trash/files")})
         return res
 
+    def cloud_places(self):
+        """Every Dropbox and Google Drive account: the local copy once folders are chosen, else the setup page."""
+        out = []
+        for key, p in kumo.accounts().items():
+            ready = kumo.connected(key) and kumo.folders(key) and p["local"].is_dir()
+            out.append({"name": p["name"], "cloud": key, "what": kumo.describe(key),
+                        "path": str(p["local"]) if ready else "cloud:" + key})
+        return out
+
     def watch_drives(self):
         """Plugging a stick in or out shows up in the places without a reload."""
+        clouds = self.cloud_places()
+        if clouds != self.clouds:
+            # A sync finished (or started): new words in the side bar, and new files if we are in there.
+            was = {c["cloud"]: kumo.status(c["cloud"]).get("last") for c in self.clouds}
+            self.clouds = clouds
+            if self.folder is not None and self.cloud_mode is None:
+                key, _ = kumo.which_cloud(self.folder)
+                self.js("cloudTick", {"places": self.places(), "reload": bool(key) and
+                                      kumo.status(key).get("last") != was.get(key)})
         now = [d["path"] for d in usb_drives()]
         if now != self.drives:
             self.drives = now
@@ -370,6 +396,7 @@ class Miru:
 
     def browse(self, folder, select=None):
         folder = Path(folder)
+        self.cloud_mode = None
         entries = []
         try:
             items = list(folder.iterdir())
@@ -409,7 +436,9 @@ class Miru:
                 break
             p = p.parent
         self.win.set_title(f"{folder.name or folder} — Miru")
-        self.js("browse", {"path": str(folder), "crumbs": crumbs[::-1], "entries": entries,
+        key, _ = kumo.which_cloud(folder)
+        cloud = {"key": key, "name": kumo.account(key)["name"], "status": kumo.describe(key)} if key else None
+        self.js("browse", {"cloud": cloud, "path": str(folder), "crumbs": crumbs[::-1], "entries": entries,
                            "places": self.places(), "select": select, "hidden": self.hidden,
                            "trash": folder == HOME / ".local/share/Trash/files"})
 
@@ -422,6 +451,7 @@ class Miru:
             except GLib.Error as e:
                 self.js("toast", f"Could not move {Path(path).name} to the Trash: {e.message}")
         if done:
+            kumo.nudge(paths[0])
             self.js("toast", f"Moved {Path(paths[0]).name if done == 1 else f'{done} items'} to the Trash")
         self.browse(self.folder)
 
@@ -439,6 +469,7 @@ class Miru:
         except OSError as e:
             self.js("toast", f"Could not rename: {e.strerror}")
             return
+        kumo.nudge(dst)
         self.browse(self.folder, select=name)
 
     def mkdir(self, name):
@@ -452,6 +483,7 @@ class Miru:
         except OSError as e:
             self.js("toast", f"Could not make a folder: {e.strerror}")
             return
+        kumo.nudge(target)
         self.browse(self.folder, select=target.name)
 
     # --- the right-click menu ----------------------------------------------------
@@ -484,6 +516,10 @@ class Miru:
         what = path.name if len(paths) == 1 else f"{len(paths)} items"
         trash_files = HOME / ".local/share/Trash/files"
         try:
+            if kind in ("duplicate", "paste", "restore"):
+                kumo.nudge(self.folder)
+                if kind == "paste" and getattr(self, "held", None) and self.held[0] == "cut":
+                    kumo.nudge(self.held[1][0])
             if kind == "duplicate":
                 made = [self.copy_into(p, p.parent).name for p in paths]
                 return self.browse(self.folder, select=made)
@@ -622,6 +658,8 @@ class Miru:
             target = msg.get("path", str(HOME))
             if target.startswith("mount:"):
                 self.mount(target[6:])
+            elif target.startswith("cloud:"):
+                self.cloud_page(target[6:])
             else:
                 self.browse(target, select=msg.get("select"))
         elif kind == "eject":
@@ -644,6 +682,88 @@ class Miru:
                              start_new_session=True)
         elif kind == "minimize":
             self.win.iconify()
+        elif kind.startswith("cloud-"):
+            self.cloud_msg(kind[6:], msg)
+
+    # --- Dropbox and Google Drive ----------------------------------------------------
+    def cloud_page(self, key, phase=None, error=None):
+        """Sign in, then pick the folders to keep here; everything else stays in the cloud."""
+        p = kumo.account(key)
+        if not p:
+            return
+        self.cloud_mode = key
+        self.folder = HOME
+        phase = phase or ("choose" if kumo.connected(key) else "connect")
+        self.win.set_title(f"{p['name']} — Miru")
+        kind = kumo.KINDS[p["kind"]]["name"]
+        self.js("cloud", {"key": key, "name": p["name"] if p["first"] or kumo.connected(key) else f"Another {kind}",
+                          "kind": kind, "first": p["first"], "email": p["email"], "phase": phase, "error": error,
+                          "local": str(p["local"]).replace(str(HOME), "~", 1), "folders": kumo.folders(key),
+                          "places": self.places(), "gdocs": p["kind"] == "drive"})
+
+    def cloud_msg(self, what, msg):
+        if what == "add":
+            # One more account of a kind: its own sign-in page, its own folder.
+            if msg.get("kind") in kumo.KINDS:
+                self.cloud_page(kumo.new_key(msg["kind"]), "connect")
+            return
+        key = msg.get("key")
+        acct = kumo.account(key)
+        if not acct:
+            return
+        if what == "connect":
+            def opened(url):
+                # A further account signs in in a private Mado window: no cookies from the first
+                # account, so the other one can be chosen.
+                argv = [str(HOME / ".local/bin/mado")] + ([] if acct["first"] else ["--private"]) + [url]
+                subprocess.Popen(argv, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            def done(err):
+                def back():
+                    self.win.present()
+                    if self.cloud_mode == key:
+                        self.cloud_page(key, None if not err else "connect", err)
+                    return False
+                GLib.idle_add(back)
+            self.cloud_page(key, "waiting")
+            kumo.connect(key, opened, done, label=str(msg.get("label") or "")[:40])
+        elif what == "list":
+            path = msg.get("path", "")
+
+            def work():
+                try:
+                    payload = {"key": key, "path": path, "dirs": kumo.list_folders(key, path)}
+                except Exception as e:
+                    payload = {"key": key, "path": path, "error": str(e)[:160]}
+                GLib.idle_add(lambda: self.js("cloudList", payload) and False)
+            threading.Thread(target=work, daemon=True).start()
+        elif what == "save":
+            chosen = kumo.tidy(msg.get("folders") or [])
+            kumo.choose(key, chosen)
+            if not chosen:
+                self.js("toast", "Nothing will sync. Folders already here stay.")
+                return self.cloud_page(key)
+            base = kumo.local_base(key)
+            for f in chosen:
+                (base / f).mkdir(parents=True, exist_ok=True)
+            kumo.ensure_daemon()
+            self.clouds = self.cloud_places()
+            self.js("toast", f"Syncing {len(chosen)} folder{'s' if len(chosen) != 1 else ''} with {kumo.account(key)['name']}")
+            self.browse(base)
+        elif what == "now":
+            kumo.nudge()
+            kumo.ensure_daemon()
+            self.js("toast", "Syncing now")
+        elif what == "disconnect":
+            name = acct["name"]
+            kumo.disconnect(key)
+            self.clouds = self.cloud_places()
+            self.js("toast", f"Signed out of {name}. Nothing was deleted, here or in the cloud.")
+            if acct["first"]:
+                self.cloud_page(key)
+            else:
+                self.cloud_mode = None
+                self.browse(HOME)
 
     def on_policy(self, _v, decision, kind):
         if kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
@@ -828,6 +948,41 @@ PAGE = r"""<!doctype html>
   .ctx a:hover { background:var(--faint); }
   .ctx a.bad:hover { color:#e5484d; }
   .ctx hr { border:0; height:1px; background:var(--faint); margin:6px 4px; }
+  /* Dropbox and Google Drive: sign in, then choose the folders that live here. */
+  #cfold, #cnow { display:none; }
+  body.incloud #cfold, body.incloud #cnow { display:inline-block; }
+  body.cloudpage #newf, body.cloudpage #hid { display:none; }
+  .cpage { max-width:680px; padding:56px 48px 120px; }
+  .cpage .ctitle { font-size:30px; font-weight:200; letter-spacing:-.01em; margin-bottom:12px; }
+  .cpage .csub { font-size:14px; font-weight:300; color:var(--muted); line-height:1.6; margin-bottom:36px; max-width:520px; }
+  .cpage .cerr { font-size:13px; color:var(--accent); margin:-20px 0 28px; }
+  .cpage .go { border:0; background:none; font:inherit; font-size:15px; font-weight:300; color:var(--fg); cursor:pointer;
+               padding:0 0 3px; border-bottom:1.5px solid var(--accent); }
+  .cpage .go[disabled] { opacity:.4; cursor:default; }
+  .cpage .quiet { border:0; background:none; font:inherit; font-size:13px; font-weight:300; color:var(--muted); cursor:pointer; padding:0; margin-left:28px; }
+  .cpage .quiet:hover { color:var(--fg); }
+  .cpage .cname { display:block; width:320px; border:0; border-bottom:1px solid var(--faint); background:none; font:inherit;
+                  font-size:17px; font-weight:300; color:var(--fg); padding:6px 0; margin:-12px 0 36px; outline:none; }
+  .cpage .cname:focus { border-bottom-color:var(--accent); }
+  .cpage .cmail { font-size:12px; color:var(--muted); margin-top:22px; }
+  .cpage .wait { font-size:15px; font-weight:300; color:var(--muted); }
+  .cpage .wait i { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); margin-right:12px;
+                   vertical-align:middle; animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:.25 } 50% { opacity:1 } }
+  .ctree { margin:0 0 36px; border-top:1px solid var(--faint); }
+  .crow { display:flex; align-items:center; gap:12px; height:40px; font-size:14px; font-weight:300; border-bottom:1px solid var(--faint);
+          cursor:pointer; user-select:none; }
+  .crow:hover { background:var(--faint); }
+  .crow .car { width:18px; height:18px; display:grid; place-items:center; color:var(--muted); flex-shrink:0; }
+  .crow .car svg { transition:transform .15s; }
+  .crow.open .car svg { transform:rotate(90deg); }
+  .crow .box { width:14px; height:14px; border:1.3px solid var(--muted); flex-shrink:0; display:grid; place-items:center; }
+  .crow.on .box { border-color:var(--accent); background:var(--accent); }
+  .crow.on .box::after { content:''; width:6px; height:3px; border:solid var(--bg); border-width:0 0 1.5px 1.5px; transform:translateY(-1px) rotate(-45deg); }
+  .crow.implied { cursor:default; }
+  .crow.implied .box { opacity:.45; }
+  .crow .cn { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cnote { font-size:13px; font-weight:300; color:var(--muted); padding:12px 0 12px 30px; border-bottom:1px solid var(--faint); }
   /* Minimise and close live in Kūhaku's bar at the top of the screen; one of each is enough. */
   #min, #close { display:none !important; }
 </style></head>
@@ -837,6 +992,8 @@ PAGE = r"""<!doctype html>
   <span class="name" id="name"></span>
   <span class="count" id="count"></span>
   <span class="grow"></span>
+  <button id="cnow" title="Sync this cloud now">Sync now</button>
+  <button id="cfold" title="Choose which folders live on this computer">Choose folders</button>
   <button id="hid" title="Show hidden files (Cmd+H)">Hidden</button>
   <button id="newf" title="New folder (Cmd+Shift+N)">New folder</button>
   <button id="open" title="Open in its app (Enter)"></button>
@@ -869,20 +1026,14 @@ PAGE = r"""<!doctype html>
     const keep = same ? $('stage').scrollTop : 0;
     mode = 'folder'; dir = d; renaming = false;
     document.body.classList.add('folder');
+    document.body.classList.remove('cloudpage');
+    document.body.classList.toggle('incloud', !!d.cloud);
     $('meta').innerHTML = '';
     $('name').innerHTML = '<span class="crumbs">' + d.crumbs.map((c, i) => (i ? '<i>/</i>' : '') +
       `<span class="${i === d.crumbs.length - 1 ? 'last' : ''}" data-path="${esc(c.path)}">${esc(c.name)}</span>`).join('') + '</span>';
     $('count').textContent = d.entries.length ? `${d.entries.length} ${d.entries.length === 1 ? 'item' : 'items'}` : '';
     $('hid').textContent = d.hidden ? 'Hide hidden' : 'Hidden';
-    $('side').innerHTML = d.places.map((p, i) => (p.name === 'Trash' ? '<div class="gap"></div>' : '') +
-      (p.drive && !(d.places[i - 1] || {}).drive ? '<div class="gap"></div><div class="drives">Drives</div>' : '') +
-      (p.drive
-        ? `<a data-path="${esc(p.path)}" class="drv ${d.path === p.path ? 'on' : ''}${p.mount ? ' off' : ''}" title="${esc(p.what)}">` +
-          `<span class="dico">${DRIVE_ICONS[p.drive] || DRIVE_ICONS.stick}</span><span class="dtx"><span class="dnm">${esc(p.name)}</span>` +
-          `<span class="dsub">${esc(p.mount ? p.what.split(' · ')[0] + ' · click to open' : p.what)}</span>` +
-          (p.used != null ? `<span class="dbar"><i style="width:${Math.round(p.used * 100)}%"></i></span>` : '') + '</span>' +
-          (p.eject ? `<b class="ej" data-dev="${esc(p.dev)}" title="Eject">⏏</b>` : '') + '</a>'
-        : `<a data-path="${esc(p.path)}" class="${d.path === p.path ? 'on' : ''}">${esc(p.name)}</a>`)).join('');
+    paintSide(d.places, d.path);
     const want = d.select == null ? [] : [].concat(d.select);
     const found = want.map((n) => d.entries.findIndex((e) => e.name === n)).filter((i) => i >= 0);
     sel = found.length ? found[found.length - 1] : Math.max(0, want.length ? -1 : same ? Math.min(sel, d.entries.length - 1) : 0);
@@ -898,6 +1049,22 @@ PAGE = r"""<!doctype html>
     paintCount();
     if (renameNext) { renameNext = false; startRename(); }
   };
+  function paintSide(places, here) {
+    $('side').innerHTML = places.map((p, i) => (p.name === 'Trash' ? '<div class="gap"></div>' : '') +
+      (p.cloud && !(places[i - 1] || {}).cloud ? '<div class="gap"></div><div class="drives">Cloud</div>' : '') +
+      (p.cloud
+        ? `<a data-path="${esc(p.path)}" class="drv ${here === p.path || (mode === 'cloud' && cloudKey === p.cloud) ? 'on' : ''}${p.path.startsWith('cloud:') ? ' off' : ''}" title="${esc(p.what)}">` +
+          `<span class="dico">${CLOUD_ICON}</span><span class="dtx"><span class="dnm">${esc(p.name)}</span><span class="dsub">${esc(p.what)}</span></span></a>`
+        :
+      (p.drive && !(places[i - 1] || {}).drive ? '<div class="gap"></div><div class="drives">Drives</div>' : '') +
+      (p.drive
+        ? `<a data-path="${esc(p.path)}" class="drv ${here === p.path ? 'on' : ''}${p.mount ? ' off' : ''}" title="${esc(p.what)}">` +
+          `<span class="dico">${DRIVE_ICONS[p.drive] || DRIVE_ICONS.stick}</span><span class="dtx"><span class="dnm">${esc(p.name)}</span>` +
+          `<span class="dsub">${esc(p.mount ? p.what.split(' · ')[0] + ' · click to open' : p.what)}</span>` +
+          (p.used != null ? `<span class="dbar"><i style="width:${Math.round(p.used * 100)}%"></i></span>` : '') + '</span>' +
+          (p.eject ? `<b class="ej" data-dev="${esc(p.dev)}" title="Eject">⏏</b>` : '') + '</a>'
+        : `<a data-path="${esc(p.path)}" class="${here === p.path ? 'on' : ''}">${esc(p.name)}</a>`))).join('');
+  }
   const rows = () => [...document.querySelectorAll('.row')];
   // Like Finder: a click picks one, Cmd+click adds or drops one, Shift+click (or Shift+arrows)
   // picks everything from the anchor to here.
@@ -927,7 +1094,8 @@ PAGE = r"""<!doctype html>
   function paintCount() {
     if (!dir) return;
     const n = dir.entries.length;
-    $('count').textContent = picked.size > 1 ? `${picked.size} of ${n} chosen` : n ? `${n} ${n === 1 ? 'item' : 'items'}` : '';
+    $('count').textContent = (picked.size > 1 ? `${picked.size} of ${n} chosen` : n ? `${n} ${n === 1 ? 'item' : 'items'}` : '') +
+      (dir.cloud ? (n ? '  ·  ' : '') + dir.cloud.name + ' ' + dir.cloud.status.split(' · ').pop() : '');
   }
   function reveal() { const r = rows()[sel]; if (r) r.scrollIntoView({ block: 'nearest' }); }
   function enter(i = sel) {
@@ -1006,6 +1174,103 @@ PAGE = r"""<!doctype html>
   });
 
   $('newf').onclick = () => { renameNext = true; send({ type: 'mkdir', name: 'New folder' }); };
+  $('cnow').onclick = () => dir && dir.cloud && send({ type: 'cloud-now', key: dir.cloud.key });
+  $('cfold').onclick = () => dir && dir.cloud && send({ type: 'nav', path: 'cloud:' + dir.cloud.key });
+
+  // --- Dropbox and Google Drive -------------------------------------------------------
+  const CLOUD_ICON = '<svg viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7.6 9.1 4.7 4.7 0 0 0 7 18.5z"/></svg>';
+  const CARET = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+  let cloudKey = null, cl = null, cTree = {}, cOpen = new Set(), cChosen = new Set(), cHad = 0, cSure = false;
+  window.cloud = (d) => {
+    const fresh = cloudKey !== d.key || mode !== 'cloud';
+    mode = 'cloud'; dir = null; item = null; cloudKey = d.key; cl = d; cSure = false;
+    document.body.classList.add('folder', 'cloudpage'); document.body.classList.remove('incloud');
+    $('meta').innerHTML = ''; $('count').textContent = '';
+    $('name').textContent = d.name;
+    paintSide(d.places, 'cloud:' + d.key);
+    if (d.phase === 'choose' && (fresh || !Object.keys(cTree).length)) {
+      cTree = {}; cOpen = new Set(); cChosen = new Set(d.folders); cHad = d.folders.length;
+      for (const f of d.folders) { const parts = f.split('/'); for (let k = 1; k < parts.length; k++) cOpen.add(parts.slice(0, k).join('/')); }
+      load('');
+      for (const o of cOpen) load(o);
+    }
+    paintCloud();
+  };
+  function load(path) {
+    if (cTree[path]) return;
+    cTree[path] = 'loading';
+    send({ type: 'cloud-list', key: cloudKey, path });
+  }
+  window.cloudList = (r) => {
+    if (r.key !== cloudKey || mode !== 'cloud') return;
+    cTree[r.path] = r.error ? { error: r.error } : r.dirs;
+    paintCloud();
+  };
+  window.cloudTick = (t) => {
+    if (mode !== 'folder' || !dir) return;
+    paintSide(t.places, dir.path);
+    if (dir.cloud) { const c = t.places.find((p) => p.cloud === dir.cloud.key); if (c) { dir.cloud.status = c.what; paintCount(); } }
+    if (t.reload && !renaming) send({ type: 'nav', path: dir.path, select: [...picked].map((k) => dir.entries[k] && dir.entries[k].name).filter(Boolean) });
+  };
+  const implied = (path) => [...cChosen].some((q) => path.startsWith(q + '/'));
+  function treeHTML(path, depth) {
+    const t = cTree[path];
+    const pad = `style="padding-left:${depth * 26}px"`;
+    if (t === 'loading' || t === undefined) return `<div class="cnote" ${pad}>${depth ? 'Looking…' : 'Looking at your folders…'}</div>`;
+    if (t.error) return `<div class="cnote" ${pad}>Could not look in here: ${esc(t.error)}</div>`;
+    if (!t.length) return depth ? `<div class="cnote" ${pad}>No folders inside</div>` : `<div class="cnote" ${pad}>There are no folders in your ${esc(cl.name)} yet.</div>`;
+    return t.map((name) => {
+      const p = path ? path + '/' + name : name, open = cOpen.has(p), imp = implied(p), on = imp || cChosen.has(p);
+      return `<div class="crow${open ? ' open' : ''}${on ? ' on' : ''}${imp ? ' implied' : ''}" data-p="${esc(p)}" style="padding-left:${depth * 26}px">` +
+        `<span class="car" data-car="1">${CARET}</span><span class="box"></span><span class="cn">${esc(name)}</span></div>` +
+        (open ? treeHTML(p, depth + 1) : '');
+    }).join('');
+  }
+  function paintCloud() {
+    const d = cl, st = $('stage');
+    const keep = st.scrollTop;
+    let h = `<div class="cpage"><div class="ctitle">${esc(d.phase === 'choose' ? 'Choose what lives on this computer' : d.name)}</div>`;
+    if (d.phase === 'connect' && !d.first) {
+      h += `<div class="csub">A second ${esc(d.kind)}, for work or family, with its own folder here. Mado opens its sign in in a private window, so you can choose the other account.</div>` +
+        `<input id="clabel" class="cname" maxlength="40" placeholder="A name for it, like Work" autocomplete="off">` +
+        (d.error ? `<div class="cerr">${esc(d.error)}</div>` : '') +
+        `<button class="go" id="cgo">Sign in to the other ${esc(d.kind)}</button>`;
+    } else if (d.phase === 'connect') {
+      h += `<div class="csub">Sign in to ${esc(d.name)}, then choose the folders you want here. They are kept in ${esc(d.local)} and stay the same both ways. Everything else stays in the cloud and takes no space.</div>` +
+        (d.error ? `<div class="cerr">${esc(d.error)}</div>` : '') +
+        `<button class="go" id="cgo">Sign in to ${esc(d.name)}</button>`;
+    } else if (d.phase === 'waiting') {
+      h += `<div class="csub">Mado opened ${esc(d.first ? d.name : d.kind)}'s sign in page${d.first ? '' : ' in a private window'}. Allow access there, then come back: Miru will ask which folders to keep.</div>` +
+        `<div class="wait"><i></i>Waiting for you to sign in…</div>`;
+    } else {
+      const n = cChosen.size;
+      h += `<div class="csub">Tick the folders to keep in ${esc(d.local)}. Changes on either side sync every few minutes.` +
+        ` A folder brings everything inside it.${d.gdocs ? ' Google Docs, Sheets and Slides stay online.' : ''} Unticking a folder stops syncing it; its copy here stays.</div>` +
+        `<div class="ctree">${treeHTML('', 0)}</div>` +
+        `<button class="go" id="csave"${!n && !cHad ? ' disabled' : ''}>${n ? `Keep ${n} folder${n === 1 ? '' : 's'} in sync` : 'Stop syncing'}</button>` +
+        `<button class="quiet" id="cout">${cSure ? `Sign out of ${esc(d.name)}? Click again. Nothing is deleted, here or in the cloud.` : 'Sign out'}</button>` +
+        `<button class="quiet" id="cadd">Add another ${esc(d.kind)}</button>` +
+        (d.email ? `<div class="cmail">${esc(d.email)}</div>` : '');
+    }
+    st.innerHTML = h + '</div>';
+    st.scrollTop = keep;
+    if ($('cgo')) $('cgo').onclick = () => send({ type: 'cloud-connect', key: cloudKey, label: $('clabel') ? $('clabel').value.trim() : '' });
+    if ($('cadd')) $('cadd').onclick = () => send({ type: 'cloud-add', kind: d.kind === 'Dropbox' ? 'dropbox' : 'drive' });
+    if ($('csave')) $('csave').onclick = () => send({ type: 'cloud-save', key: cloudKey, folders: [...cChosen] });
+    if ($('cout')) $('cout').onclick = () => { if (cSure) send({ type: 'cloud-disconnect', key: cloudKey }); else { cSure = true; paintCloud(); } };
+  }
+  $('stage').addEventListener('click', (e) => {
+    if (mode !== 'cloud') return;
+    const r = e.target.closest('.crow'); if (!r) return;
+    const p = r.dataset.p;
+    if (e.target.closest('[data-car]')) {
+      if (cOpen.has(p)) cOpen.delete(p); else { cOpen.add(p); load(p); }
+    } else if (!implied(p)) {
+      if (cChosen.has(p)) cChosen.delete(p);
+      else { for (const q of [...cChosen]) if (q.startsWith(p + '/')) cChosen.delete(q); cChosen.add(p); }
+    }
+    paintCloud();
+  });
   $('hid').onclick = () => send({ type: 'hidden' });
 
 
@@ -1017,7 +1282,7 @@ PAGE = r"""<!doctype html>
     sd: '<svg viewBox="0 0 24 24"><path d="M8 3h9a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7z"/><path d="M10 3v4M13 3v4M16 3v4"/></svg>',
   };
   function show(it) {
-    mode = 'file'; document.body.classList.remove('folder');
+    mode = 'file'; document.body.classList.remove('folder', 'cloudpage', 'incloud');
     item = it; zoom = 1;
     $('name').textContent = it.name;
     $('folder').textContent = it.inFolder ? 'Back' : 'Folder';
@@ -1142,6 +1407,10 @@ PAGE = r"""<!doctype html>
   $('prev').onclick = () => send({ type: 'prev' });
   $('next').onclick = () => send({ type: 'next' });
   document.addEventListener('keydown', (e) => {
+    if (mode === 'cloud') {
+      if (e.key === 'Escape' || ((e.ctrlKey || e.metaKey) && /^[wq]$/i.test(e.key))) { e.preventDefault(); send({ type: 'close' }); }
+      return;
+    }
     if (mode === 'folder') {
       if (renaming) return;
       const cmd = e.ctrlKey || e.metaKey;

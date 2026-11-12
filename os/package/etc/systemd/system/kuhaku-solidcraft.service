@@ -1,0 +1,16 @@
+[Unit]
+Description=Kūhaku: install SolidCraft (chosen in the installer) from its maker, once online
+# Separate from kuhaku-programs.service, so one failing never holds back the other.
+ConditionPathExists=!/run/live/medium
+ConditionPathExists=/etc/kuhaku/solidcraft
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=DEBIAN_FRONTEND=noninteractive
+ExecStart=/bin/sh -c 'for i in $(seq 1 60); do /usr/sbin/kuhaku-fetch-solidcraft && mv /etc/kuhaku/solidcraft /etc/kuhaku/solidcraft.installed && exit 0; sleep 60; done; exit 1'
+TimeoutStartSec=4h
+
+[Install]
+WantedBy=multi-user.target

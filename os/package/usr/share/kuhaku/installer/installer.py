@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Kūhaku's installer: four quiet screens instead of an installer program.
 
-Welcome · you (name and one password) · how freely Claude may work · programs · the drive · progress · done. The work is
+Welcome · keyboard and language · you (name and one password) · how freely Claude may work · programs · the drive · progress · done. The work is
 done by /usr/sbin/kuhaku-install-to-disk (as root, through sudo in the live system).
 Files carried from an old computer sit on the stick's KUHAKU-CARRY partition,
 encrypted with the same password the person types here.
@@ -76,8 +76,7 @@ def password_opens_carry(password):
 def find_timezone():
     """Where the computer is: the live system's own zone if someone set it, otherwise the zone
     of this internet connection (one HTTPS question, nothing about the person is sent), else UTC."""
-    def real(z):
-        return bool(z) and ".." not in z and re.fullmatch(r"[A-Za-z0-9_+\-/]+", z) and Path("/usr/share/zoneinfo", z).is_file()
+    real = real_zone
     zone = sh(["timedatectl", "show", "-p", "Timezone", "--value"]).stdout.strip()
     if real(zone) and zone not in ("UTC", "Etc/UTC"):
         return zone
@@ -89,6 +88,37 @@ def find_timezone():
         if real(zone):
             return zone
     return "UTC"
+
+
+KEYS_RE = re.compile(r"[a-z]{2,6}(:[a-z0-9_]{1,24})?")
+LANG_RE = re.compile(r"[a-z]{2,3}_[A-Z]{2}")
+
+
+def real_zone(z):
+    return bool(z) and ".." not in z and re.fullmatch(r"[A-Za-z0-9_+\-/]+", z) and Path("/usr/share/zoneinfo", z).is_file()
+
+
+def find_zones():
+    """Every place's time zone, for the list (from tzdata's own table)."""
+    zones = set()
+    for tab in ("/usr/share/zoneinfo/zone1970.tab", "/usr/share/zoneinfo/zone.tab"):
+        try:
+            for line in Path(tab).read_text().splitlines():
+                parts = line.split("\t")
+                if not line.startswith("#") and len(parts) >= 3 and real_zone(parts[2]):
+                    zones.add(parts[2])
+        except OSError:
+            pass
+    return sorted(zones) + ["UTC"]
+
+
+def find_keyboard():
+    """The keyboard the live system uses now, as "layout" or "layout:variant" (the first one if several)."""
+    q = dict(l.split(":", 1) for l in sh(["setxkbmap", "-query"]).stdout.splitlines() if ":" in l)
+    layout = q.get("layout", "us").strip().split(",")[0]
+    variant = q.get("variant", "").strip().split(",")[0]
+    keys = layout + (":" + variant if variant else "")
+    return keys if KEYS_RE.fullmatch(keys) else "us"
 
 
 def short_name(full):
@@ -124,7 +154,8 @@ class Installer:
         def work():
             self.disk, self.carry = find_disk(), find_carry()
             self.zone = find_timezone()
-            GLib.idle_add(self.js, "facts", {"disk": self.disk, "carry": self.carry, "zone": self.zone})
+            GLib.idle_add(self.js, "facts", {"disk": self.disk, "carry": self.carry, "zone": self.zone,
+                                             "zones": find_zones(), "keyboard": find_keyboard()})
         threading.Thread(target=work, daemon=True).start()
 
     def on_message(self, _m, result):
@@ -132,6 +163,12 @@ class Installer:
         k = msg.get("type")
         if k == "close":
             self.win.destroy()
+        elif k == "keyboard":
+            # Typing works with the chosen layout at once (the password comes next). Options stay as they are.
+            keys = msg.get("keys", "")
+            if KEYS_RE.fullmatch(keys):
+                layout, _, variant = keys.partition(":")
+                sh(["setxkbmap", "-layout", layout, "-variant", variant])
         elif k == "check":
             ok = len(msg.get("password", "")) >= 6
             why = "" if ok else "At least six characters."
@@ -154,9 +191,12 @@ class Installer:
         mode = msg.get("mode") if msg.get("mode") in ("bypassPermissions", "acceptEdits") else "bypassPermissions"
         # Programs: Kūhaku's own to hide, others' to fetch (the install script checks every name again).
         ok = lambda xs: ",".join(x for x in xs if isinstance(x, str) and re.fullmatch(r"[a-z0-9][a-z0-9.+-]*", x)) or "-"
+        zone = msg.get("zone") if real_zone(msg.get("zone") or "") else self.zone
+        keys = msg.get("keys") if KEYS_RE.fullmatch(msg.get("keys") or "") else "us"
+        lang = msg.get("lang") if LANG_RE.fullmatch(msg.get("lang") or "") else "en_US"
         argv = ["sudo", "-n", "/usr/sbin/kuhaku-install-to-disk", self.disk["dev"], user,
-                msg["name"], mode, self.zone, ok(msg.get("hide") or []), ok(msg.get("add") or [])] \
-            + ([self.carry["path"]] if self.carry else [])
+                msg["name"], mode, zone, ok(msg.get("hide") or []), ok(msg.get("add") or []),
+                self.carry["path"] if self.carry else "-", keys, lang]
         log = open("/tmp/kuhaku-install.log", "w")
         p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         p.stdin.write(msg["password"] + "\n")

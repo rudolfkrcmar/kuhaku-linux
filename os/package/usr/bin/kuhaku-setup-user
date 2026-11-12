@@ -61,6 +61,13 @@ if ! command -v claude >/dev/null && [ ! -x "$HOME/.local/bin/claude" ]; then
       if nmcli -t networking connectivity 2>/dev/null | grep -q full; then
         if curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1 && [ -x "$HOME/.local/bin/claude" ]; then
           [ -d /run/live/medium ] || notify-send "Kūhaku" "Claude is ready. Sign in once in the window that opens." 2>/dev/null
+          # SolidCraft chosen in the installer: let Claude work in it with you (it may arrive a little later).
+          if [ -e /etc/kuhaku/solidcraft ] || [ -e /etc/kuhaku/solidcraft.installed ]; then
+            ( for _ in $(seq 1 120); do
+                command -v solidcraft-cli >/dev/null && { "$HOME/.local/bin/claude" mcp add --scope user solidcraft -- solidcraft-cli mcp >/dev/null 2>&1; break; }
+                sleep 30
+              done ) &
+          fi
           # From the stick the installer comes first; sign in on the installed system.
           [ -d /run/live/medium ] || "$HOME/.local/bin/kuhaku-terminal" -e "$HOME/.local/bin/claude" &
           break

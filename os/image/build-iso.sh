@@ -76,6 +76,8 @@ pipewire-pulse
 wireplumber
 sudo
 user-setup
+console-setup
+locales
 L
 # The newer kernel (7.x, needed for this MacBook's speakers) comes from trixie-backports after
 # installation (apt install -t trixie-backports linux-image-amd64) once that collection is whole:

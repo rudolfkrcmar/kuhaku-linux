@@ -282,9 +282,9 @@ class Quiet(QWebEngineUrlRequestInterceptor):
     def interceptRequest(self, info):
         h = info.requestUrl().host().lower()
         if h in GOOGLE_SIGNIN:
+            # Only the agent line changes. Emptying the Sec-CH-UA hints as well looks forged:
+            # Google then answers "Couldn't sign you in" and its popup ends in a 400 (gis_transform).
             info.setHttpHeader(b"User-Agent", FIREFOX_UA)
-            for hint in (b"Sec-CH-UA", b"Sec-CH-UA-Mobile", b"Sec-CH-UA-Platform", b"Sec-CH-UA-Full-Version-List"):
-                info.setHttpHeader(hint, b"")
             return
         if not any(h == d or h.endswith("." + d) for d in BLOCKED):
             return
@@ -1033,7 +1033,8 @@ def main():
     server.newConnection.connect(incoming)
     for u in (b.restore() or ([] if urls and not private else [NEWTAB])):
         b.new_tab(u, focus=False)
-    b.switch(b.tabs[-1])
+    if b.tabs:                                     # nothing to restore and a link was asked for: open() makes the tab
+        b.switch(b.tabs[-1])
     b.open(urls, private) if urls or private else b.show()
     return app.exec()
 

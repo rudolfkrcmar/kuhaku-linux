@@ -1,0 +1,36 @@
+#!/bin/bash
+# Installs SolidCraft (open-source parametric 3D CAD, https://solidcraft.io) from its maker's
+# GitHub releases, since Debian does not carry it. The package is installed only if it matches
+# the release's own SHA256SUMS.txt.
+#   kuhaku-fetch-solidcraft          download, check, install (as root)
+#   kuhaku-fetch-solidcraft --check  download and check only (any user; nothing is installed)
+set -euo pipefail
+REPO=tangency-labs/solidcraft
+CHECK=0; [ "${1:-}" = "--check" ] && CHECK=1
+case "$(dpkg --print-architecture)" in amd64) ARCH=x86_64 ;; arm64) ARCH=aarch64 ;; *) echo "SolidCraft: no build for this computer" >&2; exit 0 ;; esac
+D=$(mktemp -d /tmp/kuhaku-solidcraft.XXXXXX)
+trap 'rm -rf "$D"' EXIT
+curl -fsSL --max-time 30 -o "$D/release.json" "https://api.github.com/repos/$REPO/releases/latest"
+# The versioned .deb for this architecture and the checksum list, from the release's own assets.
+read -r DEB SUMS < <(python3 -I - "$D/release.json" "$ARCH" <<'PY'
+import json, re, sys
+r = json.load(open(sys.argv[1])); arch = sys.argv[2]
+urls = {a["name"]: a["browser_download_url"] for a in r.get("assets", [])}
+deb = next((u for n, u in urls.items() if re.fullmatch(rf"solidcraft-[0-9][0-9.]*-linux-{arch}\.deb", n)), "")
+sums = urls.get("SHA256SUMS.txt", "")
+ok = lambda u: u.startswith(f"https://github.com/tangency-labs/solidcraft/releases/download/")
+print(deb if ok(deb) else "-", sums if ok(sums) else "-")
+PY
+)
+[ "$DEB" != "-" ] && [ "$SUMS" != "-" ] || { echo "SolidCraft: release has no .deb or no SHA256SUMS.txt" >&2; exit 1; }
+NAME=$(basename "$DEB")
+curl -fsSL --max-time 900 -o "$D/$NAME" "$DEB"
+curl -fsSL --max-time 30 -o "$D/SHA256SUMS.txt" "$SUMS"
+WANT=$(awk -v n="$NAME" '{f=$2; sub(/^\*/, "", f); sub(/.*\//, "", f)} f==n {print $1; exit}' "$D/SHA256SUMS.txt")
+[[ "$WANT" =~ ^[0-9a-f]{64}$ ]] || { echo "SolidCraft: $NAME not listed in SHA256SUMS.txt" >&2; exit 1; }
+echo "$WANT  $D/$NAME" | sha256sum -c --quiet || { echo "SolidCraft: checksum does not match" >&2; exit 1; }
+echo "SolidCraft: $NAME checked"
+[ $CHECK = 1 ] && exit 0
+chmod 644 "$D/$NAME"; chmod 755 "$D"           # apt's sandbox user reads the file
+apt-get update -q >/dev/null 2>&1 || true
+apt-get install -y -q mesa-vulkan-drivers "$D/$NAME"

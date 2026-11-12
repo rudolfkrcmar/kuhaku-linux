@@ -31,6 +31,7 @@ if [ "$1" = configure ]; then
   systemctl enable kuhaku-claude-desktop.service >/dev/null 2>&1 || true
   # Programs by others chosen in the installer (it does nothing without that list).
   systemctl enable kuhaku-programs.service >/dev/null 2>&1 || true
+  systemctl enable kuhaku-solidcraft.service >/dev/null 2>&1 || true
   # A clock that keeps time, and a real language setting (some programs quit without one).
   systemctl enable systemd-timesyncd.service >/dev/null 2>&1 || true
   # Idle parts of the computer may sleep: longer on battery.

@@ -77,8 +77,9 @@ done
 xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86PowerOff" -n -t string -s "$DIR/kuhaku-power" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86PowerOff" -s "$DIR/kuhaku-power"
 xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action -s 0 2>/dev/null
 
-# Mac-style capture keys. Cmd is Ctrl on this keyboard (ctrl:swap_lwin_lctl), so
-# Cmd+Shift+3/4/5 arrive as <Primary><Shift>. Both keysym spellings are bound.
+# Mac-style capture keys. On a Mac, Cmd is Ctrl (ctrl:swap_lwin_lctl in kuhaku-start), so
+# Cmd+Shift+3/4/5 arrive as <Primary><Shift>; on other computers the same is Ctrl+Shift+3/4/5.
+# Both keysym spellings are bound (the shifted one differs between layouts).
 for kv in "numbersign full" "3 full" "dollar area" "4 area" "percent record" "5 record"; do
   set -- $kv
   for mods in "<Primary><Shift>" "<Primary><Shift><Super>"; do
@@ -86,6 +87,12 @@ for kv in "numbersign full" "3 full" "dollar area" "4 area" "percent record" "5 
     xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$mods$1" -n -t string -s "$DIR/kuhaku-capture $act" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$mods$1" -s "$DIR/kuhaku-capture $act"
   done
 done
+
+# Claude's safety net: never wipe disks, delete whole folders outright, or send secrets away.
+python3 "$DIR/kuhaku-guard.py" install 2>/dev/null
+
+# Dropbox and Google Drive: keep the folders chosen in Miru in sync (does nothing until some are).
+( while :; do python3 "$DIR/kumo.py" daemon; sleep 30; done ) >/dev/null 2>&1 &
 
 # The screen's size: the one chosen in Settings, or the clearest comfortable one.
 python3 "$DIR/kuhaku-display" apply

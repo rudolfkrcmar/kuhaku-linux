@@ -597,9 +597,20 @@
     if (dictation === 'off') { setMic('rec'); native({ type: 'dictate', on: true }); }
     else if (dictation === 'rec') { setMic('busy'); native({ type: 'dictate', on: false }); }
   }
-  // The mic now hands over to the Claude app, where you talk with Claude.
-  // (Offline dictation above stays available: swap talk() for toggleDictation().)
-  function talk() { native({ type: 'panel', action: 'talk' }); }
+  // The mic, as chosen in Settings: talk with Claude in the Claude app (a voice conversation),
+  // or dictation: recorded and turned into text here, offline, then sent like typing.
+  let micMode = 'talk';
+  window.setMicMode = (m) => {
+    if (m === micMode) return;
+    if (dictation === 'rec') toggleDictation();
+    micMode = m === 'dictate' ? 'dictate' : 'talk';
+    const t = micMode === 'dictate' ? 'Dictate (Ctrl+Space)' : 'Talk with Claude (Ctrl+Space)';
+    $('mic').title = t; $('mic').setAttribute('aria-label', t.replace(/ \(.*/, ''));
+  };
+  function talk() {
+    if (micMode === 'dictate') return dictation === 'busy' ? null : toggleDictation();
+    native({ type: 'panel', action: 'talk' });
+  }
   $('mic').addEventListener('click', talk);
   // Pictures for Claude: picked files are copied into ~/Pictures/ForClaude and named in the line.
   $('pic').addEventListener('click', (e) => { e.preventDefault(); native({ type: 'picture' }); });
@@ -1508,7 +1519,7 @@
   const SLIDE = (key, label, value) => value == null ? '' : `<div class="srow"><span class="k">${label}</span>
       <div class="slider" data-slide="${key}"><i style="width:${value}%"></i><b style="left:${value}%"></b></div>
       <span class="val" id="val-${key}">${value}%</span></div>`;
-  let acctAdding = false, onlySection = null;
+  let acctAdding = false, onlySection = null, unlockForget = null;
   function renderSettings() {
     const p = prefs;
     let h = '<div class="inner narrow"><h1>Settings</h1>';
@@ -1526,6 +1537,28 @@
       <div class="srow"><span class="k">Tap to click</span>${OPT('tap', [[1, 'On'], [0, 'Off']], p.trackpad.tap)}</div>
       <div class="srow"><span class="k">Scrolling</span>${OPT('natural', [[1, 'Natural, like a Mac'], [0, 'Classic']], p.trackpad.natural)}</div>
       <div class="srow"><span class="k">Speed</span>${OPT('speed', [[-0.3, 'Slow'], [0, 'Medium'], [0.3, 'Fast'], [0.6, 'Fastest']], p.trackpad.speed)}</div></div>`;
+    const ul = p.unlock;
+    if (ul && (ul.reader || ul.face.camera)) {
+      const NICE = (f) => f.replace('-finger', '').replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
+      const fs = ul.fingers || [];
+      h += `<div class="p-label" id="sec-unlock"><span>Unlock</span></div><div class="p-rows">`;
+      if (!fs.length || (ul.face.camera && !ul.face.enrolled)) h += `<div class="srow"><span class="k">Set up</span><div class="grow"><div class="opts">
+          <span class="opt" data-act2="unlock" data-what="guided">Guided setup</span></div>
+          <div class="p-sub" style="margin-top:6px">Three fingers, then your face, one step at a time. About three minutes.</div></div></div>`;
+      if (ul.reader) h += `<div class="srow"><span class="k">Fingers</span><div class="grow"><div class="opts">
+          ${fs.map((f) => unlockForget === f ? `<span class="opt aidel" data-act2="unlock" data-what="forget-finger" data-v="${f}">Forget ${NICE(f).toLowerCase()}?</span>`
+            : `<span class="opt sel" title="Click to forget" data-act2="unlock-ask" data-v="${f}">${NICE(f)}</span>`).join('')}
+          ${fs.length < 10 ? `<span class="opt" data-act2="unlock" data-what="add-finger">${fs.length ? 'Add a finger' : 'Teach a finger'}</span>` : ''}
+          ${fs.length > 1 ? (unlockForget === 'all' ? '<span class="opt aidel" data-act2="unlock" data-what="forget-fingers">Forget all, sure?</span>'
+            : '<span class="opt" data-act2="unlock-ask">Forget all</span>') : ''}</div>
+          <div class="p-sub" style="margin-top:6px">${fs.length >= 3 ? 'Opens the lock screen with any of these fingers, or your password.'
+            : 'The reader is the power button. Three or more fingers make it much more reliable.'}</div></div></div>`;
+      if (ul.face.camera) h += `<div class="srow"><span class="k">Face</span><div class="grow"><div class="opts">
+          ${ul.face.enrolled ? '<span class="opt sel">Set up</span><span class="opt" data-act2="unlock" data-what="face-setup">Learn again</span><span class="opt" data-act2="unlock" data-what="face-forget">Forget face</span>'
+            : '<span class="opt" data-act2="unlock" data-what="face-setup">Set up face</span>'}</div>
+          <div class="p-sub" style="margin-top:6px">With the infrared camera, only while the lock screen is up. A convenience: your password and fingers are stronger.</div></div></div>`;
+      h += '</div>';
+    }
     const tm = p.time;
     if (tm) h += `<div class="p-label" id="sec-time"><span>Date and time</span></div><div class="p-rows">
       <div class="srow"><span class="k">Set the time</span>${OPT('time_auto', [[1, 'Automatically, from the internet'], [0, 'By hand']], tm.auto ? 1 : 0)}</div>
@@ -1568,7 +1601,8 @@
         `<div class="srow"><span class="k">${label}</span>${OPT('account_' + k, [['', 'Same as home']].concat(ready.map((a) => [a.id, esc(a.label)])), (p.account_for || {})[k] || '')}</div>`).join('')}
       <div class="srow"><span class="k">Model</span>${OPT('model', [['default', 'Default'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']], p.model)}</div>
       <div class="srow"><span class="k">May do</span>${OPT('permission_mode', [['bypassPermissions', 'Anything, without asking'], ['acceptEdits', 'Careful: edit files, no commands']], p.permission_mode === 'default' ? 'acceptEdits' : p.permission_mode)}</div>
-      <div class="srow"><span class="k">Dictation</span>${OPT('dictation_model', [['base', 'Fast'], ['small', 'Accurate, slower']], p.dictation_model)}</div></div>`;
+      <div class="srow"><span class="k">Microphone</span>${OPT('mic_button', [['talk', 'Talk with Claude'], ['dictate', 'Dictate, offline']], p.mic_button)}</div>
+      <div class="srow"><span class="k">Dictation</span>${OPT('dictation_model', [['auto', 'Best for this computer'], ['base', 'Fast'], ['small', 'Accurate, slower']], p.dictation_model)}</div></div>`;
     const u = p.updates || {};
     h += `<div class="p-label" id="sec-updates"><span>Updates</span></div><div class="p-rows">
       <div class="srow"><span class="k">Updates</span><span class="grow">${u.auto ? 'Security fixes install by themselves' : 'Not automatic'}${u.checked ? ' · last ' + when(u.checked) : ''}</span>
@@ -1636,6 +1670,9 @@
       i.addEventListener('keydown', (e) => { if (e.key === 'Escape') { acctAdding = false; renderSettings(); }
         if (e.key === 'Enter' && i.value.trim()) { acctAdding = false; native({ type: 'panel', action: 'ai-set-add', name: i.value.trim() }); } }); }
     if (t.dataset.act2 === 'battery') { closePage(); openPanel('battery'); }
+    if (t.dataset.act2 === 'unlock-ask') { unlockForget = t.dataset.v || 'all'; renderSettings(); setTimeout(() => { unlockForget = null; if (page === 'settings') renderSettings(); }, 5000); }
+    if (t.dataset.act2 === 'unlock') { unlockForget = null;
+      native({ type: 'panel', action: 'unlock', what: t.dataset.what, finger: t.dataset.v || '' }); }
     if (t.dataset.act2 === 'wifi') { closePage(); openPanel('wifi'); }
   });
   $('page').addEventListener('change', (e) => {
