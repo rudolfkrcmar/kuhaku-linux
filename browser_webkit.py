@@ -55,13 +55,7 @@ WEB_SCHEMES = ("http", "https", "file", "about", "data", "blob", "javascript")
 # WebKitGTK here has no AVIF decoder, yet sites serve AVIF to a modern Safari.
 # Failed AVIF images are passed to Python, which fetches the file, decodes it
 # with gdk-pixbuf and answers with a JPEG (or PNG) data: URL.
-TLS_PAGE = """<!doctype html><meta charset="utf-8"><title>{HOST}</title>
-<style>body{margin:0;height:100vh;display:grid;place-items:center;background:{BG};color:{FG};font:300 18px Inter,sans-serif}
-div{max-width:560px;border-left:1.5px solid {ACCENT};padding-left:24px}h1{font-weight:200;font-size:30px;margin:0 0 14px}
-p{opacity:.65;line-height:1.5;margin:0 0 26px}button{font:inherit;font-size:15px;border:0;background:none;color:{FG};padding:0;cursor:pointer;
-border-bottom:1.5px solid {ACCENT}}</style><div><h1>{HOST} has its own certificate</h1>
-<p>Mado can't confirm who this is. That's normal for devices at home, like a camera or a router. Continue only if you know this device.</p>
-<button onclick='webkit.messageHandlers.kuhakuTls.postMessage({h: {HOSTJS}, t: {TOKENJS}})'>Trust {HOST} and continue</button></div>"""
+TLS_PAGE = (Path(__file__).resolve().parent / "browser/tls-webkit.html").read_text(encoding="utf-8")
 
 
 def private_host(host):

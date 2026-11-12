@@ -35,11 +35,7 @@ CONSOLE = "https://console.cloud.google.com/auth/clients/create"
 
 _tokens = {}   # refresh token -> (access token, expiry)
 
-DONE_PAGE = """<!doctype html><meta charset="utf-8"><title>Tegami</title>
-<style>html,body{{margin:0;height:100%;background:#121212;color:#ececec;font-family:Inter,system-ui,sans-serif}}
-main{{position:absolute;left:50%;top:45%;transform:translateX(-50%);width:min(1160px,calc(100% - 48px));display:flex;gap:18px}}
-i{{width:2px;background:#f0705a}}h1{{margin:0;font-size:26px;font-weight:200}}p{{margin:8px 0 0;color:#9a9a9a;font-weight:300}}</style>
-<main><i></i><div><h1>{title}</h1><p>{text}</p></div></main>"""
+DONE_PAGE = (Path(__file__).resolve().parent / "mail/google-signed-in.html").read_text(encoding="utf-8")
 
 
 def client():
