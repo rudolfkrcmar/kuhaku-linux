@@ -70,7 +70,7 @@ def read(p, default=""):
 
 def app_names():
     """Executable -> friendly app name, from the installed app entries."""
-    names = {}
+    names: dict = {}
     for d in (Path("/usr/share/applications"), HOME / ".local/share/applications"):
         for f in d.glob("*.desktop"):
             try:
@@ -323,7 +323,7 @@ class Collector:
         return rows
 
     def wifi(self):
-        info = {}
+        info: dict = {}
         out = sh(
             ["nmcli", "-t", "-f", "ACTIVE,SSID,SIGNAL,FREQ,RATE,SECURITY,CHAN", "dev", "wifi", "list", "--rescan", "no"]
         )
@@ -371,10 +371,10 @@ class Collector:
             for block in shown.strip().split("\n\n"):
                 kv = dict(l.split("=", 1) for l in block.splitlines() if "=" in l)
                 mem = kv.get("MemoryCurrent", "")
-                m = int(mem) if mem.isdigit() else None
-                if m is None and kv.get("MainPID", "0").isdigit() and int(kv["MainPID"]) > 0:
+                rss = int(mem) if mem.isdigit() else None
+                if rss is None and kv.get("MainPID", "0").isdigit() and int(kv["MainPID"]) > 0:
                     try:
-                        m = psutil.Process(int(kv["MainPID"])).memory_info().rss
+                        rss = psutil.Process(int(kv["MainPID"])).memory_info().rss
                     except Exception:
                         report()
                 services.append(
@@ -382,7 +382,7 @@ class Collector:
                         "unit": kv.get("Id", ""),
                         "desc": kv.get("Description", ""),
                         "pid": kv.get("MainPID", ""),
-                        "mem": m,
+                        "mem": rss,
                     }
                 )
         services.sort(key=lambda s: -(s["mem"] or 0))

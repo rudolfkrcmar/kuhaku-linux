@@ -23,6 +23,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 import gi
 
@@ -73,7 +74,7 @@ def private_host(host):
     except OSError:
         return False
     for info in infos:
-        ip = ipaddress.ip_address(info[4][0].split("%")[0])
+        ip = ipaddress.ip_address(str(info[4][0]).split("%")[0])
         if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_unspecified:
             return True
     return False
@@ -188,7 +189,7 @@ def theme():
 
 def host(uri):
     try:
-        return urllib.parse.urlparse(uri or "").hostname.removeprefix("www.")
+        return (urllib.parse.urlparse(uri or "").hostname or "").removeprefix("www.")
     except Exception:
         report()
         return ""
@@ -208,9 +209,9 @@ def to_url(text):
 class Browser(Gtk.Application):
     def __init__(self):
         super().__init__(application_id="app.kuhaku.Mado", flags=Gio.ApplicationFlags.HANDLES_OPEN)
-        self.window = None
-        self.tabs = []
-        self.current = None
+        self.window: Any = None  # built on first activation
+        self.tabs: list = []
+        self.current: Any = None
         self.download_note = None
         self.asking = None
         self.download_names = {}

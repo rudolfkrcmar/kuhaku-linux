@@ -49,6 +49,8 @@ def log(*a):
 
 
 class Prompt:
+    hint: Gtk.Label
+
     def __init__(self, done, action_id, message, details, cookie, identities):
         self.done, self.cookie = done, cookie
         me = os.getuid()
@@ -195,7 +197,7 @@ class Prompt:
         if s is not self.session:
             return
         self.entry.set_visibility(echo)
-        if self.typed is not None:
+        if self.typed is not None and s:
             text, self.typed = self.typed, None
             s.response(text)
             return

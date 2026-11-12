@@ -61,7 +61,7 @@ def new_path():
 
 def windows_top_first():
     """Normal app windows under the pointer order: (x, y, w, h) with their frames."""
-    out = []
+    out: list = []
     try:
         ids = re.findall(
             r"0x[0-9a-f]+",

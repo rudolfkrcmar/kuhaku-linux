@@ -114,7 +114,7 @@ X11.XChangeProperty.argtypes = [
     ctypes.c_void_p,
     ctypes.c_int,
 ]
-X11.XQueryExtension.argtypes = [VP, ctypes.c_char_p] + [ctypes.POINTER(ctypes.c_int)] * 3
+X11.XQueryExtension.argtypes = [VP, ctypes.c_char_p, *[ctypes.POINTER(ctypes.c_int)] * 3]
 X11.XNextEvent.argtypes = [VP, ctypes.c_void_p]
 X11.XGetEventData.argtypes = [VP, ctypes.POINTER(XEventCookie)]
 X11.XFreeEventData.argtypes = [VP, ctypes.POINTER(XEventCookie)]
@@ -136,7 +136,7 @@ try:
     XFIXES.XFixesGetCursorImage.restype = ctypes.POINTER(XFixesCursorImage)
     XFIXES.XFixesGetCursorImage.argtypes = [VP]
 except OSError:
-    XFIXES = None
+    XFIXES = None  # type: ignore[assignment]  # no XFixes: the cursor is not drawn
 
 KS = {
     "BackSpace": 0xFF08,
@@ -174,7 +174,8 @@ class Typer:
     """Sends keys and clicks through XTest, on its own connection and thread, in order."""
 
     def __init__(self):
-        self.q = queue.Queue()
+        self.q: queue.Queue = queue.Queue()
+        self._table: tuple[float, dict[int, list]] | None = None
         self.dpy = X11.XOpenDisplay(None)
         self.spare = []  # keycodes with nothing on them: borrowed for characters the layout lacks
         self.borrowed = {}  # keysym -> keycode
@@ -185,7 +186,7 @@ class Typer:
         self.q.put(item)
 
     def mapping(self):
-        if getattr(self, "_table", None) and time.monotonic() - self._table[0] < 3:
+        if self._table and time.monotonic() - self._table[0] < 3:
             return self._table[1]
         lo, hi = ctypes.c_int(), ctypes.c_int()
         X11.XDisplayKeycodes(self.dpy, ctypes.byref(lo), ctypes.byref(hi))
@@ -513,7 +514,7 @@ class TabletSwitch:
 
     def __init__(self, on_change):
         self.on_change = on_change
-        self.path = None
+        self.path: Path | None = None
         for dev in sorted(Path("/sys/class/input").glob("event*")):
             try:
                 name = (dev / "device/name").read_text().strip()
@@ -524,11 +525,13 @@ class TabletSwitch:
                 self.path = Path("/dev/input") / dev.name
                 self.name = name
                 break
-        self.readable = bool(self.path) and os.access(self.path, os.R_OK)
+        self.readable = self.path is not None and os.access(self.path, os.R_OK)
         if self.readable:
             threading.Thread(target=self.run, daemon=True).start()
 
     def run(self):
+        if self.path is None:
+            return
         size = struct.calcsize("llHHi")
         try:
             with open(self.path, "rb", buffering=0) as f:

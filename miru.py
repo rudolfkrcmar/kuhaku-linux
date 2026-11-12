@@ -280,11 +280,17 @@ def load_mesh(path):
         mesh = obj.find(ns + "mesh")
         if mesh is not None:
             v = np.array(
-                [[float(e.get("x")), float(e.get("y")), float(e.get("z"))] for e in mesh.find(ns + "vertices")],
+                [
+                    [float(e.attrib["x"]), float(e.attrib["y"]), float(e.attrib["z"])]
+                    for e in mesh.iterfind(ns + "vertices/*")
+                ],
                 dtype=np.float64,
             )
             t = np.array(
-                [[int(e.get("v1")), int(e.get("v2")), int(e.get("v3"))] for e in mesh.find(ns + "triangles")],
+                [
+                    [int(e.attrib["v1"]), int(e.attrib["v2"]), int(e.attrib["v3"])]
+                    for e in mesh.iterfind(ns + "triangles/*")
+                ],
                 dtype=np.int64,
             )
             if len(v) and len(t):
@@ -303,6 +309,8 @@ def load_mesh(path):
 
 
 class Miru:
+    held: tuple[str, list[str]] | None = None  # copied or cut paths waiting to be pasted
+
     def __init__(self, path):
         self.night = theme() == "night"
         Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", self.night)
@@ -335,7 +343,7 @@ class Miru:
 
         self.path = Path(path).expanduser().resolve()
         self.files = []
-        self.folder = None  # the folder being browsed, if Miru is the Files app
+        self.folder: Path | None = None  # the folder being browsed, if Miru is the Files app
         self.hidden = False
         self.cloud_mode = None  # the cloud whose setup page is showing
         self.drives = [d["path"] for d in usb_drives()]
@@ -497,20 +505,20 @@ class Miru:
                 continue
             mtime = datetime.fromtimestamp(st.st_mtime)
             when = mtime.strftime("%-d %b %Y") if mtime.year != datetime.now().year else mtime.strftime("%-d %b, %H:%M")
-            e = {"name": p.name, "path": str(p), "dir": is_dir, "when": when, "t": st.st_mtime}
+            entry = {"name": p.name, "path": str(p), "dir": is_dir, "when": when, "t": st.st_mtime}
             if is_dir:
                 try:
-                    e["size"] = f"{sum(1 for _ in p.iterdir())} items"
+                    entry["size"] = f"{sum(1 for _ in p.iterdir())} items"
                 except OSError:
-                    e["size"] = ""
-                e["kind"] = "Folder"
+                    entry["size"] = ""
+                entry["kind"] = "Folder"
             else:
                 mime, desc = mime_of(p)
-                e["size"] = human_size(st.st_size)
-                e["kind"] = (desc[:1].upper() + desc[1:]) if desc else mime
+                entry["size"] = human_size(st.st_size)
+                entry["kind"] = (desc[:1].upper() + desc[1:]) if desc else mime
                 if mime in WEB_IMAGES and st.st_size < 15_000_000:
-                    e["thumb"] = p.as_uri()
-            entries.append(e)
+                    entry["thumb"] = p.as_uri()
+            entries.append(entry)
         entries.sort(key=lambda e: (not e["dir"], natural(e["name"])))
         crumbs, p = [], folder
         while True:
@@ -520,7 +528,11 @@ class Miru:
             p = p.parent
         self.win.set_title(f"{folder.name or folder} — Miru")
         key, _ = kumo.which_cloud(folder)
-        cloud = {"key": key, "name": kumo.account(key)["name"], "status": kumo.describe(key)} if key else None
+        cloud = (
+            {"key": key, "name": (kumo.account(key) or {}).get("name", key), "status": kumo.describe(key)}
+            if key
+            else None
+        )
         self.js(
             "browse",
             {
@@ -566,6 +578,8 @@ class Miru:
         self.browse(self.folder, select=name)
 
     def mkdir(self, name):
+        if self.folder is None:
+            return
         base, n = name.strip() or "New folder", 1
         target = self.folder / base
         while target.exists():
@@ -611,7 +625,7 @@ class Miru:
         try:
             if kind in ("duplicate", "paste", "restore"):
                 kumo.nudge(self.folder)
-                if kind == "paste" and getattr(self, "held", None) and self.held[0] == "cut":
+                if kind == "paste" and self.held and self.held[0] == "cut":
                     kumo.nudge(self.held[1][0])
             if kind == "duplicate":
                 made = [self.copy_into(p, p.parent).name for p in paths]
@@ -625,10 +639,10 @@ class Miru:
                     f"Paste {'it' if len(paths) == 1 else 'them'} in any folder.",
                 )
             if kind == "paste":
-                if not getattr(self, "held", None):
+                if not self.held:
                     return self.js("toast", "Nothing to paste")
-                how, paths = self.held
-                made = [self.copy_into(p, self.folder, move=how == "cut").name for p in paths]
+                how, held = self.held
+                made = [self.copy_into(Path(p), self.folder, move=how == "cut").name for p in held]
                 if how == "cut":
                     self.held = None
                 return self.browse(self.folder, select=made)
@@ -859,7 +873,7 @@ class Miru:
             self.clouds = self.cloud_places()
             self.js(
                 "toast",
-                f"Syncing {len(chosen)} folder{'s' if len(chosen) != 1 else ''} with {kumo.account(key)['name']}",
+                f"Syncing {len(chosen)} folder{'s' if len(chosen) != 1 else ''} with {(kumo.account(key) or {}).get('name', key)}",
             )
             self.browse(base)
         elif what == "now":
@@ -896,7 +910,7 @@ class Miru:
                 arr = load_mesh(path)
                 tris = len(arr) // 9
                 if tris > MESH_LIMIT:
-                    payload = {"path": str(path), "error": f"{tris:,} triangles is too many to show here."}
+                    payload: dict = {"path": str(path), "error": f"{tris:,} triangles is too many to show here."}
                 elif not tris:
                     payload = {"path": str(path), "error": "No triangles in this file."}
                 else:

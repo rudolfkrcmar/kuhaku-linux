@@ -30,6 +30,7 @@ import sys
 import threading
 import time
 import urllib.parse
+from collections.abc import Callable
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -403,11 +404,11 @@ class Browser:
     def __init__(self, app):
         self.app = app
         self.mode = "normal"  # normal, private or developer
-        self.sets = {"normal": [], "private": []}  # developer mode shows the normal tabs
+        self.sets: dict[str, list] = {"normal": [], "private": []}  # developer mode shows the normal tabs
         self.tabs = self.sets["normal"]
         self.front = {}
         self.profiles = {}
-        self.stopped = {"normal": {}, "private": {}}  # site -> tracker host -> what was stopped
+        self.stopped: dict[str, dict] = {"normal": {}, "private": {}}  # site -> tracker host -> what was stopped
         self.stopped_seen = 0
         self.device = "Full window"
         self.session = None
@@ -460,7 +461,10 @@ class Browser:
         ua = re.sub(r"QtWebEngine/\S+ ", "", p.httpUserAgent())
         p.setHttpUserAgent(ua)
         try:
-            chrome = re.search(r"Chrome/(\S+)", ua).group(1)
+            found = re.search(r"Chrome/(\S+)", ua)
+            if not found:
+                raise ValueError("no Chrome version in the user agent")
+            chrome = found.group(1)
             p.clientHints().setFullVersionList({"Chromium": chrome, "Not(A:Brand": "24.0.0.0"})
         except Exception:
             report()
@@ -553,7 +557,7 @@ class Browser:
         box.addWidget(self.chrome)
         box.addWidget(self.split, 1)
 
-        keys = {
+        keys: dict[str, Callable] = {
             "Ctrl+L": lambda: (self.chrome.setFocus(), self.js("editAddress()")),
             "Ctrl+T": self.new_tab,
             "Ctrl+W": self.close_tab,
@@ -670,8 +674,8 @@ class Browser:
         W, H = self.stack.width(), self.stack.height()
         left = (W - w) // 2
         self.stack.setContentsMargins(left, pad, W - w - left, max(0, H - h - pad))
-        if self.session:
-            d = DEVICES[self.device]
+        d = DEVICES[self.device]
+        if self.session and d:
             self.session.send(
                 "Emulation.setDeviceMetricsOverride",
                 width=w,

@@ -3,6 +3,17 @@
 What changed in each release of Kūhaku. Versions follow [semantic versioning](https://semver.org); the
 number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 
+## Unreleased
+
+### Fixed
+- The volume and brightness display no longer logs a fault on every check on computers without a battery or backlight.
+- Tsukuru ignores a new-file request when no project is open, instead of failing.
+
+### For developers
+- Every Python file is type-checked by mypy (was five). The home screen's parts declare what they share in `kuhaku_base.Home`.
+- Licenses are checked: `tests/test_licenses.py` keeps every bundled library and vendored folder listed in `THIRD_PARTY_NOTICES.md`, with its version and license text, under an allowed license. CodeMirror and WirePlumber now ship their license texts; the GPL text the LGPL libraries build on is in `lib/LICENSES/`.
+- GitHub: issue forms, a pull request checklist, `SECURITY.md` with private reporting, Dependabot for the CI actions, and main protected from deletion and force-pushes.
+
 ## 0.3.0 — 2026-11-12
 
 ### New

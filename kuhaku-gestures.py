@@ -70,7 +70,7 @@ def describe(wins):
     }
     info = {}
     for w, proc in procs.items():
-        d = {}
+        d: dict = {}
         for line in proc.communicate()[0].splitlines():
             key, sep, val = line.partition(" = ")
             if sep:
@@ -81,7 +81,7 @@ def describe(wins):
     return info
 
 
-APPS = None
+APPS: dict | None = None
 NIGHT_ICONS = os.path.expanduser("~/.local/share/kuhaku/icons/apps-night")
 
 
@@ -89,21 +89,22 @@ def app_for(classes):
     """Name and icon of the app a window belongs to, from its desktop file."""
     global APPS
     if APPS is None:
-        APPS = {}
+        found: dict = {}
         for a in Gio.AppInfo.get_all():
             wm = a.get_startup_wm_class() if hasattr(a, "get_startup_wm_class") else None
             entry = (a.get_name(), a.get_icon())
             if wm:
-                APPS.setdefault(wm.lower(), entry)
+                found.setdefault(wm.lower(), entry)
             if a.get_id():
-                APPS.setdefault(a.get_id()[:-8].lower(), entry)
+                found.setdefault(a.get_id()[:-8].lower(), entry)
+        APPS = found
     for c in classes:
         if c.lower() in APPS:
             return APPS[c.lower()]
     return None
 
 
-ICONS = {}
+ICONS: dict = {}
 
 
 def icon_surface(gicon, size):
@@ -842,6 +843,8 @@ class Overview:
         self.animate()
 
     def arrive(self):
+        if self.picking is None:
+            return
         key = self.cards[self.picking]["key"]
         if key != self.origin or self.left_closed or (key == "kuhaku") != showing_desktop():
             self.deck.go(key, None)

@@ -178,9 +178,7 @@ class Ink:
         if ev.button != 1:
             return True
         if is_finger(ev):
-            self.finger = (ev.x_root, ev.y_root, time.monotonic())
             return True
-        self.finger = None
         if self.recog_id:
             GLib.source_remove(self.recog_id)
             self.recog_id = None

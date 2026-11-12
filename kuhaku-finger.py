@@ -194,7 +194,7 @@ class Window:
             GLib.idle_add(self.offer, [("Close", self.win.destroy)])
             return
         passed, ended = 0, False
-        for line in self.proc.stdout:
+        for line in self.proc.stdout or []:
             if "enroll-stage-passed" in line:
                 passed += 1
                 GLib.idle_add(self.say, "Again", "Lift and touch again, a little differently.", passed)

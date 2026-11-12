@@ -205,7 +205,7 @@ def main():
     PID_FILE.write_text(str(os.getpid()))
     App()
     if cmd == "show":
-        GLib.idle_add(lambda: os.kill(os.getpid(), signal.SIGUSR1) and False)
+        GLib.idle_add(os.kill, os.getpid(), signal.SIGUSR1)
     Gtk.main()
 
 

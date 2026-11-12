@@ -80,7 +80,7 @@ def per_run_cost(r, prev):
 
 
 def from_jobs_file(prev):
-    out = []
+    out: list[dict] = []
     try:
         lines = jobs.RUNS_FILE.read_text().splitlines()
     except OSError:
@@ -102,7 +102,9 @@ HEADER = re.compile(r"^=== (\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)  (?:\[tab (\w+)\]  )
 
 def from_old_log(before, prev):
     """The home screen's jobs from before Kiroku kept its own lines (claude.log, stream-json)."""
-    runs, open_runs, by_session = [], [], {}
+    runs: list[dict] = []
+    open_runs: list[dict] = []
+    by_session: dict[str, dict] = {}
     try:
         fh = open(LOG_FILE, errors="ignore")  # noqa: SIM115  closed by the `with fh` below
     except OSError:
@@ -112,7 +114,7 @@ def from_old_log(before, prev):
             m = HEADER.match(line)
             if m:
                 start = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S").timestamp()
-                r = {
+                run = {
                     "start": start,
                     "tab": m.group(2),
                     "question": m.group(3),
@@ -121,8 +123,8 @@ def from_old_log(before, prev):
                     "events": 0,
                 }
                 if start < before:
-                    runs.append(r)
-                    open_runs.append(r)
+                    runs.append(run)
+                    open_runs.append(run)
                 continue
             if not line.startswith("{"):
                 # A question of several lines continues until the first event.
@@ -229,7 +231,7 @@ def session_files():
             yield f, acct
 
 
-_sessions = {}
+_sessions: dict = {}
 
 
 def from_transcripts(known):
@@ -256,7 +258,10 @@ def from_transcripts(known):
             "answer": "",
             "tokens": {"in": 0, "out": 0, "cache_read": 0, "cache_write": 0},
         }
-        seen, costs, models, first, last = set(), {}, {}, None, None
+        seen: set = set()
+        costs: dict = {}
+        models: dict = {}
+        first = last = None
         with open(f, errors="ignore") as fh:
             for line in fh:
                 try:
@@ -301,7 +306,7 @@ def from_transcripts(known):
         r["client"] = (
             "Tegami" if cwd.startswith(str(MAIL_DIR)) else "Terminal" if r.get("entry") == "cli" else "Claude Code"
         )
-        r["model"] = max(models, key=models.get) if models else None
+        r["model"] = max(models, key=lambda m: models[m]) if models else None
         r["cost"] = round(max(c for c, _ in costs.values()), 4) if costs else None
         r["start"], r["end"] = first, last
         busy = max(d for _, d in costs.values()) / 1000 if costs else None
@@ -353,7 +358,7 @@ def anonymous_sessions():
 
 
 def all_runs():
-    prev = {}
+    prev: dict = {}
     old = from_old_log(jobs_start(), prev)
     runs = from_tabs(old + from_jobs_file(prev))
     known = {r.get("session_id") for r in runs if r.get("session_id")} | anonymous_sessions()
@@ -394,7 +399,7 @@ def all_runs():
         )
     out.sort(key=lambda r: r["start"], reverse=True)
     # Which runs share a conversation: a thread is every run with the same session.
-    count = {}
+    count: dict = {}
     for r in out:
         if r["session_id"]:
             count[r["session_id"]] = count.get(r["session_id"], 0) + 1
@@ -408,7 +413,8 @@ def thread(session_id):
     f = next((f for f, _ in session_files() if f.stem == session_id), None)
     if not f:
         return None
-    items, work = [], 0
+    items: list = []
+    work = 0
     with open(f, errors="ignore") as fh:
         for line in fh:
             try:

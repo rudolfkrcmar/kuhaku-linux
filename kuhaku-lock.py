@@ -142,6 +142,9 @@ class Face:
 
 
 class Lock:
+    hint: Gtk.Label
+    error: Gtk.Label
+
     def __init__(self, on_shown=None):
         self.on_shown = on_shown
         bg, fg, muted, accent = COLORS["night"]  # password screens stay dark, day or night

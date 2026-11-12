@@ -247,7 +247,8 @@ def enroll_window():
         except Exception as e:
             GLib.idle_add(say, "The camera is not ready", str(e).capitalize() + ".")
             return
-        got, dark_since, last = [], time.time(), 0.0
+        got: list = []
+        dark_since, last = time.time(), 0.0
         try:
             while not stop.is_set() and len(got) < want:
                 feature, why = eye.look()

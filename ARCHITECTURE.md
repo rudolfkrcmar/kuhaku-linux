@@ -97,7 +97,7 @@ computer, not only the home screen's.
 
 ## Checks
 
-`dev/check` runs, in order: compile, `ruff format --check`, `ruff check`, `mypy` (the modules listed in `pyproject.toml`),
+`dev/check` runs, in order: compile, `ruff format --check`, `ruff check`, `mypy` (every Python file),
 the unit tests in `tests/` (logic, the guard, cloud sync against a real rclone if present, static
 rules for the whole project), every page loaded off-screen for script errors, and `uitests/`, which
 drive the pages with clicks and keys and compare screenshots. `dev/check quick` (no pages) runs

@@ -5,6 +5,7 @@ import os
 import sys
 import threading
 import time
+from typing import Any
 
 import cairo
 import gi
@@ -231,7 +232,7 @@ class Keyboard:
         self.touches = {}
         self.anims = []  # (kind, x, y, start)
         self.bubble = None  # (key, start, ending)
-        self.alts = None  # {"key","items","rects","sel","touch"}
+        self.alts: dict[str, Any] | None = None  # {"key","items","rects","sel","touch"}
         self.last_chars = []  # (char, time), what this keyboard typed lately
         self.visible = False
         self.slide = 0.0  # 0 hidden .. 1 shown
@@ -240,7 +241,14 @@ class Keyboard:
         self.slide_t0 = 0.0
         self.tick_id = None
         self.repeat_id = None
-        self.pad = {"strokes": [], "cur": None, "timer": None, "cands": [], "committed": "", "busy": False}
+        self.pad: dict[str, Any] = {
+            "strokes": [],
+            "cur": None,
+            "timer": None,
+            "cands": [],
+            "committed": "",
+            "busy": False,
+        }
 
         self.win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
         self.win.set_title("Kūhaku keyboard")
@@ -572,6 +580,8 @@ class Keyboard:
             self.draw_key(cr, t, k, kx, ky, kw, kh)
 
     def draw_bubble(self, cr, t):
+        if not self.bubble:
+            return
         k, _start, ending = self.bubble
         rect = next((r for r in self.rects if r[0] is k), None)
         if not rect:
@@ -607,6 +617,8 @@ class Keyboard:
 
     def draw_alts(self, cr, t):
         al = self.alts
+        if not al:
+            return
         x, y, w, h = al["box"]
         cr.set_source_rgba(*t["shadow"][:3], t["shadow"][3] * 1.6)
         rounded(cr, x, y + 2, w, h, self.kh * 0.25)
