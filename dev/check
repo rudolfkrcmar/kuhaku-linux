@@ -1,7 +1,7 @@
 #!/bin/sh
 # Everything Kūhaku checks before a change is saved: the Python compiles, is formatted and
-# linted (ruff), the core modules type-check (mypy), the tests pass, and every page loads
-# without a script error and looks as it did (screenshots).
+# linted (ruff), every Python file type-checks (mypy), the shell scripts pass ShellCheck, the
+# tests pass, and every page loads without a script error and looks as it did (screenshots).
 #     dev/check          all of it
 #     dev/check quick    no pages or screenshots (what runs before each commit)
 set -e
@@ -11,7 +11,7 @@ tool() {  # a tool from PATH, or from Kūhaku's own venv
 }
 echo "· compiling"
 for f in *.py; do python3 -m py_compile "$f"; done
-RUFF=$(tool ruff); MYPY=$(tool mypy)
+RUFF=$(tool ruff); MYPY=$(tool mypy); SHELLCHECK=$(tool shellcheck)
 if [ -n "$RUFF" ]; then
   echo "· format and lint"
   "$RUFF" format --check --quiet .
@@ -24,6 +24,15 @@ if [ -n "$MYPY" ]; then
   "$MYPY" --no-error-summary
 else
   echo "· types: skipped (pip install mypy)"
+fi
+if [ -n "$SHELLCHECK" ]; then
+  echo "· shell scripts"
+  # Every tracked file that starts with a sh or bash line; lib/ is others' code.
+  git ls-files -- . ':!lib' | while IFS= read -r f; do
+    [ -f "$f" ] && head -n1 "$f" | grep -qE '^#!.*[/ ](ba|da)?sh( |$)' && printf '%s\n' "$f"
+  done | xargs -d '\n' "$SHELLCHECK"
+else
+  echo "· shell scripts: skipped (pip install shellcheck-py)"
 fi
 echo "· tests"
 python3 -m unittest discover -s tests -t . -q

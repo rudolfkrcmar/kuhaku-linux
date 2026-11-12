@@ -9,7 +9,7 @@ git clone https://github.com/rudolfkrcmar/kuhaku-linux ~/Projects/kuhaku-linux
 cd ~/Projects/kuhaku-linux
 git config core.hooksPath dev/hooks      # dev/check quick before every commit
 git config blame.ignoreRevsFile .git-blame-ignore-revs
-pip install --user ruff mypy             # or let dev/check use Kūhaku's own venv
+pip install --user ruff mypy shellcheck-py   # or let dev/check use Kūhaku's own venv
 dev/check                                # everything should say "All good."
 ```
 
@@ -29,6 +29,7 @@ If a screenshot test fails because the look changed on purpose, accept the new l
 
 - **Words:** the interface speaks plainly and briefly ("Move to Trash", not "Delete item(s)?"). Comments say why, not what.
 - **Python:** `ruff format` (120 columns) and `ruff check` decide. Type hints on new public functions. Best-effort code calls `report()` from `kuhaku_log` in its `except`; never a bare `pass`.
+- **Shell:** ShellCheck decides. Quote every expansion; where words are split on purpose, a `# shellcheck disable=SC2086` line says why.
 - **Pages:** no frameworks; small functions; colours from the CSS variables (`--bg`, `--fg`, `--muted`, `--accent`) so day and night both work. Password and lock screens are always dark.
 - **Safety:** commands run as argument lists, never through a shell string. Anything Claude might be tricked into doing that cannot be undone belongs in `kuhaku-guard.py`, with a test.
 - **Privacy:** the repository is public. No personal paths, names, accounts or tokens (a test checks for home paths).

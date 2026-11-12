@@ -4,7 +4,7 @@ set -e
 K="$(cd "$(dirname "$0")" && pwd)"
 DEBIAN_FRONTEND=noninteractive apt-get install -y -q gir1.2-lightdm-1 >/dev/null
 install -d /usr/local/share/kuhaku-greeter
-install -m 0644 $K/kuhaku-greeter.py /usr/local/share/kuhaku-greeter/kuhaku-greeter.py
+install -m 0644 "$K/kuhaku-greeter.py" /usr/local/share/kuhaku-greeter/kuhaku-greeter.py
 cat > /usr/local/sbin/kuhaku-greeter <<'W'
 #!/bin/sh
 # Kūhaku's greeter; if it cannot start, the standard one, so the computer always opens.

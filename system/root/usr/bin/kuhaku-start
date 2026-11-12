@@ -39,9 +39,11 @@ fi
 # The keyboard chosen in the installer (/etc/default/keyboard). On a Mac, Cmd works as Ctrl;
 # other computers keep Ctrl and the Windows key where they are printed.
 XKBLAYOUT=us; XKBVARIANT=""
+# shellcheck source=/dev/null
 [ -r /etc/default/keyboard ] && . /etc/default/keyboard
 KB_OPTS="-option terminate:ctrl_alt_bksp"
 grep -qi apple /sys/class/dmi/id/sys_vendor 2>/dev/null && KB_OPTS="$KB_OPTS -option ctrl:swap_lwin_lctl -option ctrl:swap_rwin_rctl"
+# shellcheck disable=SC2086  # KB_OPTS is a list of options, split on purpose
 setxkbmap -layout "${XKBLAYOUT:-us}" -variant "${XKBVARIANT:-}" -option '' $KB_OPTS 2>/dev/null \
   || setxkbmap -layout us -option '' $KB_OPTS
 

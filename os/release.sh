@@ -37,7 +37,7 @@ words=("$HOME" "/home/$(id -un)/")
 [ -f "$HOME/.config/kuhaku/release-private-words" ] && while IFS= read -r w; do [ -n "$w" ] && words+=("$w"); done < "$HOME/.config/kuhaku/release-private-words"
 for w in "${words[@]}"; do
   hits=$(grep -rIilF -- "$w" "$STAGE" | grep -v -e "/LICENSE$" -e "/lib/" || true)
-  [ -n "$hits" ] && { echo "\"$w\" appears in:"; echo "$hits" | sed "s#$STAGE/#  #"; bad=1; }
+  [ -n "$hits" ] && { echo "\"$w\" appears in:"; echo "${hits//"$STAGE/"/  }"; bad=1; }
 done
 [ "$bad" = 0 ] || { echo; echo "Nothing was published."; exit 1; }
 echo "clean"

@@ -9,6 +9,7 @@
 # installer in its boot menu.
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC2012  # the newest package; its name is ours (no spaces)
 DEB="$(ls -t "$HERE"/../out/kuhaku_*_all.deb | head -1)"
 [ -f "$DEB" ] || { echo "Build the package first: ./build-deb.sh"; exit 1; }
 W="${KUHAKU_WORK:-/var/tmp/kuhaku-iso}"

@@ -36,12 +36,12 @@ M=$(mktemp -d); mount "$P" "$M"
 mapfile -t KEEP < <(python3 -c "import json,sys; [print(k) for k in json.load(open(sys.argv[1]))['keep']]" "$ABOUT")
 mapfile -t SKIP < <(python3 -c "import json,sys; [print(k) for k in json.load(open(sys.argv[1]))['skip']]" "$ABOUT")
 EXC=(); for e in "${SKIP[@]}"; do EXC+=(--exclude "$e"); done
-mkdir -p -m 700 /root/.kuhaku-gpg
+install -d -m 700 /root/.kuhaku-gpg
 exec 3< <(printf '%s' "$PASS")
 tar -C "$H" -cf - --warning=no-file-changed "${EXC[@]}" "${KEEP[@]}" |
   gpg --batch --yes --quiet --homedir /root/.kuhaku-gpg --pinentry-mode loopback --passphrase-fd 3 \
       --symmetric --cipher-algo AES256 --compress-algo zlib -o "$M/carry.tar.gpg" 2>/dev/null || true
-mkdir -p -m 700 /root/.kuhaku-gpg
+install -d -m 700 /root/.kuhaku-gpg
 exec 3< <(printf '%s' "$PASS")
 printf kuhaku | gpg --batch --yes --quiet --homedir /root/.kuhaku-gpg --pinentry-mode loopback --passphrase-fd 3 \
   --symmetric --cipher-algo AES256 -o "$M/check.gpg"

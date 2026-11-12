@@ -67,6 +67,7 @@ xfconf-query -c xfce4-keyboard-shortcuts -p "$k/XF86AudioMicMute" -n -t string -
 
 # Brightness keys and power notices: Kūhaku shows them in its own design.
 for kv in "XF86MonBrightnessUp up" "XF86MonBrightnessDown down"; do
+  # shellcheck disable=SC2086  # "key action": split into $1 and $2
   set -- $kv
   xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$1" -n -t string -s "$DIR/kuhaku-brightness $2" 2>/dev/null || xfconf-query -c xfce4-keyboard-shortcuts -p "$k/$1" -s "$DIR/kuhaku-brightness $2"
 done
@@ -94,6 +95,7 @@ xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action 
 # Win+Shift+3/4/5 too (as on Windows).
 # Both keysym spellings are bound (the shifted one differs between layouts).
 for kv in "numbersign full" "3 full" "dollar area" "4 area" "percent record" "5 record"; do
+  # shellcheck disable=SC2086  # "key action": split into $1 and $2
   set -- $kv
   for mods in "<Primary><Shift>" "<Super><Shift>" "<Primary><Shift><Super>"; do
     act=$2; [ "$mods" = "<Primary><Shift><Super>" ] && { [ "$act" = record ] && continue; act="$act-clip"; }

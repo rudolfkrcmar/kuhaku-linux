@@ -11,10 +11,10 @@ greeter-hide-users=false
 greeter-show-manual-login=false
 greeter-allow-guest=false
 CONF
-cp $K/login/lightdm-gtk-greeter.conf /etc/lightdm/lightdm-gtk-greeter.conf
+cp "$K/login/lightdm-gtk-greeter.conf" /etc/lightdm/lightdm-gtk-greeter.conf
 people=$(awk -F: '$3>=1000 && $3<60000 && $7 !~ /(nologin|false)$/' /etc/passwd | wc -l)
 mkdir -p /var/lib/lightdm/.config/gtk-3.0
-if [ "$people" -gt 1 ]; then cat $K/login/user-gtk.css $K/login/user-multi.css; else cat $K/login/user-gtk.css; fi > /var/lib/lightdm/.config/gtk-3.0/gtk.css
+if [ "$people" -gt 1 ]; then cat "$K/login/user-gtk.css" "$K/login/user-multi.css"; else cat "$K/login/user-gtk.css"; fi > /var/lib/lightdm/.config/gtk-3.0/gtk.css
 chown -R lightdm:lightdm /var/lib/lightdm/.config
-sh $K/login/kuhaku-greeter-install.sh
-echo done
+sh "$K/login/kuhaku-greeter-install.sh"
+echo "done"

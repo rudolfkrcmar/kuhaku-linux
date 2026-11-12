@@ -20,11 +20,11 @@ detach_spi() {
 }
 
 attach_spi() {
-    local try i
+    local try _
     for try in 1 2 3; do
         [ -e "/sys/bus/pci/devices/$SPI_DEV/driver" ] || echo "$SPI_DEV" > "$DRV/bind" 2>/dev/null
         /usr/sbin/modprobe applespi 2>/dev/null
-        for i in $(seq 1 10); do
+        for _ in $(seq 1 10); do
             if spi_alive; then log "$1" "$2" "applespi restored (attempt $try)"; return 0; fi
             sleep 0.3
         done

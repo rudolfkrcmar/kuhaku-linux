@@ -6,7 +6,7 @@
 set -e
 K="$(cd "$(dirname "$0")" && pwd)"
 ROOTUUID=$(findmnt -no UUID /)
-install -m 0755 $K/system/sleep/mb81-applespi /usr/lib/systemd/system-sleep/mb81-applespi
+install -m 0755 "$K/system/sleep/mb81-applespi" /usr/lib/systemd/system-sleep/mb81-applespi
 mkdir -p /etc/systemd/sleep.conf.d /etc/systemd/logind.conf.d
 printf '[Sleep]\nSuspendState=s2idle\nHibernateMode=shutdown\nHibernateDelaySec=2h\n' > /etc/systemd/sleep.conf.d/kuhaku.conf
 printf '[Login]\nHandleLidSwitch=suspend-then-hibernate\nHandleLidSwitchExternalPower=suspend-then-hibernate\nHandleLidSwitchDocked=ignore\n' > /etc/systemd/logind.conf.d/kuhaku.conf
@@ -14,7 +14,7 @@ printf '[Login]\nHandleLidSwitch=suspend-then-hibernate\nHandleLidSwitchExternal
 # Room on the (encrypted) disk to hibernate into: as large as memory.
 if [ ! -f /swapfile ]; then
   mem=$(awk '/MemTotal/ {print int($2/1024/1024)+1}' /proc/meminfo)
-  fallocate -l ${mem}G /swapfile
+  fallocate -l "${mem}G" /swapfile
   chmod 600 /swapfile
   mkswap /swapfile >/dev/null
 fi
@@ -32,4 +32,4 @@ sysctl -q -p /etc/sysctl.d/80-kuhaku-power.conf
 
 update-grub >/dev/null 2>&1
 update-initramfs -u >/dev/null 2>&1
-echo done
+echo "done"

@@ -59,7 +59,7 @@ run 120 "Making three parts" sgdisk -n1:0:+512M -t1:ef00 -c1:EFI -n2:0:+1G -t2:8
 say "Telling the system about them"
 timeout 60 partprobe "$DISK" || true; timeout 60 udevadm settle --timeout=50 || true
 EFI="${DISK}${P}1"; BOOT="${DISK}${P}2"; ROOT="${DISK}${P}3"
-for i in $(seq 1 20); do [ -b "$ROOT" ] && break; sleep 1; done
+for _ in $(seq 1 20); do [ -b "$ROOT" ] && break; sleep 1; done
 [ -b "$ROOT" ] || fail "the new parts did not appear"
 run 120 "Formatting the EFI part" mkfs.vfat -F32 -n EFI "$EFI"
 # nodiscard: trimming a whole SSD first can take very long on some drives (Apple's among them).
@@ -163,8 +163,10 @@ mkdir -p "$T/etc/kuhaku"; echo "$MODE" > "$T/etc/kuhaku/permission-mode"
 # Programs chosen in the installer: Kūhaku's own left out are hidden at first login (kuhaku-setup-user);
 # the others' are fetched once online by kuhaku-programs.service (the Claude app by its own service).
 say "Programs: hidden ${HIDE:-none}; to fetch ${ADD:-none}"
+# shellcheck disable=SC2086  # HIDE and ADD are space-separated names: one per line
 printf '%s\n' $HIDE > "$T/etc/kuhaku/hidden-apps"
 [[ " $ADD " == *" claude-desktop "* ]] || rm -f "$T/etc/apt/sources.list.d/claude-desktop.list"
+# shellcheck disable=SC2086
 printf '%s\n' $ADD | grep -vx -e claude-desktop -e solidcraft -e '' > "$T/etc/kuhaku/programs" || true
 # SolidCraft is not in Debian: fetched from its maker's releases and checked (kuhaku-solidcraft.service).
 [[ " $ADD " == *" solidcraft "* ]] && { touch "$T/etc/kuhaku/solidcraft"; chroot "$T" systemctl enable kuhaku-solidcraft.service >/dev/null 2>&1 || true; }

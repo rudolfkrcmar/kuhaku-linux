@@ -1,14 +1,14 @@
 #!/bin/sh
 # Brightness for Kūhaku: "up"/"down" 5% steps (never fully dark) or "set N" percent.
 H=/usr/sbin/xfpm-power-backlight-helper
-max=$(pkexec $H --get-max-brightness) || exit 1
-cur=$(pkexec $H --get-brightness) || exit 1
-step=$(( max / 20 )); [ $step -lt 1 ] && step=1
+max=$(pkexec "$H" --get-max-brightness) || exit 1
+cur=$(pkexec "$H" --get-brightness) || exit 1
+step=$(( max / 20 )); [ "$step" -lt 1 ] && step=1
 case "$1" in
-  up)   new=$(( cur + step )); [ $new -gt $max ] && new=$max ;;
-  down) new=$(( cur - step )); [ $new -lt $step ] && new=$step ;;
-  set) new=$(( max * $2 / 100 )); [ $new -lt 1 ] && new=1 ;;
+  up)   new=$(( cur + step )); [ "$new" -gt "$max" ] && new=$max ;;
+  down) new=$(( cur - step )); [ "$new" -lt "$step" ] && new=$step ;;
+  set) new=$(( max * $2 / 100 )); [ "$new" -lt 1 ] && new=1 ;;
   *) exit 1 ;;
 esac
 touch "${XDG_RUNTIME_DIR:-/tmp}/kuhaku-brightness-asked"   # the on-screen level shows only for asked changes
-pkexec $H --set-brightness $new
+pkexec "$H" --set-brightness "$new"
