@@ -30,5 +30,7 @@ python3 -m unittest discover -s tests -t . -q
 if [ "$1" != quick ]; then
   echo "· pages"
   python3 dev/pagecheck.py
+  echo "· using the pages (clicks, keys, screenshots)"
+  python3 -m unittest discover -s uitests -t . -q
 fi
 echo "All good."

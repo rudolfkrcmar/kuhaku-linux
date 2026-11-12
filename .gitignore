@@ -36,3 +36,4 @@ os/image/work/
 # Face unlock: downloaded models and the person's face (never commit)
 models/
 face/
+uitests/shots/*.now.png
