@@ -24,7 +24,7 @@ from pathlib import Path
 PROJECT = Path(__file__).resolve().parent.parent
 TARGET = Path(os.environ.get("KUHAKU_HOME") or Path.home() / ".local/share/kuhaku")
 MANIFEST = TARGET / ".installed.json"
-SKIP = ("os/", ".github/")          # the OS image builder and CI stay in the project
+SKIP = ("os/", ".github/", "CLAUDE.md")   # the running copy gets its own CLAUDE.md (below)          # the OS image builder and CI stay in the project
 NOTE = """# This is Kūhaku's running copy. Do not change files here.
 
 Kūhaku is changed only in its project, {project}. Edit there, run `dev/check`, commit,
