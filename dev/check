@@ -1,0 +1,18 @@
+#!/bin/sh
+# Everything Kūhaku checks before a change is saved: the Python compiles, the tests pass,
+# the safety guard works, and every page loads without a script error.
+#     dev/check          all of it
+#     dev/check quick    no pages (what runs before each commit)
+set -e
+cd "$(dirname "$0")/.."
+echo "· compiling"
+for f in *.py; do python3 -m py_compile "$f"; done
+if [ -d tests ]; then
+  echo "· tests"
+  python3 -m unittest discover -s tests -t . -q
+fi
+if [ "$1" != quick ]; then
+  echo "· pages"
+  python3 dev/pagecheck.py
+fi
+echo "All good."
