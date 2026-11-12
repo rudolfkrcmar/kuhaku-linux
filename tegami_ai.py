@@ -166,7 +166,6 @@ class Assistant:
         self.wake = threading.Event()
         self.lock = threading.Lock()
         with store.lock:
-            cols = {r[1] for r in store.db.execute("PRAGMA table_info(triage)")}
             store.db.executescript("""
             CREATE TABLE IF NOT EXISTS triage (acct TEXT, folder TEXT, uid INTEGER, attention TEXT, summary TEXT,
               due TEXT, urgent INTEGER, done INTEGER DEFAULT 0, at REAL, PRIMARY KEY (acct, folder, uid));

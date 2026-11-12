@@ -253,7 +253,7 @@ class Sync:
                 self.sync_account(a)
                 ok_any = True
                 a_err = ""
-            except (OSError, socket.error, imaplib.IMAP4.abort) as e:
+            except (OSError, socket.error, imaplib.IMAP4.abort):
                 a_err = "offline"
                 net_fail += 1
             except imaplib.IMAP4.error as e:

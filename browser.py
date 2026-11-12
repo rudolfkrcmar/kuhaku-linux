@@ -947,7 +947,7 @@ class Browser:
         page = TLS_PAGE.replace("{HOST}", esc(h)).replace("{TOKEN}", token)
         page = page.replace("{BG}", "#121212" if self.night else "#f7f4f1").replace("{FG}", "#ececec" if self.night else "#111111")
         page = page.replace("{ACCENT}", "#f0705a" if self.night else "#e0301e")
-        QTimer.singleShot(0, lambda: view.setHtml(page, QUrl(f"about:blank")))
+        QTimer.singleShot(0, lambda: view.setHtml(page, QUrl("about:blank")))
 
     def trust(self, token):
         if token not in self.tls_pending:

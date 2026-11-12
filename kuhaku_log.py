@@ -4,7 +4,7 @@ Many things in Kūhaku are best effort (a battery that is not there, a file that
 yet, a device that just went away) and must never stop an app. Those places call report():
 the app carries on, and the fault goes to ~/.local/state/kuhaku/logs/<app>.log, once per
 place and kind of error in each run, so a check that repeats every second cannot flood it.
-Kansei shows the logs; `KUHAKU_DEBUG=1` also prints them.
+`KUHAKU_DEBUG=1` also prints them.
 
     from kuhaku_log import report
     try:

@@ -33,7 +33,6 @@ NICE = {f: f.replace("-finger", "").replace("-", " ").replace("right ", "Right "
 def reader():
     """(name, stages) of the fingerprint reader, or None."""
     try:
-        import gi
         from gi.repository import Gio
         bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
         mgr = Gio.DBusProxy.new_sync(bus, 0, None, "net.reactivated.Fprint", "/net/reactivated/Fprint/Manager",
@@ -204,6 +203,5 @@ if __name__ == "__main__":
     else:
         finger = arg if arg in ORDER else next_finger()
         Window(finger)
-        import gi
         from gi.repository import Gtk
         Gtk.main()

@@ -121,7 +121,6 @@ class Corner:
             active = int(out.split("#")[1].split()[0].strip(","), 16)
         except Exception:
             active = 0
-        showing = "_NET_SHOWING_DESKTOP(CARDINAL) = 1" in out
         own = self.own_xid_fn()
         mine = self.win.get_window().get_xid() if self.win.get_window() else -1
         # The "showing desktop" flag can stay set after an app opens; what is in front decides.
