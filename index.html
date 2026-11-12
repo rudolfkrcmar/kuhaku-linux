@@ -638,7 +638,9 @@
   };
   function talk() {
     if (micMode === 'dictate') return dictation === 'busy' ? null : toggleDictation();
-    native({ type: 'voice', on: voice === 'off' });
+    // Talk with Claude: the Claude app's own voice chat (a new chat, its mic ready).
+    if (voice !== 'off') return native({ type: 'voice', on: false });   // a conversation here still on: end it
+    native({ type: 'panel', action: 'talk' });
   }
   $('mic').addEventListener('click', talk);
   // Pictures for Claude: picked files are copied into ~/Pictures/ForClaude and named in the line.
