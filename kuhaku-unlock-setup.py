@@ -7,7 +7,6 @@ or by asking Claude.
 """
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,12 +15,12 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from kuhaku_unlock_style import window_css  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_unlock_style import window_css
 
 WANT = 3
 

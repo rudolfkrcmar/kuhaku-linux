@@ -10,12 +10,11 @@ import os
 import pwd
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import gi
@@ -24,9 +23,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import claude_accounts as accounts  # noqa: E402
-from kuhaku_log import report  # noqa: E402
-from kuhaku_log import report  # faults go to the log instead of vanishing
+import claude_accounts as accounts
+from kuhaku_log import report
 
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
@@ -389,7 +387,7 @@ def note_limits(info):
             at = w.get("resetsAt")
             out[names[key]] = {
                 "percent": w["utilization"] * 100 if w["utilization"] <= 1 else w["utilization"],
-                "resets": datetime.fromtimestamp(at, timezone.utc).isoformat() if at else None,
+                "resets": datetime.fromtimestamp(at, UTC).isoformat() if at else None,
             }
     if not out:
         return None
@@ -736,6 +734,21 @@ def short(text, n=140):
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
+# What each Claude Code tool is doing, in plain words (from its input and the file it touches).
+TOOL_WORDS = {
+    "Bash": lambda i, path: i.get("description") or short(i.get("command")),
+    "Read": lambda i, path: f"Reading {path}",
+    "Write": lambda i, path: f"Writing {path}",
+    "Edit": lambda i, path: f"Editing {path}",
+    "Glob": lambda i, path: f"Looking for {i.get('pattern', 'files')}",
+    "Grep": lambda i, path: f"Searching for “{short(i.get('pattern'), 60)}”",
+    "WebSearch": lambda i, path: f"Searching the web for “{short(i.get('query'), 80)}”",
+    "WebFetch": lambda i, path: f"Reading {short(i.get('url'), 80)}",
+    "Agent": lambda i, path: i.get("description") or "Asking a helper",
+    "TodoWrite": lambda i, path: "Planning the steps",
+}
+
+
 def describe(ev):
     """Plain words for what Claude is doing, from one stream-json event."""
     if ev.get("type") != "assistant":
@@ -747,18 +760,8 @@ def describe(ev):
         elif block.get("type") == "tool_use":
             name, i = block.get("name", ""), block.get("input") or {}
             path = Path(i.get("file_path") or i.get("path") or "").name
-            text = {
-                "Bash": lambda: i.get("description") or short(i.get("command")),
-                "Read": lambda: f"Reading {path}",
-                "Write": lambda: f"Writing {path}",
-                "Edit": lambda: f"Editing {path}",
-                "Glob": lambda: f"Looking for {i.get('pattern', 'files')}",
-                "Grep": lambda: f"Searching for “{short(i.get('pattern'), 60)}”",
-                "WebSearch": lambda: f"Searching the web for “{short(i.get('query'), 80)}”",
-                "WebFetch": lambda: f"Reading {short(i.get('url'), 80)}",
-                "Agent": lambda: i.get("description") or "Asking a helper",
-                "TodoWrite": lambda: "Planning the steps",
-            }.get(name, lambda: name.replace("mcp__", "").replace("__", " ").replace("_", " "))()
+            words = TOOL_WORDS.get(name)
+            text = words(i, path) if words else name.replace("mcp__", "").replace("__", " ").replace("_", " ")
             steps.append({"kind": "tool", "text": short(text)})
     return steps
 

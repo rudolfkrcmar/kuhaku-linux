@@ -1,12 +1,14 @@
 """Load the home screen off-screen and evaluate an expression: catches script errors before a restart.
 python3 jscheck.py "typeof show" """
 
-import sys, gi
+import sys
 from pathlib import Path
+
+import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("WebKit2", "4.1")
-from gi.repository import Gtk, WebKit2, GLib
+from gi.repository import GLib, Gtk, WebKit2
 
 page = sys.argv[2] if len(sys.argv) > 2 else (Path(__file__).resolve().parent.parent / "index.html").as_uri()
 w = Gtk.OffscreenWindow()

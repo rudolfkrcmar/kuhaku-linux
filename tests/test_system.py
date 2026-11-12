@@ -2,15 +2,12 @@
 with every command's output mocked, and the pure helpers (describe, short, note_limits, daily_tokens)."""
 
 import json
-import os
 import unittest
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from unittest import mock
 
-from tests.util import TempDirCase, fake_completed
-
 import kuhaku_system as ks
+from tests.util import TempDirCase, fake_completed
 
 
 class FakeRun:
@@ -508,7 +505,7 @@ class Limits(TempDirCase):
             }
         )
         self.assertEqual(out["session"]["percent"], 25)
-        self.assertEqual(out["session"]["resets"], datetime.fromtimestamp(1800000000, timezone.utc).isoformat())
+        self.assertEqual(out["session"]["resets"], datetime.fromtimestamp(1800000000, UTC).isoformat())
         self.assertEqual(out["week"], {"percent": 63, "resets": None})
         self.assertEqual(set(out), {"session", "week"})
         self.assertEqual(json.loads((self.tmp / "plan-limits.json").read_text()), out)

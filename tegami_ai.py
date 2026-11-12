@@ -447,7 +447,7 @@ class Assistant:
         ids = [i for i in re.findall(r"<[^>]+>", refs or "") if i != msgid][-4:]
         thread = []
         for i in ids:
-            for s, sn, sub, d, p in self.store.q(
+            for s, sn, _sub, d, p in self.store.q(
                 "SELECT sender, sender_name, subject, date, path FROM msg WHERE msgid=?", (i,)
             ):
                 thread.append(

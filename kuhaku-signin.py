@@ -23,7 +23,8 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("WebKit2", "4.1")
-from gi.repository import Gdk, GLib, Gtk, WebKit2  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk, WebKit2
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()

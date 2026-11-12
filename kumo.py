@@ -28,6 +28,7 @@ import time
 import urllib.request
 import zipfile
 from pathlib import Path
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
@@ -490,7 +491,7 @@ def sync_all():
 
 def daemon():
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    lock = open(LOCK, "w")
+    lock = open(LOCK, "w")  # noqa: SIM115  held (and locked) for the life of the daemon
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:

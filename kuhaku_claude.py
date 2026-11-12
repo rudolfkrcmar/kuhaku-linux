@@ -4,10 +4,10 @@ A part of the Kuhaku window class (kuhaku.py), kept here by subject."""
 
 import json
 import os
+import re
 import signal
 import subprocess
 import threading
-import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -20,11 +20,11 @@ gi.require_version("WebKit2", "4.1")
 from gi.repository import GLib
 
 import claude_accounts as accounts
-import keepawake
 import jobs
-from kuhaku_log import report
+import keepawake
 from kuhaku_config import ANSWERS_FILE, HOME, LOG_FILE, SYSTEM_PROMPT, VOICE_PROMPT
-from kuhaku_system import _limits_cache, describe, note_limits, plan_limits, run, spawn
+from kuhaku_log import report
+from kuhaku_system import _limits_cache, describe, note_limits, plan_limits, spawn
 
 
 class ClaudeJobs:

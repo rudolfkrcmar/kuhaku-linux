@@ -5,12 +5,10 @@ import csv
 import json
 import unittest
 from datetime import datetime
-from pathlib import Path
 from unittest import mock
 
-from tests.util import TempDirCase
-
 import kiroku
+from tests.util import TempDirCase
 
 
 class Helpers(unittest.TestCase):

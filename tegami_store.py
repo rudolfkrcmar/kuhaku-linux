@@ -7,12 +7,12 @@ import html
 import imaplib
 import json
 import os
-import sys
 import re
 import sqlite3
+import sys
 import threading
-from pathlib import Path
 import time
+from pathlib import Path
 
 imaplib._MAXLINE = 50_000_000  # long server answers (big mailboxes) are fine
 HERE = Path(__file__).resolve().parent
@@ -45,7 +45,7 @@ if os.environ.get("TEGAMI_TEST_DIR"):  # a sandbox for trying Tegami without rea
     DATA = Path(os.environ["TEGAMI_TEST_DIR"]) / "data"
 
 sys.path.insert(0, str(HERE))
-import desktop  # noqa: E402
+import desktop
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 

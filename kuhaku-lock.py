@@ -25,10 +25,10 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, Gio, GLib, Gtk
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import touchkeys  # noqa: E402
+import touchkeys
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 COLORS = {"night": ("#121212", "#ececec", "#9a9a9a", "#f0705a"), "day": ("#f7f4f1", "#111111", "#666666", "#e0301e")}
@@ -414,7 +414,9 @@ def main():
     # instead of locking the screen twice.
     import fcntl
 
-    hold = open(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "kuhaku-lock.watch"), "w")
+    hold = open(  # noqa: SIM115  held (and locked) for the life of the process
+        os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "kuhaku-lock.watch"), "w"
+    )
     fcntl.flock(hold, fcntl.LOCK_EX)
     Gtk.init(None)
     Watcher()

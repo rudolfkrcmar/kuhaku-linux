@@ -2,7 +2,11 @@
 python3 dev/mail_fixture.py /tmp/tegami-test
 TEGAMI_TEST_DIR=/tmp/tegami-test python3 tegami.py"""
 
-import json, os, sys, time, email.utils
+import email.utils
+import json
+import os
+import sys
+import time
 from email.message import EmailMessage
 from pathlib import Path
 

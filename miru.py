@@ -16,7 +16,6 @@ Space or Esc goes back (or closes), Cmd+plus/minus/0 zoom pictures.
     miru [FOLDER | FILE]
 """
 
-import html
 import json
 import mimetypes
 import os
@@ -223,9 +222,10 @@ MESH_LIMIT = 3_000_000  # triangles
 
 def load_mesh(path):
     """Triangles of an STL, 3MF or OBJ file as a flat float32 array (x, y, z per corner, mm)."""
-    import numpy as np
-    import zipfile
     import xml.etree.ElementTree as ET
+    import zipfile
+
+    import numpy as np
 
     path = Path(path)
     ext = path.suffix.lower()

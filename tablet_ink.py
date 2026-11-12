@@ -7,17 +7,17 @@ import threading
 import time
 from pathlib import Path
 
-import cairo  # noqa: E402
-import gi  # noqa: E402
+import cairo
+import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk, Pango
+
 from tablet_base import NOTES_FRONT, THEMES, current_theme, draw_ink, ease, is_finger, log, pressure, recognize
 from tablet_keyboard import text_at
-
 
 # --- the pen anywhere --------------------------------------------------------------------
 
@@ -247,7 +247,7 @@ class Ink:
             # one long straight line is a gesture, not writing: up or down scrolls what is under it
             dx, dy = s[-1][0] - s[0][0], s[-1][1] - s[0][1]
             dist = math.hypot(dx, dy)
-            length = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(s, s[1:]))
+            length = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(s, s[1:], strict=False))
             if dist > 0 and length / dist < 1.18:
                 if abs(dy) > 140 and abs(dy) > 2.5 * abs(dx):
                     self.off()

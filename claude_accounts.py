@@ -14,6 +14,7 @@ import re
 import shlex
 import time
 from pathlib import Path
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
@@ -428,7 +429,7 @@ def remove(ident):
     data["accounts"] = [a for a in data["accounts"] if a["id"] != ident]
     if data.get("active") == ident:
         data["active"] = data["accounts"][0]["id"]
-    for p in list((data.get("for") or {})):
+    for p in list(data.get("for") or {}):
         if data["for"][p] == ident:
             del data["for"][p]
     save(data)

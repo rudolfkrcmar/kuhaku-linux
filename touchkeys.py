@@ -11,7 +11,7 @@ from pathlib import Path
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import GLib, Gtk
 
 RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
 MODE_FILE = RUN / "kuhaku-tablet-mode"

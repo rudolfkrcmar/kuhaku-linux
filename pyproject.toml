@@ -18,6 +18,8 @@ ignore = [
   "SIM105", # try/except/report() is the house style, not contextlib.suppress (faults are logged)
   "SIM108", # ternaries are not always clearer
   "B008",
+  "E741",   # `l` for a line in a short comprehension is fine in this font
+  "SIM117", # nested with-blocks sometimes read more clearly
 ]
 
 [tool.ruff.lint.isort]

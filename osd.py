@@ -6,9 +6,9 @@ everything for a moment, then fades away.
 """
 
 import math
+import os
 import re
 import subprocess
-import os
 import threading
 import time
 from pathlib import Path
@@ -17,9 +17,10 @@ import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo
-from kuhaku_log import report  # faults go to the log instead of vanishing
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 BRIGHT_MARK = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "kuhaku-brightness-asked"

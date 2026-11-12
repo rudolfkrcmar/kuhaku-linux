@@ -2,15 +2,13 @@
 path read from stdin into one line of JSON text on stdout. Fully offline."""
 
 import json
+import os
 import sys
 import wave
 
+import ctranslate2
 import numpy as np
 from faster_whisper import WhisperModel
-
-import os
-
-import ctranslate2
 
 
 def pick(choice):

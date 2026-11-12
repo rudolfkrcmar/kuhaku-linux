@@ -32,6 +32,7 @@ gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("JavaScriptCore", "4.1")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk, JavaScriptCore, WebKit2
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent

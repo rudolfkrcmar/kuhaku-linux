@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 import threading
-from kuhaku_log import report  # faults go to the log instead of vanishing
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 MAC = sys.platform == "darwin"
@@ -87,7 +87,7 @@ def _lid_release():
     try:
         with open(LID_SAVED) as f:
             saved = f.read().split()
-        for p, v in zip(LID_PROPS, saved):
+        for p, v in zip(LID_PROPS, saved, strict=False):
             _xfpm(p, v if v.isdigit() else "1")
         os.unlink(LID_SAVED)
     except Exception:

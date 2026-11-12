@@ -7,9 +7,8 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
-from tests.util import TempDirCase
-
 import jobs
+from tests.util import TempDirCase
 
 
 class PlanRoom(unittest.TestCase):
@@ -126,7 +125,8 @@ class TabsTest(TempDirCase):
 
     def test_new_close_and_current(self):
         t = self.tabs()
-        a, b = t.new(), t.new()
+        t.new()
+        t.new()
         self.assertEqual([x["id"] for x in t.tabs], ["1", "2", "3"])
         self.assertEqual(t.current, "3")
         t.close("3")

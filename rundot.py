@@ -14,6 +14,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkX11", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, GLib, Gtk  # noqa: F401 (GdkX11 gives windows their XID)
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 SIZE = 44  # same box as .rundot on the home screen: left 44, bottom 36
@@ -36,11 +37,12 @@ def overview():
     False when it is not running, so the caller can fall back to the list."""
     import os
     import signal
+    from pathlib import Path
 
     try:
         path = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "kuhaku-gestures.pid")
-        pid = int(open(path).read().strip())
-        if "kuhaku-gestures" not in open(f"/proc/{pid}/cmdline").read():
+        pid = int(Path(path).read_text().strip())
+        if "kuhaku-gestures" not in Path(f"/proc/{pid}/cmdline").read_text(errors="replace"):
             return False
         os.kill(pid, signal.SIGUSR1)
         return True
@@ -153,7 +155,15 @@ class RunDot:
         win.get_style_context().add_provider(css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         box.get_style_context().add_class("runlist")
-        win.connect("draw", lambda w, cr: (cr.set_operator(0), cr.paint(), cr.set_operator(2)) and False)
+
+        def clear(_w, cr):
+            """A see-through window: wipe it, then let the widgets draw over."""
+            cr.set_operator(0)
+            cr.paint()
+            cr.set_operator(2)
+            return False
+
+        win.connect("draw", clear)
         h = Gtk.Label(label="OPEN", xalign=0)
         h.get_style_context().add_class("h")
         box.pack_start(h, False, False, 0)

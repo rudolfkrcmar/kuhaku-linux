@@ -30,9 +30,9 @@ from gi.repository import Gdk, GLib, Gtk, WebKit2
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
 sys.path.insert(0, str(HERE))
-from terminal import theme  # noqa: E402
-from tegami_core import Mail  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from tegami_core import Mail
+from terminal import theme
 
 
 class Tegami:

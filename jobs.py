@@ -14,6 +14,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 PER_JOB_MB = 450

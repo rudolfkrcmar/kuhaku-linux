@@ -11,16 +11,16 @@ from pathlib import Path
 X11 = ctypes.CDLL("libX11.so.6")
 X11.XInitThreads()  # before GTK opens its own connection
 
-import cairo  # noqa: E402
-import gi  # noqa: E402
+import cairo
+import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gdk  # noqa: E402
-from kuhaku_log import report  # faults go to the log instead of vanishing
+from gi.repository import Gdk
 
+from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
 CONFIG_DIR = HOME / ".config" / "kuhaku"
@@ -158,7 +158,7 @@ def draw_ink(cr, strokes, color, alpha, width):
             cr.arc(s[0][0], s[0][1], width * 0.6, 0, 2 * math.pi)
             cr.fill()
             continue
-        for a, b in zip(s, s[1:]):
+        for a, b in zip(s, s[1:], strict=False):
             p = (a[3] + b[3]) / 2 if len(a) > 3 else 0.5
             cr.set_line_width(width * (0.55 + 0.9 * p))
             cr.set_source_rgba(*color[:3], alpha)

@@ -21,7 +21,6 @@ import hashlib
 import html
 import imaplib
 import json
-
 import os
 import re
 import shutil
@@ -32,13 +31,14 @@ import time
 from datetime import datetime
 from email.message import EmailMessage
 from pathlib import Path
-from tegami_ai import Assistant, threads  # noqa: E402
-import invites  # noqa: E402
-import claude_accounts as accounts  # noqa: E402
-import keepawake  # noqa: E402
-import desktop  # noqa: E402
-import tegami_google as google  # noqa: E402
+
+import claude_accounts as accounts
+import desktop
+import invites
+import keepawake
+import tegami_google as google
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from tegami_ai import Assistant, threads
 from tegami_store import (
     CATS,
     DATA,

@@ -23,6 +23,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Vte", "2.91")
 from gi.repository import Gdk, GLib, Gtk, Pango, Vte
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()

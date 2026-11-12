@@ -26,6 +26,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango, PangoCairo
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
@@ -336,8 +337,8 @@ class Editor(Gtk.Window):
             p = Gtk.CssProvider()
             p.load_from_data(
                 (
-                    "button { background:rgb(%d,%d,%d); border:1px solid rgba(0,0,0,.18); }"
-                    % tuple(round(c * 255) for c in rgb)
+                    "button { background:rgb(" + ",".join(str(round(c * 255)) for c in rgb) + ");"
+                    " border:1px solid rgba(0,0,0,.18); }"
                 ).encode()
             )
             b.get_style_context().add_provider(p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)

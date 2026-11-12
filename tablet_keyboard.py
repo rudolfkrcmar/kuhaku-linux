@@ -6,14 +6,15 @@ import sys
 import threading
 import time
 
-import cairo  # noqa: E402
-import gi  # noqa: E402
+import cairo
+import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo
+
 from tablet_base import (
     FONT,
     LANGS,
@@ -431,7 +432,7 @@ class Keyboard:
             for k, x, y, w, h in self.rects:
                 self.draw_key(cr, t, k, x, y, w, h)
         now = time.monotonic()
-        for kind, x, y, start in self.anims:
+        for _kind, x, y, start in self.anims:
             p = (now - start) / 0.42
             cr.set_source_rgba(*t["accent"], 0.32 * (1 - p))
             cr.set_line_width(1.5)
@@ -502,7 +503,7 @@ class Keyboard:
     def draw_strip(self, cr, t):
         s = self.strip
         cy = self.margin + s / 2 + 2
-        for name, (x, y, w, h) in self.strip_buttons:
+        for name, (x, _y, w, _h) in self.strip_buttons:
             if name.startswith("mode-"):
                 mine = name[5:]
                 on = self.mode == mine
@@ -617,7 +618,7 @@ class Keyboard:
         cr.set_line_width(1)
         rounded(cr, x + 0.5, y + 0.5, w - 1, h - 1, self.kh * 0.25)
         cr.stroke()
-        for i, (ch, (cx0, cy0, cw, chh)) in enumerate(zip(al["items"], al["rects"])):
+        for i, (ch, (cx0, cy0, cw, chh)) in enumerate(zip(al["items"], al["rects"], strict=False)):
             sel = i == al["sel"]
             if sel:
                 cr.set_source_rgba(*t["accent"], 0.14)
@@ -675,11 +676,11 @@ class Keyboard:
         now = time.monotonic()
         # the strip
         if self.margin <= y < self.margin + self.strip:
-            for name, (bx, by, bw, bh) in self.strip_buttons:
+            for name, (bx, _by, bw, _bh) in self.strip_buttons:
                 if bx <= x <= bx + bw:
                     self.strip_action(name)
                     return
-            for c, (bx, by, bw, bh) in getattr(self, "cand_rects", []):
+            for c, (bx, _by, bw, _bh) in getattr(self, "cand_rects", []):
                 if self.mode == "write" and bx <= x <= bx + bw:
                     self.pick_candidate(c)
                     return
@@ -717,7 +718,7 @@ class Keyboard:
             return
         k = tc["key"]
         if tc["mode"] == "alts" and self.alts:
-            for i, (ax, ay, aw, ah) in enumerate(self.alts["rects"]):
+            for i, (ax, _ay, aw, _ah) in enumerate(self.alts["rects"]):
                 if ax <= x <= ax + aw:
                     self.alts["sel"] = i
             if x < self.alts["rects"][0][0]:

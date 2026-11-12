@@ -21,6 +21,7 @@ import os
 import sys
 import time
 from pathlib import Path
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent
@@ -183,6 +184,7 @@ def forget():
 
 def enroll_window():
     import threading
+
     import gi
 
     gi.require_version("Gtk", "3.0")

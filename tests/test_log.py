@@ -6,9 +6,8 @@ import types
 import unittest
 from unittest import mock
 
-from tests.util import TempDirCase
-
 import kuhaku_log
+from tests.util import TempDirCase
 
 
 def reset_log_module():

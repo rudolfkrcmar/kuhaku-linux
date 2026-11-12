@@ -24,7 +24,7 @@ sys.path.insert(0, str(HERE))
 _out = os.fdopen(os.dup(sys.stdout.fileno()), "w", buffering=1, encoding="utf-8")
 sys.stdout = sys.stderr  # stray prints must not break the line protocol
 
-from tegami_core import Mail  # noqa: E402
+from tegami_core import Mail
 
 
 class Engine:

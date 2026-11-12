@@ -26,7 +26,6 @@ import signal
 import subprocess
 import sys
 import threading
-import time
 from pathlib import Path
 
 import gi
@@ -39,8 +38,8 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Pango, Vte, WebKit2
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import claude_accounts as accounts  # noqa: E402
-import tsukuru_chat as chat  # noqa: E402
+import claude_accounts as accounts
+import tsukuru_chat as chat
 
 HOME = Path.home()
 STATE = HOME / ".local/state/kuhaku/tsukuru.json"
@@ -66,9 +65,8 @@ SKIP = {
 MAX_FILE = 4_000_000
 
 sys.path.insert(0, str(HERE))
-from terminal import THEMES, theme, rgba  # noqa: E402  (same colours as Kūhaku Terminal)
 from kuhaku_log import report  # faults go to the log instead of vanishing
-
+from terminal import THEMES, rgba, theme
 
 CLAUDE_NOTES = HOME / ".claude" / "CLAUDE.md"
 NOTE_START, NOTE_END = "<!-- kuhaku:connections -->", "<!-- /kuhaku:connections -->"
@@ -88,7 +86,9 @@ RAILWAY = shutil.which("railway") or str(HOME / ".local/bin/railway")
 
 def install_railway():
     """Railway's CLI, straight from its GitHub releases, into ~/.local/bin (no root needed)."""
-    import tarfile, tempfile, urllib.request
+    import tarfile
+    import tempfile
+    import urllib.request
 
     rel = json.loads(
         urllib.request.urlopen("https://api.github.com/repos/railwayapp/cli/releases/latest", timeout=20).read()
@@ -113,7 +113,9 @@ GLAB = shutil.which("glab") or str(HOME / ".local/bin/glab")
 
 def install_glab():
     """GitLab's CLI, straight from its releases, into ~/.local/bin (no root needed)."""
-    import tarfile, tempfile, urllib.request
+    import tarfile
+    import tempfile
+    import urllib.request
 
     req = urllib.request.Request("https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest", method="HEAD")
     tag = urllib.request.urlopen(req, timeout=20).url.rstrip("/").split("/")[-1]
@@ -1041,9 +1043,7 @@ class Tsukuru:
             return True
         if self.term.has_focus() and cmd and k in ("1", "e", "n", "o"):
             self.view.grab_focus()
-            if k in ("n", "o"):
-                return False
-            return True
+            return k not in ("n", "o")
         return False
 
 

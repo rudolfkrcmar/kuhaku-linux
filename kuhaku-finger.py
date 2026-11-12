@@ -20,6 +20,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HERE = Path(__file__).resolve().parent
@@ -101,6 +102,7 @@ class Window:
         gi.require_version("Gtk", "3.0")
         gi.require_version("Gdk", "3.0")
         from gi.repository import Gdk, GLib, Gtk
+
         from kuhaku_unlock_style import window_css
 
         self.Gtk, self.GLib = Gtk, GLib

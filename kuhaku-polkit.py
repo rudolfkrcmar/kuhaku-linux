@@ -19,10 +19,10 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Polkit", "1.0")
 gi.require_version("PolkitAgent", "1.0")
-from gi.repository import Gdk, Gio, GLib, Gtk, Polkit, PolkitAgent  # noqa: E402
+from gi.repository import Gdk, Gio, GLib, Gtk, Polkit, PolkitAgent
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import touchkeys  # noqa: E402
+import touchkeys
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 # Always dark, whatever the time of day: a password window that floods the screen white

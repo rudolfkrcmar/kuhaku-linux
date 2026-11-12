@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 HERE = Path(__file__).resolve().parent
 HOME = Path.home()
 CONFIG_DIR = HOME / ".config" / "kuhaku"

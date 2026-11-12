@@ -9,15 +9,13 @@ terminal with Ctrl+` (or Ctrl+Alt+Return).
 
 import json
 import os
-import pwd
+import re
 import shutil
 import signal
 import subprocess
 import sys
 import threading
-import re
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 import gi
@@ -28,47 +26,10 @@ gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import claude_accounts as accounts  # noqa: E402
-import keepawake  # noqa: E402
-import jobs  # noqa: E402
-from kuhaku_log import report  # faults go to the log instead of vanishing
-
-from kuhaku_system import (  # noqa: E402  the computer: battery, Wi-Fi, power, displays, apps
-    FINGER_ORDER,
-    PAD_KEYS,
-    POWER_KEYS,
-    _limits_cache,
-    battery_details,
-    bluetooth_icon_state,
-    bluetooth_state,
-    daily_tokens,
-    describe,
-    launch_app,
-    list_apps,
-    load_json,
-    note_limits,
-    open_windows,
-    pgrep_x,
-    plan_limits,
-    read_battery,
-    read_displays,
-    read_power,
-    read_time,
-    read_trackpad,
-    read_unlock,
-    read_wifi,
-    run,
-    spawn,
-    wifi_connect,
-    wifi_networks,
-    wifi_signal,
-    write_display,
-    write_power,
-    write_time,
-    write_trackpad,
-    notices,
-)
-from kuhaku_config import (  # noqa: E402
+import claude_accounts as accounts
+import jobs
+from kuhaku_claude import ClaudeJobs
+from kuhaku_config import (
     CONFIG_DIR,
     CONFIG_FILE,
     DEFAULT_CONFIG,
@@ -79,11 +40,21 @@ from kuhaku_config import (  # noqa: E402
     STATE_DIR,
     STATE_FILE,
 )
-from kuhaku_panels import Panels  # noqa: E402
-from kuhaku_voice import Voice  # noqa: E402
-from kuhaku_settings import Settings  # noqa: E402
-from kuhaku_claude import ClaudeJobs  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_panels import Panels
+from kuhaku_settings import Settings
+from kuhaku_system import (
+    _limits_cache,
+    bluetooth_icon_state,
+    load_json,
+    open_windows,
+    pgrep_x,
+    read_battery,
+    read_wifi,
+    spawn,
+    wifi_signal,
+)
+from kuhaku_voice import Voice
 
 
 class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
@@ -548,7 +519,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         )
         if accounts.kind(acct) == "claude":
             env["KUHAKU_SIGNIN_BROWSER"] = "firefox"  # Cloudflare's human check stops WebKitGTK
-        log = open(STATE_DIR / "signin.log", "a")
+        log = open(STATE_DIR / "signin.log", "a")  # noqa: SIM115  handed to the sign-in process as its output
         # stdin stays open: Claude reads a pasted code from it if ever needed; Gemini asks yes/no first.
         p = subprocess.Popen(
             ["bash", "-c", "exec env " + accounts.login_command(acct)],

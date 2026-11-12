@@ -10,9 +10,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tests.util import TempDirCase, fake_completed
-
 import kumo
+from tests.util import TempDirCase, fake_completed
 
 # The real rclone, if this computer has one (found through the account, not $HOME, which tests change).
 REAL_RCLONE = Path(shutil.which("rclone") or Path(pwd.getpwuid(os.getuid()).pw_dir) / ".local/bin/rclone")

@@ -7,7 +7,6 @@ import subprocess
 import sys
 import unittest
 from contextlib import redirect_stderr
-from pathlib import Path
 from unittest import mock
 
 from tests.util import ROOT, TempDirCase, load_file

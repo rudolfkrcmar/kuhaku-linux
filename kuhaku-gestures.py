@@ -18,7 +18,6 @@ import subprocess
 import time
 
 import cairo
-
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -27,6 +26,7 @@ gi.require_version("GdkX11", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GdkX11, Gio, GLib, Gtk, Pango, PangoCairo
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 SWIPE = 1
@@ -358,13 +358,16 @@ class Deck:
         """Apps sometimes pull focus back right after a switch (Electron does);
         check for a moment and put the chosen screen in front again."""
 
-        def check(left=[tries]):
+        left = tries
+
+        def check():
+            nonlocal left
             active = self.active_window()
             ok = (showing_desktop() and is_home(active)) if where == "kuhaku" else active == where
             if not ok:
                 self.go(where, None)
-            left[0] -= 1
-            return left[0] > 0 and not ok
+            left -= 1
+            return left > 0 and not ok
 
         if where:
             GLib.timeout_add(150, check)
@@ -435,7 +438,7 @@ class Deck:
             return None
         surf = cairo.ImageSurface(cairo.FORMAT_RGB24, int(self.w * SCALE), int(self.h * SCALE))
         cr = cairo.Context(surf)
-        night = 20 <= time.localtime().tm_hour or time.localtime().tm_hour < 7
+        night = time.localtime().tm_hour >= 20 or time.localtime().tm_hour < 7
         cr.set_source_rgb(*((0.071,) * 3 if night else (0.969, 0.957, 0.945)))
         cr.paint()
         cr.scale(SCALE, SCALE)
@@ -451,7 +454,7 @@ class Deck:
         if surface:
             cr.set_source_surface(surface, x, 0)
         else:
-            night = 20 <= time.localtime().tm_hour or time.localtime().tm_hour < 7
+            night = time.localtime().tm_hour >= 20 or time.localtime().tm_hour < 7
             cr.set_source_rgb(*((0.071,) * 3 if night else (0.969, 0.957, 0.945)))
         cr.paint()
         cr.restore()
@@ -603,7 +606,7 @@ class Overview:
         self.sel = [c["key"] for c in self.cards].index(self.origin)
         self.s = ui_scale()
         self.measure()
-        for c, x in zip(self.cards, self.places()):
+        for c, x in zip(self.cards, self.places(), strict=False):
             c["x"] = x
         self.p = self.target = self.q = 0.0
         self.picking = None
@@ -886,7 +889,7 @@ class Overview:
             else:
                 setattr(self, name, v + (goal - v) * rate)
                 moving = True
-        for c, x in zip(self.cards, self.places()):
+        for c, x in zip(self.cards, self.places(), strict=False):
             if abs(x - c["x"]) < 0.5:
                 c["x"] = x
             else:

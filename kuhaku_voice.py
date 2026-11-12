@@ -3,10 +3,10 @@
 A part of the Kuhaku window class (kuhaku.py), kept here by subject."""
 
 import json
+import re
 import signal
 import subprocess
 import threading
-import re
 import time
 
 import gi
@@ -16,8 +16,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import GLib
 
-from kuhaku_log import report
 from kuhaku_config import DICTATION_FILE, HERE, STATE_DIR, VOICE_IN, VOICE_MODEL, VOICE_OUT
+from kuhaku_log import report
 
 
 class Voice:

@@ -17,7 +17,6 @@ import json
 import os
 import secrets
 import shutil
-import threading
 import time
 import urllib.parse
 import urllib.request

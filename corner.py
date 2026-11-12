@@ -8,7 +8,6 @@ closes the app. Apps do not draw their own minimise and close: there is one of e
 
 import os
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -18,7 +17,8 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 # Outside apps that should open filling the screen, as Kūhaku's own apps do (WM_CLASS parts).

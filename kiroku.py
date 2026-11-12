@@ -31,9 +31,9 @@ from gi.repository import Gdk, GLib, Gtk, WebKit2
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import claude_accounts as accounts  # noqa: E402
-import jobs  # noqa: E402
-from kansei import theme  # noqa: E402
+import claude_accounts as accounts
+import jobs
+from kansei import theme
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 HOME = Path.home()
@@ -104,7 +104,7 @@ def from_old_log(before, prev):
     """The home screen's jobs from before Kiroku kept its own lines (claude.log, stream-json)."""
     runs, open_runs, by_session = [], [], {}
     try:
-        fh = open(LOG_FILE, errors="ignore")
+        fh = open(LOG_FILE, errors="ignore")  # noqa: SIM115  closed by the `with fh` below
     except OSError:
         return runs
     with fh:

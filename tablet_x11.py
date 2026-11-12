@@ -13,15 +13,15 @@ import threading
 import time
 from pathlib import Path
 
-import gi  # noqa: E402
+import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import GLib  # noqa: E402
-from tablet_base import HOME, X11, load_json, log
+from gi.repository import GLib
 
+from tablet_base import HOME, X11, load_json, log
 
 # --- X11: typing, clicking, struts, the pen -------------------------------------------------
 

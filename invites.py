@@ -3,10 +3,8 @@
 An answer is a small iCalendar REPLY mailed to the organizer, the way Google Calendar, Outlook and
 Apple Mail answer, so the organizer's calendar shows Yes, Maybe or No."""
 
-import email.utils
 import re
-import time
-from datetime import datetime, timezone, date
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 ANSWER = {"yes": "ACCEPTED", "maybe": "TENTATIVE", "no": "DECLINED"}
@@ -34,7 +32,7 @@ def when(value, params):
         return d.timestamp(), True
     fmt = "%Y%m%dT%H%M%S"
     if v.endswith("Z"):
-        return datetime.strptime(v[:-1], fmt).replace(tzinfo=timezone.utc).timestamp(), False
+        return datetime.strptime(v[:-1], fmt).replace(tzinfo=UTC).timestamp(), False
     try:
         tz = ZoneInfo(params["TZID"]) if params.get("TZID") else None
     except Exception:
@@ -123,7 +121,7 @@ def calendar_of(m):
 
 def reply(ev, me, name, answer):
     """The iCalendar REPLY that tells the organizer the owner's answer."""
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     cn = f';CN="{name}"' if name else ""
     lines = [
         "BEGIN:VCALENDAR",

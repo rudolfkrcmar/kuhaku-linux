@@ -6,16 +6,15 @@ import email.policy
 import email.utils
 import imaplib
 import json
-
 import re
 import smtplib
-import socket
 import ssl
 import threading
 import time
 from email.message import EmailMessage
 from pathlib import Path
-import tegami_google as google  # noqa: E402
+
+import tegami_google as google
 from kuhaku_log import report  # faults go to the log instead of vanishing
 from tegami_store import (
     DATA,
@@ -61,7 +60,7 @@ class Sync:
                 self.sync_account(a)
                 ok_any = True
                 a_err = ""
-            except (OSError, socket.error, imaplib.IMAP4.abort):
+            except (OSError, imaplib.IMAP4.abort):
                 a_err = "offline"
                 net_fail += 1
             except imaplib.IMAP4.error as e:
@@ -165,7 +164,7 @@ class Sync:
                 self.push_drafts(a, M)
             except Exception:
                 report()
-                pass  # drafts stay safe on this computer and go up next time
+                # drafts stay safe on this computer and go up next time
             for role, name in self.folders(a, M).items():
                 self.sync_folder(a, M, role, name)
             # Folders the person has opened in the last two weeks stay in step as well.
@@ -365,7 +364,7 @@ class Sync:
         box = self.drafts_folder(a, M)
         if not box or M.select(f'"{box}"')[0] != "OK":
             return
-        for did, data, updated, pushed, msgid, gone in rows:
+        for did, data, updated, _pushed, msgid, gone in rows:
             if msgid:
                 typ, found = M.uid("search", None, "HEADER", "Message-ID", f'"{msgid}"')
                 for uid in found[0].split() if typ == "OK" and found and found[0] else []:
@@ -443,7 +442,7 @@ class Sync:
                     S.login(a.get("user") or a["email"], password(a["id"]) or "")
                 S.send_message(parse(raw))
                 S.quit()
-            except (OSError, socket.error):
+            except OSError:
                 return  # offline: try again later
             except Exception as e:
                 self.store.q("UPDATE outbox SET error=? WHERE id=?", (str(e)[:160], oid), commit=True)

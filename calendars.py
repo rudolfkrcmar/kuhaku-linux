@@ -12,8 +12,9 @@ import sys
 import threading
 import time
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from pathlib import Path
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
@@ -97,7 +98,7 @@ def refresh(force=False):
                     fetch(cal, i)
                 except Exception:
                     report()
-                    pass  # offline: the copy on disk stays in use
+                    # offline: the copy on disk stays in use
 
 
 def events(start, end):

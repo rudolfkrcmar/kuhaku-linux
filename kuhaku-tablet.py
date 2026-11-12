@@ -23,21 +23,21 @@ import sys
 import time
 from pathlib import Path
 
-import tablet_base  # noqa: F401  first: it starts Xlib's threads before GTK opens the display
+import gi
 
-import gi  # noqa: E402
+import tablet_base  # noqa: F401  first: it starts Xlib's threads before GTK opens the display
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import GLib, Gtk
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 from tablet_base import MODE_FILE, PASSWORD_FRONT, PID_FILE, THEMES, current_theme, log, settings
-from tablet_x11 import Hinge, PenWatcher, Props, TabletSwitch, Typer
-from tablet_keyboard import Keyboard, Pill
 from tablet_ink import Ink
-
+from tablet_keyboard import Keyboard, Pill
+from tablet_x11 import Hinge, PenWatcher, Props, TabletSwitch, Typer
 
 # --- together ----------------------------------------------------------------------------
 

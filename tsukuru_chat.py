@@ -236,7 +236,7 @@ def history(root, sid):
     f = project_dir(root) / f"{sid}.jsonl"
     blocks, tools = [], {}
     try:
-        fh = open(f, errors="ignore")
+        fh = open(f, errors="ignore")  # noqa: SIM115  closed by the `with fh` below
     except OSError:
         return blocks
     with fh:

@@ -5,12 +5,10 @@ import json
 import struct
 import unittest
 import zipfile
-from pathlib import Path
 from unittest import mock
 
-from tests.util import TempDirCase, fake_completed
-
 import miru
+from tests.util import TempDirCase, fake_completed
 
 
 class HumanSize(unittest.TestCase):

@@ -10,15 +10,12 @@ Shipped in the Kūhaku package (/usr/sbin/kuhaku-greeter). If it ever fails to s
 the standard greeter, so the computer can always be opened.
 """
 
-import os
-import sys
-
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("LightDM", "1")
-from gi.repository import Gdk, GLib, Gtk, LightDM
+from gi.repository import Gdk, Gtk, LightDM
 
 BG, FG, MUTED, ACCENT = "#121212", "#ececec", "#9a9a9a", "#f0705a"
 

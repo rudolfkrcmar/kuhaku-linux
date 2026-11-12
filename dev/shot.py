@@ -1,12 +1,14 @@
 """Render the home screen off-screen after some JavaScript and save a PNG.
 python3 shot.py "show('working','Hi')" out.png"""
 
-import sys, gi
+import sys
 from pathlib import Path
+
+import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("WebKit2", "4.1")
-from gi.repository import Gtk, WebKit2, GLib
+from gi.repository import GLib, Gtk, WebKit2
 
 js, out = sys.argv[1], sys.argv[2]
 w = Gtk.OffscreenWindow()

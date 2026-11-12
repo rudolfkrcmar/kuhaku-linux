@@ -1,13 +1,11 @@
 """calendars.py: the saved feeds, fetching (urlopen mocked), events from a cached .ics, month_view."""
 
-import json
 import unittest
 from datetime import date
 from unittest import mock
 
-from tests.util import TempDirCase
-
 import calendars
+from tests.util import TempDirCase
 
 ICS = b"""BEGIN:VCALENDAR
 VERSION:2.0

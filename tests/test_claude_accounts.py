@@ -2,14 +2,12 @@
 Ollama is never asked (ollama_models is mocked): no network."""
 
 import json
-import os
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from tests.util import TempDirCase
-
 import claude_accounts as acc
+from tests.util import TempDirCase
 
 
 class AccountsCase(TempDirCase):

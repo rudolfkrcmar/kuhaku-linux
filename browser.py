@@ -26,9 +26,8 @@ import re
 import signal
 import socket
 import struct
-import threading
-import subprocess
 import sys
+import threading
 import time
 import urllib.parse
 from pathlib import Path
@@ -79,6 +78,7 @@ from PyQt6.QtWebEngineCore import (
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QSplitter, QStackedWidget, QVBoxLayout, QWidget
+
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 SOCKET = f"kuhaku-mado-{os.getuid()}"
@@ -828,14 +828,13 @@ class Browser:
         self.show()
 
     def switch(self, view):
-        if self.current is not view:
-            if self.mode == "developer" and self.devtools:
-                if self.current is not None:
-                    try:
-                        self.current.page().setDevToolsPage(None)
-                    except RuntimeError:
-                        pass
-                view.page().setDevToolsPage(self.devtools.page())
+        if self.current is not view and self.mode == "developer" and self.devtools:
+            if self.current is not None:
+                try:
+                    self.current.page().setDevToolsPage(None)
+                except RuntimeError:
+                    pass
+            view.page().setDevToolsPage(self.devtools.page())
         self.current = view
         self.stack.setCurrentWidget(view)
         view.setFocus()

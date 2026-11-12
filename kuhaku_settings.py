@@ -4,9 +4,9 @@ A part of the Kuhaku window class (kuhaku.py), kept here by subject."""
 
 import json
 import os
+import re
 import subprocess
 import threading
-import re
 from pathlib import Path
 
 import gi
@@ -17,8 +17,8 @@ gi.require_version("WebKit2", "4.1")
 from gi.repository import GLib
 
 import claude_accounts as accounts
-from kuhaku_log import report
 from kuhaku_config import CONFIG_FILE, HERE, HOME
+from kuhaku_log import report
 from kuhaku_system import (
     PAD_KEYS,
     POWER_KEYS,
