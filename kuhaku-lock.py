@@ -137,7 +137,7 @@ class Face:
 class Lock:
     def __init__(self, on_shown=None):
         self.on_shown = on_shown
-        bg, fg, muted, accent = COLORS["night" if theme() == "night" else "day"]
+        bg, fg, muted, accent = COLORS["night"]  # password screens stay dark, day or night
         self.css = Gtk.CssProvider()
         self.css.load_from_data((f"""
             #lock {{ background: {bg}; }}

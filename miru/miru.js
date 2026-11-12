@@ -1,0 +1,450 @@
+// Miru's page: folders, previews and the cloud pages; talks to miru.py through window.webkit.messageHandlers.miru.
+const $ = (id) => document.getElementById(id);
+const send = (m) => window.webkit.messageHandlers.miru.postMessage(JSON.stringify(m));
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let item = null, zoom = 1, mode = 'file', dir = null, sel = 0, picked = new Set(), anchor = 0, renaming = false, renameNext = false, find = '', findT;
+const FOLDER = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3.5 6.5h6l2 2h9v10h-17z"/></svg>';
+const FILE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 3.5h7.5l4 4v13h-11.5z"/><path d="M14 3.5v4h4"/></svg>';
+
+function toast(text) {
+  const t = $('toast'); t.textContent = text; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+window.browse = (d) => {
+  const same = dir && dir.path === d.path;
+  const keep = same ? $('stage').scrollTop : 0;
+  mode = 'folder'; dir = d; renaming = false;
+  document.body.classList.add('folder');
+  document.body.classList.remove('cloudpage');
+  document.body.classList.toggle('incloud', !!d.cloud);
+  $('meta').innerHTML = '';
+  $('name').innerHTML = '<span class="crumbs">' + d.crumbs.map((c, i) => (i ? '<i>/</i>' : '') +
+    `<span class="${i === d.crumbs.length - 1 ? 'last' : ''}" data-path="${esc(c.path)}">${esc(c.name)}</span>`).join('') + '</span>';
+  $('count').textContent = d.entries.length ? `${d.entries.length} ${d.entries.length === 1 ? 'item' : 'items'}` : '';
+  $('hid').textContent = d.hidden ? 'Hide hidden' : 'Hidden';
+  paintSide(d.places, d.path);
+  const want = d.select == null ? [] : [].concat(d.select);
+  const found = want.map((n) => d.entries.findIndex((e) => e.name === n)).filter((i) => i >= 0);
+  sel = found.length ? found[found.length - 1] : Math.max(0, want.length ? -1 : same ? Math.min(sel, d.entries.length - 1) : 0);
+  picked = new Set(found.length ? found : d.entries.length ? [sel] : []); anchor = found.length ? found[0] : sel;
+  const st = $('stage');
+  st.innerHTML = d.entries.length ? '<div class="list"><div class="head"><span></span><span>Name</span><span>Kind</span><span class="z">Size</span><span>Modified</span></div>' +
+    d.entries.map((e, i) => `<div class="row${picked.has(i) ? ' sel' : ''}" data-i="${i}">` +
+      `<span class="ic">${e.dir ? FOLDER : e.thumb ? `<img loading="lazy" src="${esc(e.thumb)}" alt="">` : FILE}</span>` +
+      `<span class="nm">${esc(e.name)}</span><span class="k">${esc(e.kind)}</span><span class="z">${esc(e.size)}</span><span class="w">${esc(e.when)}</span></div>`).join('') + '</div>'
+    : `<div class="empty">${d.trash ? 'The Trash is empty' : 'Nothing here yet'}</div>`;
+  st.scrollTop = keep;
+  if (d.select != null) reveal();
+  paintCount();
+  if (renameNext) { renameNext = false; startRename(); }
+};
+function paintSide(places, here) {
+  $('side').innerHTML = places.map((p, i) => (p.name === 'Trash' ? '<div class="gap"></div>' : '') +
+    (p.cloud && !(places[i - 1] || {}).cloud ? '<div class="gap"></div><div class="drives">Cloud</div>' : '') +
+    (p.cloud
+      ? `<a data-path="${esc(p.path)}" class="drv ${here === p.path || (mode === 'cloud' && cloudKey === p.cloud) ? 'on' : ''}${p.path.startsWith('cloud:') ? ' off' : ''}" title="${esc(p.what)}">` +
+        `<span class="dico">${CLOUD_ICON}</span><span class="dtx"><span class="dnm">${esc(p.name)}</span><span class="dsub">${esc(p.what)}</span></span></a>`
+      :
+    (p.drive && !(places[i - 1] || {}).drive ? '<div class="gap"></div><div class="drives">Drives</div>' : '') +
+    (p.drive
+      ? `<a data-path="${esc(p.path)}" class="drv ${here === p.path ? 'on' : ''}${p.mount ? ' off' : ''}" title="${esc(p.what)}">` +
+        `<span class="dico">${DRIVE_ICONS[p.drive] || DRIVE_ICONS.stick}</span><span class="dtx"><span class="dnm">${esc(p.name)}</span>` +
+        `<span class="dsub">${esc(p.mount ? p.what.split(' · ')[0] + ' · click to open' : p.what)}</span>` +
+        (p.used != null ? `<span class="dbar"><i style="width:${Math.round(p.used * 100)}%"></i></span>` : '') + '</span>' +
+        (p.eject ? `<b class="ej" data-dev="${esc(p.dev)}" title="Eject">⏏</b>` : '') + '</a>'
+      : `<a data-path="${esc(p.path)}" class="${here === p.path ? 'on' : ''}">${esc(p.name)}</a>`))).join('');
+}
+const rows = () => [...document.querySelectorAll('.row')];
+// Like Finder: a click picks one, Cmd+click adds or drops one, Shift+click (or Shift+arrows)
+// picks everything from the anchor to here.
+function choose(i, how) {
+  if (!dir || !dir.entries.length) return;
+  sel = Math.max(0, Math.min(dir.entries.length - 1, i));
+  if (how === 'toggle') {
+    if (picked.has(sel) && picked.size > 1) picked.delete(sel); else picked.add(sel);
+    anchor = sel;
+  } else if (how === 'range') {
+    picked = new Set();
+    for (let k = Math.min(anchor, sel); k <= Math.max(anchor, sel); k++) picked.add(k);
+  } else {
+    picked = new Set([sel]); anchor = sel;
+  }
+  rows().forEach((r, k) => r.classList.toggle('sel', picked.has(k)));
+  paintCount();
+  reveal();
+}
+function chooseAll() {
+  if (!dir || !dir.entries.length) return;
+  picked = new Set(dir.entries.map((_, k) => k));
+  rows().forEach((r) => r.classList.add('sel'));
+  paintCount();
+}
+const pickedPaths = () => [...picked].sort((a, b) => a - b).map((k) => dir.entries[k]).filter(Boolean).map((x) => x.path);
+function paintCount() {
+  if (!dir) return;
+  const n = dir.entries.length;
+  $('count').textContent = (picked.size > 1 ? `${picked.size} of ${n} chosen` : n ? `${n} ${n === 1 ? 'item' : 'items'}` : '') +
+    (dir.cloud ? (n ? '  ·  ' : '') + dir.cloud.name + ' ' + dir.cloud.status.split(' · ').pop() : '');
+}
+function reveal() { const r = rows()[sel]; if (r) r.scrollIntoView({ block: 'nearest' }); }
+function enter(i = sel) {
+  const e = dir && dir.entries[i]; if (!e) return;
+  send(e.dir ? { type: 'nav', path: e.path } : { type: 'preview', path: e.path });
+}
+function up() {
+  if (dir && dir.crumbs.length > 1) send({ type: 'nav', path: dir.crumbs[dir.crumbs.length - 2].path, select: dir.crumbs[dir.crumbs.length - 1].name });
+}
+function startRename() {
+  const e = dir && dir.entries[sel], r = rows()[sel]; if (!e || !r) return;
+  renaming = true;
+  const nm = r.querySelector('.nm');
+  nm.innerHTML = `<input value="${esc(e.name)}" spellcheck="false">`;
+  const input = nm.querySelector('input'); input.focus();
+  const dot = e.dir ? -1 : e.name.lastIndexOf('.');
+  input.setSelectionRange(0, dot > 0 ? dot : e.name.length);
+  const finish = (ok) => { if (!renaming) return; renaming = false;
+    if (ok && input.value.trim() && input.value !== e.name) send({ type: 'rename', path: e.path, name: input.value });
+    else nm.textContent = e.name; };
+  input.addEventListener('keydown', (k) => { k.stopPropagation(); if (k.key === 'Enter') finish(true); if (k.key === 'Escape') finish(false); });
+  input.addEventListener('blur', () => finish(true));
+}
+$('side').addEventListener('click', (e) => {
+  const ej = e.target.closest('.ej'); if (ej) { e.stopPropagation(); return send({ type: 'eject', dev: ej.dataset.dev }); }
+  const a = e.target.closest('a'); if (a) send({ type: 'nav', path: a.dataset.path }); });
+$('name').addEventListener('click', (e) => { const c = e.target.closest('.crumbs span:not(.last)'); if (c) send({ type: 'nav', path: c.dataset.path }); });
+$('stage').addEventListener('click', (e) => { const r = e.target.closest('.row'); if (r && mode === 'folder' && !renaming) choose(+r.dataset.i, e.shiftKey ? 'range' : (e.ctrlKey || e.metaKey) ? 'toggle' : null); });
+// Shift+click would otherwise also select the names' text.
+$('stage').addEventListener('mousedown', (e) => { if (e.shiftKey && e.target.closest('.row')) e.preventDefault(); });
+$('stage').addEventListener('dblclick', (e) => { const r = e.target.closest('.row'); if (r && mode === 'folder' && !renaming && !e.shiftKey && !e.ctrlKey && !e.metaKey) enter(+r.dataset.i); });
+// Right click on a file, a folder, or the empty space around them.
+function menu(x, y, list) {
+  const c = $('ctx');
+  c.innerHTML = list.map((it) => it === '-' ? '<hr>' : `<a data-k="${it[0]}" class="${it[2] || ''}">${esc(it[1])}</a>`).join('');
+  c.hidden = false;
+  c.style.left = Math.min(x, innerWidth - c.offsetWidth - 12) + 'px';
+  c.style.top = Math.min(y, innerHeight - c.offsetHeight - 12) + 'px';
+}
+const closeMenu = () => { $('ctx').hidden = true; };
+addEventListener('click', (e) => { if (!e.target.closest('#ctx')) closeMenu(); });
+addEventListener('blur', closeMenu);
+$('stage').addEventListener('contextmenu', (e) => {
+  if (mode !== 'folder' || renaming || !dir) return;
+  e.preventDefault();
+  const r = e.target.closest('.row');
+  if (!r) {
+    return menu(e.clientX, e.clientY, dir.trash ? [['emptytrash', 'Empty the Trash', 'bad']] :
+      [['newfolder', 'New folder'], ['paste', 'Paste'], '-', ['terminal', 'Open Terminal here'], ['hidden', dir.hidden ? 'Hide hidden files' : 'Show hidden files']]);
+  }
+  if (!picked.has(+r.dataset.i)) choose(+r.dataset.i); else sel = +r.dataset.i;
+  const x = dir.entries[sel];
+  const img = !x.dir && /\.(png|jpe?g|webp|gif|bmp)$/i.test(x.name);
+  if (picked.size > 1) {
+    const n = picked.size;
+    return menu(e.clientX, e.clientY, dir.trash ? [['restore', `Put back ${n} items`], '-', ['forget', `Delete ${n} items for good`, 'bad']] : [
+      ['duplicate', 'Duplicate'], ['copy', `Copy ${n} items`], ['cut', 'Move…'], ['copypath', 'Copy paths'], '-',
+      ['trash', `Move ${n} items to Trash`, 'bad']]);
+  }
+  menu(e.clientX, e.clientY, dir.trash ? [['restore', 'Put back'], '-', ['forget', 'Delete for good', 'bad']] : [
+    ['open', x.dir ? 'Open' : 'Open'], ...(x.dir ? [] : [['openapp', 'Open in app']]), ...(img ? [['markup', 'Mark up']] : []), '-',
+    ['rename', 'Rename'], ['duplicate', 'Duplicate'], ['copy', 'Copy'], ['cut', 'Move…'], ['copypath', 'Copy path'], '-',
+    ['trash', 'Move to Trash', 'bad']]);
+});
+$('ctx').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-k]'); if (!a) return;
+  const k = a.dataset.k, x = dir && dir.entries[sel];
+  closeMenu();
+  if (k === 'open') return enter();
+  if (k === 'openapp') return send({ type: 'open', path: x.path });
+  if (k === 'rename') return startRename();
+  if (k === 'newfolder') return $('newf').onclick();
+  if (k === 'terminal' || k === 'hidden') return send({ type: k });
+  if (k === 'paste' || k === 'emptytrash') return send({ type: k });
+  if (x) send({ type: k, path: x.path, paths: pickedPaths() });
+});
+
+$('newf').onclick = () => { renameNext = true; send({ type: 'mkdir', name: 'New folder' }); };
+$('cnow').onclick = () => dir && dir.cloud && send({ type: 'cloud-now', key: dir.cloud.key });
+$('cfold').onclick = () => dir && dir.cloud && send({ type: 'nav', path: 'cloud:' + dir.cloud.key });
+
+// --- Dropbox and Google Drive -------------------------------------------------------
+const CLOUD_ICON = '<svg viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7.6 9.1 4.7 4.7 0 0 0 7 18.5z"/></svg>';
+const CARET = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+let cloudKey = null, cl = null, cTree = {}, cOpen = new Set(), cChosen = new Set(), cHad = 0, cSure = false;
+window.cloud = (d) => {
+  const fresh = cloudKey !== d.key || mode !== 'cloud';
+  mode = 'cloud'; dir = null; item = null; cloudKey = d.key; cl = d; cSure = false;
+  document.body.classList.add('folder', 'cloudpage'); document.body.classList.remove('incloud');
+  $('meta').innerHTML = ''; $('count').textContent = '';
+  $('name').textContent = d.name;
+  paintSide(d.places, 'cloud:' + d.key);
+  if (d.phase === 'choose' && (fresh || !Object.keys(cTree).length)) {
+    cTree = {}; cOpen = new Set(); cChosen = new Set(d.folders); cHad = d.folders.length;
+    for (const f of d.folders) { const parts = f.split('/'); for (let k = 1; k < parts.length; k++) cOpen.add(parts.slice(0, k).join('/')); }
+    load('');
+    for (const o of cOpen) load(o);
+  }
+  paintCloud();
+};
+function load(path) {
+  if (cTree[path]) return;
+  cTree[path] = 'loading';
+  send({ type: 'cloud-list', key: cloudKey, path });
+}
+window.cloudList = (r) => {
+  if (r.key !== cloudKey || mode !== 'cloud') return;
+  cTree[r.path] = r.error ? { error: r.error } : r.dirs;
+  paintCloud();
+};
+window.cloudTick = (t) => {
+  if (mode !== 'folder' || !dir) return;
+  paintSide(t.places, dir.path);
+  if (dir.cloud) { const c = t.places.find((p) => p.cloud === dir.cloud.key); if (c) { dir.cloud.status = c.what; paintCount(); } }
+  if (t.reload && !renaming) send({ type: 'nav', path: dir.path, select: [...picked].map((k) => dir.entries[k] && dir.entries[k].name).filter(Boolean) });
+};
+const implied = (path) => [...cChosen].some((q) => path.startsWith(q + '/'));
+function treeHTML(path, depth) {
+  const t = cTree[path];
+  const pad = `style="padding-left:${depth * 26}px"`;
+  if (t === 'loading' || t === undefined) return `<div class="cnote" ${pad}>${depth ? 'Looking…' : 'Looking at your folders…'}</div>`;
+  if (t.error) return `<div class="cnote" ${pad}>Could not look in here: ${esc(t.error)}</div>`;
+  if (!t.length) return depth ? `<div class="cnote" ${pad}>No folders inside</div>` : `<div class="cnote" ${pad}>There are no folders in your ${esc(cl.name)} yet.</div>`;
+  return t.map((name) => {
+    const p = path ? path + '/' + name : name, open = cOpen.has(p), imp = implied(p), on = imp || cChosen.has(p);
+    return `<div class="crow${open ? ' open' : ''}${on ? ' on' : ''}${imp ? ' implied' : ''}" data-p="${esc(p)}" style="padding-left:${depth * 26}px">` +
+      `<span class="car" data-car="1">${CARET}</span><span class="box"></span><span class="cn">${esc(name)}</span></div>` +
+      (open ? treeHTML(p, depth + 1) : '');
+  }).join('');
+}
+function paintCloud() {
+  const d = cl, st = $('stage');
+  const keep = st.scrollTop;
+  let h = `<div class="cpage"><div class="ctitle">${esc(d.phase === 'choose' ? 'Choose what lives on this computer' : d.name)}</div>`;
+  if (d.phase === 'connect' && !d.first) {
+    h += `<div class="csub">A second ${esc(d.kind)}, for work or family, with its own folder here. Mado opens its sign in in a private window, so you can choose the other account.</div>` +
+      `<input id="clabel" class="cname" maxlength="40" placeholder="A name for it, like Work" autocomplete="off">` +
+      (d.error ? `<div class="cerr">${esc(d.error)}</div>` : '') +
+      `<button class="go" id="cgo">Sign in to the other ${esc(d.kind)}</button>`;
+  } else if (d.phase === 'connect') {
+    h += `<div class="csub">Sign in to ${esc(d.name)}, then choose the folders you want here. They are kept in ${esc(d.local)} and stay the same both ways. Everything else stays in the cloud and takes no space.</div>` +
+      (d.error ? `<div class="cerr">${esc(d.error)}</div>` : '') +
+      `<button class="go" id="cgo">Sign in to ${esc(d.name)}</button>`;
+  } else if (d.phase === 'waiting') {
+    h += `<div class="csub">Mado opened ${esc(d.first ? d.name : d.kind)}'s sign in page${d.first ? '' : ' in a private window'}. Allow access there, then come back: Miru will ask which folders to keep.</div>` +
+      `<div class="wait"><i></i>Waiting for you to sign in…</div>`;
+  } else {
+    const n = cChosen.size;
+    h += `<div class="csub">Tick the folders to keep in ${esc(d.local)}. Changes on either side sync every few minutes.` +
+      ` A folder brings everything inside it.${d.gdocs ? ' Google Docs, Sheets and Slides stay online.' : ''} Unticking a folder stops syncing it; its copy here stays.</div>` +
+      `<div class="ctree">${treeHTML('', 0)}</div>` +
+      `<button class="go" id="csave"${!n && !cHad ? ' disabled' : ''}>${n ? `Keep ${n} folder${n === 1 ? '' : 's'} in sync` : 'Stop syncing'}</button>` +
+      `<button class="quiet" id="cout">${cSure ? `Sign out of ${esc(d.name)}? Click again. Nothing is deleted, here or in the cloud.` : 'Sign out'}</button>` +
+      `<button class="quiet" id="cadd">Add another ${esc(d.kind)}</button>` +
+      (d.email ? `<div class="cmail">${esc(d.email)}</div>` : '');
+  }
+  st.innerHTML = h + '</div>';
+  st.scrollTop = keep;
+  if ($('cgo')) $('cgo').onclick = () => send({ type: 'cloud-connect', key: cloudKey, label: $('clabel') ? $('clabel').value.trim() : '' });
+  if ($('cadd')) $('cadd').onclick = () => send({ type: 'cloud-add', kind: d.kind === 'Dropbox' ? 'dropbox' : 'drive' });
+  if ($('csave')) $('csave').onclick = () => send({ type: 'cloud-save', key: cloudKey, folders: [...cChosen] });
+  if ($('cout')) $('cout').onclick = () => { if (cSure) send({ type: 'cloud-disconnect', key: cloudKey }); else { cSure = true; paintCloud(); } };
+}
+$('stage').addEventListener('click', (e) => {
+  if (mode !== 'cloud') return;
+  const r = e.target.closest('.crow'); if (!r) return;
+  const p = r.dataset.p;
+  if (e.target.closest('[data-car]')) {
+    if (cOpen.has(p)) cOpen.delete(p); else { cOpen.add(p); load(p); }
+  } else if (!implied(p)) {
+    if (cChosen.has(p)) cChosen.delete(p);
+    else { for (const q of [...cChosen]) if (q.startsWith(p + '/')) cChosen.delete(q); cChosen.add(p); }
+  }
+  paintCloud();
+});
+$('hid').onclick = () => send({ type: 'hidden' });
+
+
+// Drives get their own little drawings: a stick, a hard drive with its platter, an SSD, an SD card.
+const DRIVE_ICONS = {
+  stick: '<svg viewBox="0 0 24 24"><rect x="7" y="9" width="10" height="13" rx="2"/><path d="M9 9V3h6v6"/><path d="M11 5.5h0M13 5.5h0" stroke-linecap="round" stroke-width="1.8"/></svg>',
+  hdd: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.5"/><circle cx="12" cy="10.5" r="4.5"/><circle cx="12" cy="10.5" r="1"/><path d="M8 18h3"/><path d="M16.5 17.5h0" stroke-linecap="round" stroke-width="1.8"/></svg>',
+  ssd: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h6M7 13.5h4"/><path d="M17 10v4"/></svg>',
+  sd: '<svg viewBox="0 0 24 24"><path d="M8 3h9a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7z"/><path d="M10 3v4M13 3v4M16 3v4"/></svg>',
+};
+function show(it) {
+  mode = 'file'; document.body.classList.remove('folder', 'cloudpage', 'incloud');
+  item = it; zoom = 1;
+  $('name').textContent = it.name;
+  $('folder').textContent = it.inFolder ? 'Back' : 'Folder';
+  $('count').textContent = it.count > 1 ? `${it.index} of ${it.count}` : '';
+  $('open').textContent = it.app ? `Open in ${it.app}` : 'Open';
+  $('prev').hidden = $('next').hidden = it.count < 2;
+  const st = $('stage'); st.scrollTop = 0;
+  let meta = [it.type, it.size, it.when].filter(Boolean);
+  if (it.kind === 'image') {
+    st.innerHTML = `<div class="center"><img class="fit" id="img" src="${esc(it.src)}" alt=""></div>`;
+    $('img').onload = () => { const i = $('img'); $('meta').innerHTML = `<span>${esc([it.type, i.naturalWidth + ' × ' + i.naturalHeight, it.size, it.when].join('  ·  '))}</span>`; };
+    $('img').onclick = () => { const i = $('img'), f = i.classList.toggle('full'); i.classList.toggle('fit', !f); i.style.width = ''; };
+    $('img').onerror = () => other(it, 'This picture cannot be shown here.');
+  } else if (it.kind === 'video') {
+    st.innerHTML = `<div class="center"><video src="${esc(it.src)}" controls autoplay></video></div>`;
+  } else if (it.kind === 'audio') {
+    st.innerHTML = `<div class="center"><div class="audio"><div class="big">${esc(it.name.replace(/\.[^.]+$/, ''))}</div><audio src="${esc(it.src)}" controls autoplay></audio></div></div>`;
+  } else if (it.kind === 'pdf') {
+    const w = Math.min(980, innerWidth - 160);
+    const px = Math.round(w * devicePixelRatio);
+    st.innerHTML = `<div class="pages">` + Array.from({ length: it.pages }, (_, n) =>
+      `<div class="pg" style="width:${w}px;height:${Math.round(w * it.ratio)}px"><img loading="lazy" src="${esc(it.src)}&n=${n + 1}&w=${px}" alt=""></div>`).join('') + '</div>';
+    meta = [it.type, it.pages + (it.pages === 1 ? ' page' : ' pages'), it.size, it.when];
+  } else if (it.kind === 'text') {
+    st.innerHTML = '<pre>' + it.text.split('\n').map((l) => `<span class="l">${esc(l) || ' '}</span>`).join('') + '</pre>' +
+      (it.cut ? '<div class="note">Only the first megabyte is shown.</div>' : '');
+  } else if (it.kind === 'model') {
+    st.innerHTML = '<div class="center"><div class="note">Loading the model…</div></div>';
+  } else {
+    other(it);
+  }
+  $('meta').innerHTML = it.kind === 'text' || it.kind === 'other' ? '' : `<span>${esc(meta.join('  ·  '))}</span>`;
+}
+
+// A calm 3D look at STL, 3MF and OBJ: drag to turn, Shift+drag to move, scroll to zoom,
+// double-click to look again from the start.
+let model3d = null;
+function showModel(m) {
+  if (!item || item.kind !== 'model') return;
+  const st = $('stage');
+  if (m.error) return other(item, m.error);
+  const bin = atob(m.data), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const P = new Float32Array(bytes.buffer), n = P.length / 3;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < P.length; i += 3) for (let k = 0; k < 3; k++) { const v = P[i + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+  const c = [0, 1, 2].map((k) => (lo[k] + hi[k]) / 2), size = [0, 1, 2].map((k) => hi[k] - lo[k]);
+  const R = Math.max(1e-6, Math.hypot(size[0], size[1], size[2]) / 2);
+  const N = new Float32Array(P.length);
+  for (let i = 0; i < P.length; i += 9) {
+    const ax = P[i + 3] - P[i], ay = P[i + 4] - P[i + 1], az = P[i + 5] - P[i + 2];
+    const bx = P[i + 6] - P[i], by = P[i + 7] - P[i + 1], bz = P[i + 8] - P[i + 2];
+    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    for (let j = 0; j < 9; j += 3) { N[i + j] = nx; N[i + j + 1] = ny; N[i + j + 2] = nz; }
+  }
+  st.innerHTML = '<canvas id="gl" style="position:absolute;inset:0;width:100%;height:100%;cursor:grab"></canvas>' +
+    '<div class="note" style="position:absolute;left:0;right:0;bottom:18px;text-align:center">Drag to turn · Shift+drag to move · Scroll to zoom · Double-click to reset</div>';
+  const cv = $('gl'), gl = cv.getContext('webgl', { antialias: true });
+  if (!gl) return other(item, 'This computer cannot draw 3D here.');
+  const night = document.body.classList.contains('night');
+  const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, `attribute vec3 p; attribute vec3 n; uniform mat4 mv, pr; varying vec3 vn; varying vec3 vp;
+    void main(){ vec4 q = mv * vec4(p,1.0); vp = q.xyz; vn = mat3(mv) * n; gl_Position = pr * q; }`));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `precision mediump float; varying vec3 vn; varying vec3 vp; uniform vec3 base;
+    void main(){ vec3 N = normalize(vn); if (!gl_FrontFacing) N = -N; vec3 L = normalize(vec3(0.4,0.7,1.0));
+      float d = max(dot(N,L),0.0); float r = pow(max(dot(reflect(-L,N), normalize(-vp)),0.0), 24.0);
+      float rim = pow(1.0 - abs(N.z), 3.0) * 0.12;
+      gl_FragColor = vec4(base * (0.32 + 0.68*d) + vec3(0.18*r + rim), 1.0); }`));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  const buf = (data, name) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, name); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0); };
+  buf(P, 'p'); buf(N, 'n');
+  gl.uniform3fv(gl.getUniformLocation(prog, 'base'), night ? [0.80, 0.79, 0.77] : [0.70, 0.69, 0.67]);
+  gl.enable(gl.DEPTH_TEST);
+  const bg = night ? [0.071, 0.071, 0.071] : [0.969, 0.957, 0.945];
+  const view = { yaw: -0.6, pitch: 0.55, dist: R * 2.9, pan: [0, 0] };
+  const start = { ...view, pan: [0, 0] };
+  const mul = (a, b) => { const o = new Array(16).fill(0); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) for (let k = 0; k < 4; k++) o[j * 4 + i] += a[k * 4 + i] * b[j * 4 + k]; return o; };
+  function draw() {
+    const w = cv.clientWidth * devicePixelRatio, h = cv.clientHeight * devicePixelRatio;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    gl.viewport(0, 0, w, h); gl.clearColor(bg[0], bg[1], bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const f = 1 / Math.tan(0.35), near = view.dist / 100, far = view.dist + R * 4;
+    const pr = [f * h / w, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) / (near - far), -1, 0, 0, 2 * far * near / (near - far), 0];
+    const cy = Math.cos(view.yaw), sy = Math.sin(view.yaw), cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
+    // Z up, like CAD: turn about Z, then tip toward the viewer.
+    const rz = [cy, sy, 0, 0, -sy, cy, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    const rx = [1, 0, 0, 0, 0, sp, cp, 0, 0, -cp, sp, 0, 0, 0, 0, 1];
+    const tc = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -c[0], -c[1], -c[2], 1];
+    const tv = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, view.pan[0], view.pan[1], -view.dist, 1];
+    const mv = mul(tv, mul(rx, mul(rz, tc)));
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'mv'), false, mv);
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'pr'), false, pr);
+    gl.drawArrays(gl.TRIANGLES, 0, n);
+  }
+  let drag = null;
+  cv.onmousedown = (e) => { drag = { x: e.clientX, y: e.clientY, pan: e.shiftKey || e.button === 1 }; cv.style.cursor = 'grabbing'; e.preventDefault(); };
+  window.onmouseup = () => { drag = null; if ($('gl')) $('gl').style.cursor = 'grab'; };
+  window.onmousemove = (e) => { if (!drag || !$('gl')) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.pan) { const k = view.dist / cv.clientHeight * 0.75; view.pan[0] += dx * k; view.pan[1] -= dy * k; }
+    else { view.yaw += dx * 0.008; view.pitch = Math.max(-1.55, Math.min(1.55, view.pitch + dy * 0.008)); }
+    requestAnimationFrame(draw); };
+  cv.onwheel = (e) => { e.preventDefault(); view.dist = Math.max(R * 0.2, Math.min(R * 20, view.dist * Math.exp(e.deltaY * 0.0012))); requestAnimationFrame(draw); };
+  cv.ondblclick = () => { Object.assign(view, { yaw: start.yaw, pitch: start.pitch, dist: start.dist, pan: [0, 0] }); draw(); };
+  window.onresize = () => $('gl') && draw();
+  draw();
+  const mm = (v) => v >= 100 ? v.toFixed(0) : v.toFixed(1);
+  $('meta').innerHTML = `<span>${esc([item.type, mm(size[0]) + ' × ' + mm(size[1]) + ' × ' + mm(size[2]) + ' mm',
+    m.tris.toLocaleString() + ' triangles', item.size, item.when].join('  ·  '))}</span>`;
+}
+function other(it, why) {
+  $('stage').innerHTML = `<div class="center"><div class="other"><div class="mark"><i></i><b></b></div>
+    <div class="big">${esc(it.name)}</div><div class="sub">${esc(why || [it.type, it.size, it.when].filter(Boolean).join('  ·  '))}</div>
+    <button onclick="send({type:'open'})">${esc(it.app ? 'Open in ' + it.app : 'Open')}</button></div></div>`;
+}
+$('close').onclick = () => send({ type: 'close' });
+$('min').onclick = () => send({ type: 'minimize' });
+$('open').onclick = () => send({ type: 'open' });
+$('folder').onclick = () => send({ type: 'folder' });
+$('prev').onclick = () => send({ type: 'prev' });
+$('next').onclick = () => send({ type: 'next' });
+document.addEventListener('keydown', (e) => {
+  if (mode === 'cloud') {
+    if (e.key === 'Escape' || ((e.ctrlKey || e.metaKey) && /^[wq]$/i.test(e.key))) { e.preventDefault(); send({ type: 'close' }); }
+    return;
+  }
+  if (mode === 'folder') {
+    if (renaming) return;
+    const cmd = e.ctrlKey || e.metaKey;
+    const how = e.shiftKey ? 'range' : null;
+    if (e.key === 'ArrowDown' && !cmd) { e.preventDefault(); return choose(sel + 1, how); }
+    if (e.key === 'ArrowUp' && !cmd) { e.preventDefault(); return choose(sel - 1, how); }
+    if (e.key === 'Home') return choose(0, how);
+    if (e.key === 'End') return choose(1e9, how);
+    if (e.key === 'PageDown') return choose(sel + 12, how);
+    if (e.key === 'PageUp') return choose(sel - 12, how);
+    if (cmd && /^a$/i.test(e.key)) { e.preventDefault(); return chooseAll(); }
+    if (e.key === 'Enter' || e.key === ' ' || (cmd && e.key === 'ArrowDown')) { e.preventDefault(); return enter(); }
+    if (e.key === 'Backspace' || (cmd && e.key === 'ArrowUp') || (e.altKey && e.key === 'ArrowLeft')) { e.preventDefault(); return up(); }
+    if (e.key === 'Delete' || (cmd && e.key === 'Backspace')) { if (picked.size && !dir.trash) send({ type: 'trash', paths: pickedPaths() }); return; }
+    if (e.key === 'F2') { e.preventDefault(); return startRename(); }
+    if (cmd && e.shiftKey && /^n$/i.test(e.key)) { e.preventDefault(); return $('newf').onclick(); }
+    if (cmd && /^h$/i.test(e.key)) { e.preventDefault(); return send({ type: 'hidden' }); }
+    if (cmd && /^o$/i.test(e.key)) { const x = dir.entries[sel]; if (x) send(x.dir ? { type: 'nav', path: x.path } : { type: 'open', path: x.path }); return; }
+    if (cmd && e.key === '`') return send({ type: 'terminal' });
+    if (cmd && /^[cxd]$/i.test(e.key) && dir.entries[sel] && !dir.trash) { e.preventDefault(); return send({ type: { c: 'copy', x: 'cut', d: 'duplicate' }[e.key.toLowerCase()], paths: pickedPaths() }); }
+    if (cmd && /^v$/i.test(e.key) && !dir.trash) { e.preventDefault(); return send({ type: 'paste' }); }
+    if (e.key === 'Escape' && !$('ctx').hidden) return closeMenu();
+    if (e.key === 'Escape' && picked.size > 1) return choose(sel);
+    if (e.key === 'Escape' || (cmd && /^[wq]$/i.test(e.key))) { e.preventDefault(); return send({ type: 'close' }); }
+    if (e.key.length === 1 && !cmd && !e.altKey) {
+      find += e.key.toLowerCase(); clearTimeout(findT); findT = setTimeout(() => { find = ''; }, 900);
+      const i = dir.entries.findIndex((x) => x.name.toLowerCase().startsWith(find));
+      if (i >= 0) choose(i);
+    }
+    return;
+  }
+  if (item && item.inFolder && (e.key === 'Escape' || ((e.key === ' ' || e.key === 'Backspace') && !document.querySelector('video, audio')))) {
+    e.preventDefault(); return send({ type: 'folder' });
+  }
+  const media = document.querySelector('video, audio');
+  if (e.key === 'Escape' || (e.key === ' ' && !media) || ((e.ctrlKey || e.metaKey) && /^[wq]$/i.test(e.key))) { e.preventDefault(); return send({ type: 'close' }); }
+  if (e.key === 'ArrowRight' && !media) return send({ type: 'next' });
+  if (e.key === 'ArrowLeft' && !media) return send({ type: 'prev' });
+  if (e.key === 'Enter') return send({ type: 'open' });
+  const img = $('img');
+  if (img && (e.ctrlKey || e.metaKey) && /^[=+\-0]$/.test(e.key)) {
+    e.preventDefault();
+    zoom = e.key === '0' ? 1 : Math.max(.2, Math.min(8, zoom * (e.key === '-' ? 0.8 : 1.25)));
+    img.classList.toggle('fit', zoom === 1); img.classList.toggle('full', zoom !== 1);
+    img.style.width = zoom === 1 ? '' : Math.round(img.naturalWidth * zoom / devicePixelRatio) + 'px';
+  }
+});

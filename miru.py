@@ -305,7 +305,7 @@ class Miru:
         self.watch()
         if any(kumo.folders(k) for k in kumo.accounts()):
             kumo.ensure_daemon()
-        self.view.load_html(PAGE.replace("{THEME}", "night" if self.night else "day"), "file:///")
+        self.view.load_html(PAGE.replace("{THEME}", "night" if self.night else "day"), PAGE_URI)
         self.view.connect("load-changed", lambda v, e: e == WebKit2.LoadEvent.FINISHED and self.start())
         self.win.show_all()
 
@@ -873,6 +873,7 @@ class Miru:
         threading.Thread(target=work, daemon=True).start()
 
 
+PAGE_URI = (Path(__file__).resolve().parent / "miru/miru.html").as_uri()   # its CSS and script sit beside it
 PAGE = (Path(__file__).resolve().parent / "miru/miru.html").read_text(encoding="utf-8")
 
 

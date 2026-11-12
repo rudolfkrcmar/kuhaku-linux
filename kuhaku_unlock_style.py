@@ -35,7 +35,7 @@ def theme():
 
 
 def window_css():
-    bg, fg, muted, accent = COLORS["night" if theme() == "night" else "day"]
+    bg, fg, muted, accent = COLORS["night"]  # password screens stay dark, day or night
     css = Gtk.CssProvider()
     css.load_from_data(f"""
         window {{ background: {bg}; }}

@@ -22,12 +22,10 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Polkit, PolkitAgent  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import touchkeys  # noqa: E402
 from kuhaku_log import report  # faults go to the log instead of vanishing
-try:
-    from terminal import theme
-except Exception:
-    theme = lambda: "night"  # noqa: E731
 
-COLORS = {"night": ("#121212", "#ececec", "#9a9a9a", "#f0705a"), "day": ("#f7f4f1", "#111111", "#666666", "#e0301e")}
+# Always dark, whatever the time of day: a password window that floods the screen white
+# is startling, and the dark one reads the same morning or night.
+COLORS = ("#121212", "#ececec", "#9a9a9a", "#f0705a")
 
 # Plain words for what is being asked, where polkit's own message is technical.
 FRIENDLY = {
@@ -53,7 +51,7 @@ class Prompt:
         me = os.getuid()
         self.identity = next((i for i in identities if isinstance(i, Polkit.UnixUser) and i.get_uid() == me),
                              identities[0] if identities else None)
-        bg, fg, muted, accent = COLORS["night" if theme() == "night" else "day"]
+        bg, fg, muted, accent = COLORS
         css = Gtk.CssProvider()
         css.load_from_data((f"""
             window {{ background: {bg}; }}
