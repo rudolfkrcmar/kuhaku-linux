@@ -1,11 +1,14 @@
 #!/bin/bash
-# Kūhaku backup: gathers the Kūhaku settings kept elsewhere into the Kūhaku folder
+# Kūhaku backup: gathers the Kūhaku settings kept elsewhere into the Kūhaku project
 # (system/ holds the copies), commits them and pushes. Personal things (mail
 # accounts, Claude notes, browser data, package lists) are never copied here, and
 # your home folder and user name are written as $HOME and USER, because this
 # folder may be a public repository.
 set -e
 K="$HOME/.local/share/kuhaku"
+# The project is where Kūhaku is changed and saved (dev/install records where it is).
+P="$(cat "$K/.project" 2>/dev/null)"
+[ -n "$P" ] && [ -d "$P/.git" ] && K="$P"
 S="$K/system"
 cd "$K"
 mkdir -p "$S"

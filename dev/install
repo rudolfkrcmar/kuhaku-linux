@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Installs Kūhaku from this project into the running copy (~/.local/share/kuhaku), in one step.
+
+The project is the only place Kūhaku is changed. The running copy is written by this script
+alone; it remembers what it wrote (.installed.json), so a change made directly in the running
+copy since then is noticed and never overwritten:
+
+    dev/install            check, then copy every file the project tracks
+    dev/install --adopt    bring changes made in the running copy into the project instead
+                           (review them with git diff, commit, then install)
+    dev/install --status   only say what differs
+
+Files the project does not track (the dictation venv, face data, browser profile, models)
+are never touched.
+"""
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+PROJECT = Path(__file__).resolve().parent.parent
+TARGET = Path(os.environ.get("KUHAKU_HOME") or Path.home() / ".local/share/kuhaku")
+MANIFEST = TARGET / ".installed.json"
+SKIP = ("os/", ".github/")          # the OS image builder and CI stay in the project
+NOTE = """# This is Kūhaku's running copy. Do not change files here.
+
+Kūhaku is changed only in its project, {project}. Edit there, run `dev/check`, commit,
+then `dev/install` copies it here. A change made here directly is noticed and not overwritten,
+but it is not in git either: bring it back with `dev/install --adopt` from the project.
+"""
+
+
+def sha(path):
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def tracked():
+    out = subprocess.run(["git", "-C", str(PROJECT), "ls-files", "-z"], capture_output=True, check=True).stdout
+    return [f for f in out.decode().split("\0") if f and not f.startswith(SKIP) and (PROJECT / f).is_file()]
+
+
+def drift(files):
+    """Files changed in the running copy since the last install, and not the same as the project's."""
+    try:
+        known = json.loads(MANIFEST.read_text())
+    except (OSError, ValueError):
+        known = None
+    changed = []
+    for f in files:
+        live = sha(TARGET / f)
+        if live is None or live == sha(PROJECT / f):
+            continue
+        if known is None or known.get(f) != live:
+            changed.append(f)
+    return changed, known is None
+
+
+def main():
+    args = set(sys.argv[1:])
+    files = tracked()
+    changed, first = drift(files)
+    if "--status" in args:
+        for f in changed:
+            print(f"changed in the running copy: {f}")
+        print("Nothing changed in the running copy." if not changed else
+              "Bring these into the project with: dev/install --adopt")
+        return 0
+    if "--adopt" in args:
+        for f in changed:
+            shutil.copy2(TARGET / f, PROJECT / f)
+            print(f"adopted {f}")
+        print("Review with git diff, run dev/check, commit, then dev/install." if changed else "Nothing to adopt.")
+        return 0
+    if changed and "--force" not in args:
+        print("These were changed directly in the running copy and would be lost:" if not first else
+              "First install: these differ in the running copy and would be replaced:")
+        for f in changed:
+            print(f"  {f}")
+        print("Bring them into the project with: dev/install --adopt   (or overwrite with --force)")
+        return 1
+    TARGET.mkdir(parents=True, exist_ok=True)
+    written = {}
+    for f in files:
+        src, dst = PROJECT / f, TARGET / f
+        if sha(src) != sha(dst):
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dst.with_name(dst.name + ".installing")
+            shutil.copy2(src, tmp)
+            os.replace(tmp, dst)        # a running app never sees a half-written file
+        written[f] = sha(dst)
+    (TARGET / ".project").write_text(str(PROJECT) + "\n")     # kuhaku-backup saves settings there
+    (TARGET / "CLAUDE.md").write_text(NOTE.format(project=str(PROJECT).replace(str(Path.home()), "~", 1)))
+    MANIFEST.write_text(json.dumps(written, indent=0, sort_keys=True))
+    head = subprocess.run(["git", "-C", str(PROJECT), "describe", "--tags", "--always", "--dirty"],
+                          capture_output=True, text=True).stdout.strip()
+    print(f"Installed {len(files)} files ({head}) into {TARGET}. Restart Kūhaku to use them.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
