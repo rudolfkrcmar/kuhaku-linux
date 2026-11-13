@@ -81,8 +81,9 @@ class Finger:
         # Keeps asking as long as the lock is up: after a sleep the reader needs a moment to come back.
         while not self.stopped:
             try:
+                # "-f any": every enrolled finger; without it fprintd-verify checks only the first one.
                 self.proc = subprocess.Popen(
-                    ["fprintd-verify", USER], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                    ["fprintd-verify", "-f", "any", USER], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
                 )
                 out = self.proc.communicate()[0]
             except Exception:
