@@ -15,7 +15,6 @@ import json
 import os
 import signal
 import sys
-import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -26,6 +25,7 @@ gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2
 
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_sun import is_night  # night follows the sun
 
 HOME = Path.home()
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15"
@@ -63,8 +63,7 @@ def night():
     choice = load(HOME / ".local/state/kuhaku/state.json").get("theme") or cfg.get("theme", "auto")
     if choice in ("day", "night"):
         return choice == "night"
-    h = time.localtime().tm_hour
-    return h >= cfg.get("night_from", 20) or h < cfg.get("night_until", 7)
+    return is_night(cfg)
 
 
 def style():

@@ -21,6 +21,7 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk
 
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_sun import is_night  # night follows the sun
 
 HOME = Path.home()
 CONFIG_DIR = HOME / ".config" / "kuhaku"
@@ -100,8 +101,7 @@ def current_theme():
     choice = state.get("theme") or cfg.get("theme")
     if choice in ("day", "night"):
         return choice
-    h = time.localtime().tm_hour
-    return "night" if (h >= cfg["night_from"] or h < cfg["night_until"]) else "day"
+    return "night" if is_night(cfg) else "day"
 
 
 def ease(t):

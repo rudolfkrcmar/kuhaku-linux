@@ -3,7 +3,6 @@ and pictures, read from X11. Used by kuhaku-gestures.py and its overview (gestur
 
 import os
 import subprocess
-import time
 
 import gi
 
@@ -13,6 +12,8 @@ gi.require_version("GdkX11", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, Gtk
+
+from kuhaku_sun import theme as sun_theme  # night follows the sun
 
 SWIPE = 1
 UP, DOWN, LEFT, RIGHT = 1, 2, 3, 4
@@ -29,8 +30,7 @@ ACCENT = {"day": (0.878, 0.188, 0.118), "night": (0.941, 0.439, 0.353)}
 
 
 def night():
-    hour = time.localtime().tm_hour
-    return hour >= 20 or hour < 7
+    return sun_theme() == "night"
 
 
 def paper():

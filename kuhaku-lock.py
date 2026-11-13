@@ -72,6 +72,7 @@ class Finger:
         self.on_match, self.on_miss = on_match, on_miss
         self.proc = None
         self.stopped = False
+        self.fresh = False
         threading.Thread(target=self.run, daemon=True).start()
 
     def run(self):
@@ -89,6 +90,10 @@ class Finger:
                 return
             if self.stopped:
                 return
+            if self.fresh:  # woken from sleep: the old request died with the reader, ask anew
+                self.fresh = False
+                time.sleep(1)
+                continue
             if "verify-match" in out:
                 GLib.idle_add(self.on_match)
                 return
@@ -96,6 +101,12 @@ class Finger:
                 GLib.idle_add(self.on_miss)
             else:
                 time.sleep(2)  # busy, unplugged or still waking: rest a moment
+
+    def restart(self):
+        """After sleep the reader comes back as a new device; a request made before sleep never answers."""
+        self.fresh = True
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
 
     def stop(self):
         self.stopped = True
@@ -329,6 +340,8 @@ class Watcher:
             self.show(on_shown=self.release)
         else:
             self.inhibit()
+            if self.lock and self.lock.win and self.lock.finger:
+                self.lock.finger.restart()
 
     def on_session(self, *args):
         if args[4] == "Lock":

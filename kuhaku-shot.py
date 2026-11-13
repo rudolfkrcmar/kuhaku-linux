@@ -28,6 +28,7 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango, PangoCairo
 
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_sun import theme as sun_theme
 
 HOME = Path.home()
 FOLDER = HOME / "Pictures" / "Screenshots"
@@ -45,8 +46,7 @@ def theme():
             return t
     except Exception:
         report()
-    h = time.localtime().tm_hour
-    return "night" if (h >= 20 or h < 7) else "day"
+    return sun_theme()
 
 
 def grab_screen():

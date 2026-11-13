@@ -22,7 +22,8 @@ ANSWERS_FILE = STATE_DIR / "answers.json"
 FIFO = STATE_DIR / "kuhaku.fifo"
 
 DEFAULT_CONFIG = {
-    # "auto" follows the clock (night from 20:00 to 07:00), or "day" / "night".
+    # "auto" follows the sun where the computer is (kuhaku_sun), or "day" / "night".
+    # The hours below only count when the place is unknown.
     "theme": "auto",
     "night_from": 20,
     "night_until": 7,

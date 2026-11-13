@@ -45,6 +45,7 @@ from kuhaku_config import (
 from kuhaku_log import report  # faults go to the log instead of vanishing
 from kuhaku_panels import Panels
 from kuhaku_settings import Settings
+from kuhaku_sun import is_night  # night follows the sun
 from kuhaku_system import (
     _limits_cache,
     bluetooth_icon_state,
@@ -237,9 +238,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         choice = self.state.get("theme") or self.config["theme"]
         if choice in ("day", "night"):
             return choice
-        h = time.localtime().tm_hour
-        a, b = self.config["night_from"], self.config["night_until"]
-        return "night" if (h >= a or h < b) else "day"
+        return "night" if is_night(self.config) else "day"
 
     def push_theme(self):
         theme = self.current_theme()

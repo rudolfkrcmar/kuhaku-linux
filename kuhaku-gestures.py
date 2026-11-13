@@ -48,6 +48,7 @@ from gestures_overview import (
     Overview,
 )
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_sun import theme as sun_theme
 
 
 class Deck:
@@ -303,7 +304,7 @@ class Deck:
             return None
         surf = cairo.ImageSurface(cairo.FORMAT_RGB24, int(self.w * SCALE), int(self.h * SCALE))
         cr = cairo.Context(surf)
-        night = time.localtime().tm_hour >= 20 or time.localtime().tm_hour < 7
+        night = sun_theme() == "night"
         cr.set_source_rgb(*((0.071,) * 3 if night else (0.969, 0.957, 0.945)))
         cr.paint()
         cr.scale(SCALE, SCALE)
@@ -319,7 +320,7 @@ class Deck:
         if surface:
             cr.set_source_surface(surface, x, 0)
         else:
-            night = time.localtime().tm_hour >= 20 or time.localtime().tm_hour < 7
+            night = sun_theme() == "night"
             cr.set_source_rgb(*((0.071,) * 3 if night else (0.969, 0.957, 0.945)))
         cr.paint()
         cr.restore()

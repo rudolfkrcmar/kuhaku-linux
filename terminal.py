@@ -14,7 +14,6 @@ import json
 import os
 import signal
 import sys
-import time
 from pathlib import Path
 
 import gi
@@ -25,6 +24,7 @@ gi.require_version("Vte", "2.91")
 from gi.repository import Gdk, GLib, Gtk, Pango, Vte
 
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_sun import is_night  # night follows the sun
 
 HOME = Path.home()
 
@@ -95,8 +95,7 @@ def theme():
     choice = st.get("theme") or cfg.get("theme", "auto")
     if choice in ("day", "night"):
         return choice
-    h = time.localtime().tm_hour
-    return "night" if (h >= cfg.get("night_from", 20) or h < cfg.get("night_until", 7)) else "day"
+    return "night" if is_night(cfg) else "day"
 
 
 def rgba(hex_):

@@ -8,7 +8,6 @@ import re
 import socket
 import struct
 import threading
-import time
 import urllib.parse
 from pathlib import Path
 
@@ -20,6 +19,7 @@ from PyQt6.QtWebEngineCore import (
 )
 
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_sun import is_night  # night follows the sun
 
 HOME = Path.home()
 SEARCH = "https://www.google.com/search?q="
@@ -125,8 +125,7 @@ def theme():
     choice = st.get("theme") or cfg.get("theme", "auto")
     if choice in ("day", "night"):
         return choice
-    h = time.localtime().tm_hour
-    return "night" if (h >= cfg.get("night_from", 20) or h < cfg.get("night_until", 7)) else "day"
+    return "night" if is_night(cfg) else "day"
 
 
 def host(uri):
