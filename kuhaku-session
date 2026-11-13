@@ -116,6 +116,9 @@ done
 # Claude's safety net: never wipe disks, delete whole folders outright, or send secrets away.
 python3 "$DIR/kuhaku-guard.py" install 2>/dev/null
 
+# Kūhaku's eye: the phone's camera page, for Claude (reached through Tailscale; see kuhaku-eye.py).
+( while :; do python3 "$DIR/kuhaku-eye.py" serve; sleep 5; done ) >/dev/null 2>&1 &
+
 # Dropbox and Google Drive: keep the folders chosen in Miru in sync (does nothing until some are).
 ( while :; do python3 "$DIR/kumo.py" daemon; sleep 30; done ) >/dev/null 2>&1 &
 

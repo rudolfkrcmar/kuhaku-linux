@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#121212">
+<title>Kūhaku's eye</title>
+<style>
+  :root { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --accent:#f0705a; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font-family:'Inter',system-ui,-apple-system,sans-serif; font-weight:300; -webkit-user-select:none; user-select:none; }
+  video { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .6s; }
+  video.on { opacity:1; }
+  .bar { position:fixed; left:0; right:0; bottom:0; padding:22px 24px calc(22px + env(safe-area-inset-bottom));
+    background:linear-gradient(transparent, rgba(0,0,0,.65)); display:flex; align-items:center; gap:12px; font-size:17px; }
+  .dot { width:9px; height:9px; border-radius:9px; background:var(--muted); flex:none; }
+  .dot.live { background:var(--accent); animation:pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity:.35; } }
+  .start { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px;
+    text-align:center; padding:32px; font-size:20px; line-height:1.5; }
+  .start p { margin:0; max-width:22em; color:var(--muted); }
+  button { font:inherit; font-size:18px; color:var(--bg); background:var(--fg); border:0; border-radius:99px; padding:14px 30px; }
+  .flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity .5s; }
+  .flash.now { opacity:.35; transition:none; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<div class="flash" id="flash"></div>
+<div class="start" id="start">
+  <p>Let Claude see through this camera. It takes a picture only when Claude asks, and nothing is recorded.</p>
+  <button id="go">Turn on the camera</button>
+</div>
+<div class="bar" id="bar" hidden><span class="dot" id="dot"></span><span id="words">Connecting…</span></div>
+<script>
+'use strict';
+const video = document.getElementById('video');
+const words = document.getElementById('words');
+const dot = document.getElementById('dot');
+let asked = 0, lock = null;
+
+function say(text, live) { words.textContent = text; dot.classList.toggle('live', !!live); }
+
+async function keepAwake() {
+  try { if ('wakeLock' in navigator && document.visibilityState === 'visible') lock = await navigator.wakeLock.request('screen'); }
+  catch (e) { console.log('wake lock', e); }
+}
+
+async function start() {
+  document.getElementById('start').hidden = true;
+  document.getElementById('bar').hidden = false;
+  try {
+    video.srcObject = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false });
+  } catch (e) {
+    say('The camera was not allowed. Allow it in Safari, then reload.');
+    return;
+  }
+  await video.play();
+  video.classList.add('on');
+  keepAwake();
+  listen();
+}
+
+function picture() {
+  const w = video.videoWidth, h = video.videoHeight, scale = Math.min(1, 1600 / Math.max(w, h));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  return new Promise(done => canvas.toBlob(done, 'image/jpeg', 0.85));
+}
+
+async function listen() {
+  for (;;) {
+    try {
+      say('Claude can look when it needs to', true);
+      const r = await fetch('wait?have=' + asked, { cache: 'no-store' });
+      const want = (await r.json()).asked;
+      if (want > asked) {
+        asked = want;
+        const flash = document.getElementById('flash');
+        flash.classList.add('now'); requestAnimationFrame(() => requestAnimationFrame(() => flash.classList.remove('now')));
+        say('Claude is looking', true);
+        await fetch('picture?for=' + want, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: await picture() });
+      }
+    } catch (e) {
+      say('Cannot reach the computer. Trying again…');
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+}
+
+document.getElementById('go').addEventListener('click', start);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+</script>
+</body>
+</html>
