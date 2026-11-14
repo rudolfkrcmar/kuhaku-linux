@@ -484,7 +484,7 @@ class Browser:
         view.loadProgress.connect(progress)
         view.loadFinished.connect(finished)
         view.titleChanged.connect(lambda _t: self.push())
-        view.urlChanged.connect(lambda _u: self.changed(view))
+        view.urlChanged.connect(lambda _u: (self.canvas(view), self.changed(view)))
         page.linkHovered.connect(lambda link: self.js(f"window.hover && hover({json.dumps(link or '')})"))
         page.windowCloseRequested.connect(lambda: self.close_tab(view))
         page.fullScreenRequested.connect(self.on_fullscreen)
@@ -492,6 +492,16 @@ class Browser:
         page.certificateError.connect(lambda err: self.on_tls_error(view, err))
         page.findTextFinished.connect(lambda r: self.js(f"window.found && found({r.numberOfMatches()})"))
         return view
+
+    def canvas(self, view):
+        """Kūhaku's own pages sit on its night colour; websites get the web's white canvas.
+        A site that leaves its background unset and only darkens it through color-scheme
+        still turns dark, but one that expects white no longer shows dark text on near-black."""
+        try:
+            web = view.url().scheme() in ("http", "https")
+            view.page().setBackgroundColor(QColor("#ffffff") if web else self.bg())
+        except Exception:
+            report()
 
     def changed(self, view):
         if view is self.current:
@@ -689,7 +699,7 @@ class Browser:
         self.window.setStyleSheet(f"background:{self.bg().name()}")
         self.chrome.page().setBackgroundColor(self.bg())
         for t in self.sets["normal"] + self.sets["private"]:
-            t.page().setBackgroundColor(self.bg())
+            self.canvas(t)
         self.load_chrome()
 
     def on_fullscreen(self, request):
