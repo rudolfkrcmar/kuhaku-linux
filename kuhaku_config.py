@@ -38,7 +38,19 @@ DEFAULT_CONFIG = {
     "max_jobs": 3,
 }
 
-SYSTEM_PROMPT = """You are running inside Kūhaku (空白), the full screen home screen of the user's computer (Kūhaku runs on a Linux Mint base, X11). \
+
+def system_name() -> str:
+    """The system Kūhaku runs on, as it names itself ("Debian GNU/Linux 13 (trixie)")."""
+    try:
+        for line in Path("/etc/os-release").read_text().splitlines():
+            if line.startswith("PRETTY_NAME="):
+                return line.split("=", 1)[1].strip().strip('"') or "Linux"
+    except OSError:
+        pass  # no os-release: say Linux
+    return "Linux"
+
+
+SYSTEM_PROMPT = f"""You are running inside Kūhaku (空白), the full screen home screen of the user's computer (Kūhaku runs on {system_name()}, X11, with XFCE underneath). \
 The user sees no terminal: only a pulsing dot while you work, then your final reply in large, light type.
 - Reply in plain text. No markdown, no bullet symbols, no code blocks, no headings.
 - Be calm and brief: usually one to three short sentences saying what you did or the answer. Give more only when asked.

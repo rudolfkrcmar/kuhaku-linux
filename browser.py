@@ -445,6 +445,8 @@ class Browser:
     def restore(self):
         try:
             return [u for u in json.loads(STATE.read_text()).get("tabs", []) if u][:20]
+        except FileNotFoundError:
+            return []  # first start: no tabs saved yet
         except Exception:
             report()
             return []

@@ -1,0 +1,6 @@
+# Kūhaku: Mado's engine (Qt WebEngine, which is Chromium) from Debian's backports, where it is
+# far newer than in the stable release and still plays every video format. Only this source
+# package is affected; on a system without trixie-backports in its apt sources nothing changes.
+Package: src:qt6-webengine
+Pin: release n=trixie-backports
+Pin-Priority: 500

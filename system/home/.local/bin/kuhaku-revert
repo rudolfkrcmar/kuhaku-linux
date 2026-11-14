@@ -1,5 +1,5 @@
 #!/bin/bash
-# Turns Kūhaku off and restores the normal Linux Mint desktop.
+# Turns Kūhaku off and restores the normal XFCE desktop.
 rm -f "$HOME/.config/autostart/kuhaku.desktop"
 pkill -f "kuhaku-session" ; pkill -f "share/kuhaku/kuhaku.py"
 # Any key Kūhaku bound (volume, brightness, capture) goes back to XFCE's default.

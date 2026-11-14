@@ -1,6 +1,6 @@
 # How Kūhaku is built
 
-Kūhaku is a set of small Python programs on top of a normal Debian/Linux Mint desktop (XFCE, X11).
+Kūhaku is a set of small Python programs on top of a normal Debian 13 (or Linux Mint) desktop (XFCE, X11).
 Each visible app is a GTK window holding a web page (WebKitGTK): the page draws, Python does the
 work. Claude Code does what people ask, in the background, through its command line.
 
@@ -89,6 +89,8 @@ Each app keeps its window in one file and its other parts beside it, by subject:
 | Tsukuru (code) | `tsukuru.py` the window · `tsukuru_tools.py` git, GitHub/GitLab/Railway sign-ins, saved state · `tsukuru_chat.py` the chat with Claude |
 | Touch keyboard | `kuhaku-tablet.py` · `tablet_keyboard.py` the keyboard window · `tablet_keys.py` layouts and key drawings · `tablet_ink.py` pen writing · `tablet_x11.py` typing into X11 · `tablet_base.py` |
 | Gestures | `kuhaku-gestures.py` the swipe between screens · `gestures_overview.py` the cards · `gestures_common.py` windows, icons and swipe distances |
+
+Mado's engine is Debian's Qt WebEngine (Chromium). The package pins it to trixie-backports (`os/package/etc/apt/preferences.d/kuhaku-mado`): stable's 6.8 is Chromium 122 and gets few fixes, backports carries 6.10 (Chromium 134 with security fixes to 144). The PyPI wheels are newer still but have no H.264 or AAC, so much of the web's video would not play; do not swap to them.
 
 Claude runs with the permissions chosen in Settings ("Anything, without asking" by default).
 Underneath sits **`kuhaku-guard.py`**, a Claude Code `PreToolUse` hook installed into

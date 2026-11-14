@@ -5,6 +5,13 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 
 ## Unreleased
 
+### Changed
+- Mado runs on a newer engine: Qt WebEngine 6.10 from Debian's backports (Chromium 134 with security fixes to Chromium 144), up from 6.8 (Chromium 122). The package pins only this engine to backports, and unattended upgrades now include backports so its fixes arrive by themselves.
+- Claude is told the real system it runs on (read from the system), not "Linux Mint".
+
+### Fixed
+- Mado and the other apps stay quiet in the log about settings and saved tabs that do not exist yet.
+
 ## 0.4.0 — 2026-11-14
 
 ### New
