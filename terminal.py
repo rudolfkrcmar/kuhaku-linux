@@ -151,7 +151,7 @@ class Terminal:
         row.pack_start(line, False, False, 0)
         row.pack_start(self.title, True, True, 0)
         # Kansei (管制) lives under the Terminal: the whole machine, live.
-        k = Gtk.Button(label="Kansei 管制")
+        k = Gtk.Button(label="Kansei")
         k.set_tooltip_text("System control: processor, memory, programs, network, security")
         k.get_style_context().add_class("quiet")
         k.set_relief(Gtk.ReliefStyle.NONE)
