@@ -241,7 +241,7 @@ function btSection() {
   const d = bt.data, on = d && d.present ? d.on : false;
   let h = `<div class="p-head" style="margin-top:38px"><h2 class="p-title">Bluetooth</h2>${d && d.present ? `<button class="switch${on !== bt.toggling ? ' on' : ''}" data-act="bt-power" title="Turn Bluetooth ${on ? 'off' : 'on'}"></button>` : ''}</div>`;
   if (!d) h += '<div class="p-wait" style="margin-top:26px"><span class="dot"></span>Looking…</div>';
-  else if (!d.present) h += '<p class="p-sub" style="margin-top:14px">No Bluetooth on this computer yet. On this MacBook it starts working after the next restart.</p>';
+  else if (!d.present) h += '<p class="p-sub" style="margin-top:14px">Bluetooth isn’t ready on this computer yet. Ask Claude to set it up.</p>';
   else if (!d.on) h += '<p class="p-sub" style="margin-top:14px">Bluetooth is off.</p>';
   else {
     const mine = d.devices.filter((x) => x.paired), near = d.devices.filter((x) => !x.paired);
