@@ -27,12 +27,15 @@ other version by replacing their files in `lib/`.
 `tests/test_licenses.py` keeps this list honest: every library and vendored folder must be listed
 here with its version and licence text, under a licence on its allowed list.
 
+Mado uses PyQt6 and Qt WebEngine (GPL-3.0, from Debian, not bundled). Mado combined with them
+is distributed under the GPL-3.0; Kūhaku's own code stays MIT, which is compatible with it.
+
 Hardware notes for the MacBook8,1 (sleep, speakers) follow
 pmgart/macbook8-1-debian-guide; its files are not included and are fetched separately.
 
 ## The install image
 
-The install image (`kuhaku-amd64.iso`) is a Debian 13 system with Kūhaku added. It contains Debian packages under their own licenses (GPL, LGPL, MIT, BSD and others; the text of each is in `/usr/share/doc/<package>/copyright` inside the system), firmware from Debian's non-free-firmware section under its redistributable licenses, and touchegg (GPL-3.0, github.com/JoseExposito/touchegg).
+The install image (`kuhaku-amd64.iso`) is a Debian 13 system with Kūhaku added. It contains Debian packages under their own licenses (GPL, LGPL, MIT, BSD and others; the text of each is in `/usr/share/doc/<package>/copyright` inside the system), firmware from Debian's non-free-firmware section under its redistributable licenses, and touchegg 2.0.18 (GPL-3.0; source: https://github.com/JoseExposito/touchegg/archive/refs/tags/2.0.18.tar.gz).
 
 **Source code.** The source of every Debian package in the image is available from Debian at https://deb.debian.org/debian and, for the exact versions, https://snapshot.debian.org. Kūhaku's own source is this repository. If you would like the complete corresponding source of any GPL-licensed part on a medium, open an issue in this repository and it will be provided at no more than the cost of making the copy; this offer is valid for three years after the release that contained it.
 

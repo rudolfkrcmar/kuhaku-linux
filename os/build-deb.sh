@@ -16,7 +16,7 @@ sed "s/@VERSION@/$VERSION/" package/DEBIAN/control.in > "$STAGE/DEBIAN/control"
 # The app, without what belongs to one person (browser data, dictation venv, old archives).
 mkdir -p "$STAGE/usr/share/kuhaku/app"
 rsync -a --exclude .git --exclude /os --exclude venv --exclude browser-data --exclude archive --exclude backup \
-  --exclude __pycache__ --exclude 'system/home' --exclude 'system/packages' --exclude mado-chromium --exclude VISION-jobs.md --exclude mac "$SRC/" "$STAGE/usr/share/kuhaku/app/"
+  --exclude __pycache__ --exclude /models --exclude /face --exclude 'system/home' --exclude 'system/packages' --exclude mado-chromium --exclude VISION-jobs.md --exclude mac "$SRC/" "$STAGE/usr/share/kuhaku/app/"
 # Home pieces every user gets: launchers, app entries, icons, theme, file defaults.
 mkdir -p "$STAGE/usr/share/kuhaku/home"
 cp -a "$SRC/system/home/." "$STAGE/usr/share/kuhaku/home/"

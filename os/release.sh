@@ -68,5 +68,6 @@ if [ -n "${KUHAKU_ISO:-}" ]; then
   (cd "$STAGE" && sha256sum kuhaku-amd64.iso kuhaku_all.deb > SHA256SUMS); files+=("$STAGE/SHA256SUMS")
 fi
 gh release create "v$VERSION" -R "$PUBLIC_REPO" --title "Kūhaku $VERSION" \
-  --notes "Install instructions: https://github.com/$PUBLIC_REPO/blob/main/INSTALL.md" "${files[@]}"
+  --notes "Install instructions: https://github.com/$PUBLIC_REPO/blob/main/INSTALL.md
+Licenses and source code of everything in the install image: https://github.com/$PUBLIC_REPO/blob/main/THIRD_PARTY_NOTICES.md#the-install-image" "${files[@]}"
 echo; echo "Released: https://github.com/$PUBLIC_REPO/releases/tag/v$VERSION"
