@@ -80,6 +80,8 @@ def log(*parts):
 def load_json(path, default):
     try:
         return {**default, **json.loads(Path(path).read_text())}
+    except FileNotFoundError:
+        return dict(default)  # nothing saved yet
     except Exception:
         report()
         return dict(default)

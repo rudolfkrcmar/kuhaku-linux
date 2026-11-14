@@ -181,6 +181,8 @@ def rclone(*args: str, timeout: float | None = None) -> subprocess.CompletedProc
 def _load(p: Path) -> dict[str, Any]:
     try:
         return json.loads(p.read_text())
+    except FileNotFoundError:
+        return {}  # nothing chosen yet
     except Exception:
         report()
         return {}

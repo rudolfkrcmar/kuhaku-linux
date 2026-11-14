@@ -55,6 +55,8 @@ def load():
     data = None
     try:
         data = json.loads(FILE.read_text())
+    except FileNotFoundError:
+        pass  # first run: the default below
     except Exception:
         report()
     if not data or not data.get("accounts"):

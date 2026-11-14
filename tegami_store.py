@@ -54,6 +54,8 @@ from kuhaku_log import report  # faults go to the log instead of vanishing
 def load_accounts():
     try:
         return json.loads(CONFIG.read_text())
+    except FileNotFoundError:
+        return []  # no accounts yet
     except Exception:
         report()
         return []
@@ -206,6 +208,8 @@ def classify(m, addr, gcat=None, rule=None, known=frozenset()):
 def when(m):
     try:
         return email.utils.parsedate_to_datetime(m["date"]).timestamp()
+    except (TypeError, ValueError):
+        return time.time()  # a missing or malformed Date header: common, not a fault
     except Exception:
         report()
         return time.time()

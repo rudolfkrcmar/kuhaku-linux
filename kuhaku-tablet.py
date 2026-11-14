@@ -182,6 +182,8 @@ def running_pid():
         pid = int(PID_FILE.read_text())
         if "kuhaku-tablet" in Path(f"/proc/{pid}/cmdline").read_text():
             return pid
+    except (FileNotFoundError, ProcessLookupError):
+        pass  # not running
     except Exception:
         report()
     return None

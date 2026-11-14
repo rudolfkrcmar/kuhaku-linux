@@ -213,6 +213,8 @@ def git_info(root):
 def load_state():
     try:
         return json.loads(STATE.read_text())
+    except FileNotFoundError:
+        return {"recent": []}  # first run
     except Exception:
         report()
         return {"recent": []}

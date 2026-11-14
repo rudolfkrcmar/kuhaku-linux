@@ -239,7 +239,11 @@ def battery_watts() -> float | None:
     try:
         if (BATTERY / "status").read_text().strip() != "Discharging":
             return None
+        if (BATTERY / "power_now").exists():  # batteries that report energy, not charge
+            return int((BATTERY / "power_now").read_text()) / 1e6
         return int((BATTERY / "current_now").read_text()) * int((BATTERY / "voltage_now").read_text()) / 1e12
+    except FileNotFoundError:
+        return None  # no battery, or one that reports neither
     except Exception:
         report()
         return None

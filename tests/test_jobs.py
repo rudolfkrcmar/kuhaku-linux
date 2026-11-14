@@ -228,6 +228,9 @@ class Costs(TempDirCase):
             self.assertEqual(jobs.battery_watts(), 8.0)
             (bat / "status").write_text("Charging\n")
             self.assertIsNone(jobs.battery_watts())
+            (bat / "status").write_text("Discharging\n")
+            (bat / "power_now").write_text("12500000")  # energy-reporting batteries
+            self.assertEqual(jobs.battery_watts(), 12.5)
         with mock.patch.object(jobs, "BATTERY", self.tmp / "none"):
             self.assertIsNone(jobs.battery_watts())
 
