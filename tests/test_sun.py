@@ -5,7 +5,7 @@ import unittest
 
 import kuhaku_sun
 
-PRAGUE = {"latitude": 50.08, "longitude": 14.43}
+BERLIN = {"latitude": 52.52, "longitude": 13.40}
 
 
 def utc(*t):
@@ -14,13 +14,13 @@ def utc(*t):
 
 class Sun(unittest.TestCase):
     def test_november_evening_is_night(self):
-        self.assertTrue(kuhaku_sun.is_night(PRAGUE, utc(2026, 11, 13, 16, 50)))  # 17:50 in Prague
+        self.assertTrue(kuhaku_sun.is_night(BERLIN, utc(2026, 11, 13, 16, 50)))  # 17:50 in Berlin
 
     def test_midday_is_day(self):
-        self.assertFalse(kuhaku_sun.is_night(PRAGUE, utc(2026, 11, 13, 11, 0)))
+        self.assertFalse(kuhaku_sun.is_night(BERLIN, utc(2026, 11, 13, 11, 0)))
 
     def test_june_evening_still_day(self):
-        self.assertFalse(kuhaku_sun.is_night(PRAGUE, utc(2026, 6, 21, 18, 30)))  # 20:30 in Prague
+        self.assertFalse(kuhaku_sun.is_night(BERLIN, utc(2026, 6, 21, 18, 30)))  # 20:30 in Berlin
 
     def test_place_from_time_zone(self):
         lat, lon = kuhaku_sun.place({}) or (None, None)
