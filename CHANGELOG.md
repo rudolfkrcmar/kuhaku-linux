@@ -5,7 +5,20 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 
 ## Unreleased
 
+## 0.4.0 — 2026-11-14
+
+### New
+- **Kūhaku's eye.** On request, Claude can look through the phone's camera: a small page served only on this computer and shared to your own devices with Tailscale (`kuhaku-eye.py setup`). It takes a picture only when asked.
+- Night follows the sun: the auto theme turns dark at sunset and light at sunrise, from the configured place or the time zone, instead of fixed hours.
+
 ### Fixed
+- Finger unlock accepts every enrolled finger, not only the first, and asks the reader anew after sleep.
+- The bar steps away when the app in front is fullscreen; Spotify fills the screen like the other apps.
+- Websites in Mado get a white canvas at night, as their makers expect, instead of Kūhaku's dark one.
+- Battery power is read on batteries that report energy rather than charge (`power_now`).
+- Tegami takes a letter with a malformed date in its stride.
+- The logs stay quiet about settings files that do not exist yet (a first run is not a fault), so real faults stand out.
+- The Bluetooth panel no longer shows a MacBook-only hint on other computers.
 - The screenshot keys work again: the home screen's command line is reopened if it goes missing, and one bad command no longer stops it.
 - The volume card comes back after the sound server restarts (after sleep or a new headset).
 - The charging bolt shows beside the battery on the home screen when plugged in.
