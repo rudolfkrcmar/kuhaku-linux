@@ -3,7 +3,8 @@
 When an app is in front, a 34 px strip sits at the top of the screen (apps are kept
 below it). On the right: the date, time, Wi‑Fi and battery, as on the home screen, then
 the red dot (the open apps, as cards), the red line, which takes you home to Kūhaku (the app stays open), and a cross that
-closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku in front, the bar steps away.
+closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku in front, or a
+fullscreen app (a game), the bar steps away.
 """
 
 import os
@@ -152,6 +153,8 @@ class Corner:
         want = bool(active) and active not in (own, mine)
         if active == mine:
             want = self.shown
+        elif want and self.fullscreen(active):
+            want = False  # a fullscreen app (a game, a film) has the whole screen, the bar steps away
         if want != self.shown:
             self.shown = want
             (self.win.show_all if want else self.win.hide)()
@@ -163,6 +166,16 @@ class Corner:
             self.win.queue_draw()
             self.fill(active)
         return True
+
+    def fullscreen(self, xid):
+        try:
+            out = subprocess.run(
+                ["xprop", "-id", str(xid), "_NET_WM_STATE"], capture_output=True, text=True, timeout=2
+            ).stdout
+        except Exception:
+            report()
+            return False
+        return "_NET_WM_STATE_FULLSCREEN" in out
 
     def fill(self, xid):
         """Outside apps that open as a small window (the Claude app, Slack) fill the screen, like ours."""
