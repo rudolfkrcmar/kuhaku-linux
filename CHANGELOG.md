@@ -6,7 +6,7 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 ## Unreleased
 
 ### New
-- **First steps.** People who add Kūhaku to Debian or Mint without its installer get one quiet page at the first start: sign in to Claude, how freely it works, video formats, and programs by others. It shows once, and stays in Settings → Updates → First steps.
+- **First steps.** People who add Kūhaku to Debian or Mint without its installer get one quiet page at the first start: sign in to Claude, and to OpenAI (Codex) or Gemini if they like, how freely Claude works, and video formats. OpenAI's and Google's tools are fetched from npm the first time they are chosen (also from Settings → AI, where signing in to them used to fail when they were missing). Other programs: just ask. It shows once, and stays in Settings → Updates → First steps.
 
 ### Changed
 - Kūhaku no longer ships media formats covered by patents in some countries (H.264, H.265, AAC and others: the GStreamer bad, ugly and libav plugins). You add them yourself if you choose, with **More video formats** in the installer or **Settings → Updates → Video formats**. Computers that already have them keep them. Without them, screen recordings are saved as WebM (VP8) instead of MP4.

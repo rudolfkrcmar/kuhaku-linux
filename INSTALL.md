@@ -38,7 +38,7 @@ There are two ways in:
    ```
    It downloads the latest package and installs it with apt. Or by hand: download `kuhaku_all.deb` from the [latest release](https://github.com/rudolfkrcmar/kuhaku-linux/releases/latest) and run `sudo apt install ./kuhaku_all.deb`.
 2. Log out. On the login screen choose the **Kūhaku** session, and log in.
-3. Kūhaku sets itself up in `~/.local/share/kuhaku`, installs Claude Code and shows **First steps**, one page with the installer's choices: sign in to Claude, how freely it works, video formats, and programs. It shows once; it stays in Settings → Updates.
+3. Kūhaku sets itself up in `~/.local/share/kuhaku`, installs Claude Code and shows **First steps**, one page with the installer's choices: sign in to Claude (and OpenAI or Gemini, if you like), how freely it works, and video formats. It shows once; it stays in Settings → Updates.
 
 To go back, choose your old session on the login screen. To remove it: `sudo apt remove kuhaku`, and delete `~/.local/share/kuhaku` if you like.
 

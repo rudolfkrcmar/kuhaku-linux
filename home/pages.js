@@ -84,21 +84,34 @@ function renderApps() {
   });
 }
 // ---- The first start: a few choices, once (for those who added Kūhaku without its installer) ----
-let welcome = null, wPicked = new Set(), wTimer = 0;
+let welcome = null, wTimer = 0;
 window.setWelcome = (d) => { welcome = d; if (page === 'welcome') renderWelcome(); };
+const WELCOME_AI = [
+  ['claude', 'Claude', 'By Anthropic. Kūhaku\'s home screen talks to Claude.'],
+  ['codex', 'OpenAI', 'Codex, by OpenAI. Can do mail and code work instead of Claude.'],
+  ['gemini', 'Gemini', 'Gemini CLI, by Google. Can do mail and code work instead of Claude.'],
+];
 function renderWelcome() {
   clearTimeout(wTimer);
   if (page !== 'welcome') return;
-  wTimer = setTimeout(() => native({ type: 'panel', action: 'welcome' }), 4000);  // Claude may finish arriving
+  wTimer = setTimeout(() => native({ type: 'panel', action: 'welcome' }), 4000);  // sign-ins finish elsewhere
   const w = welcome;
   let h = '<div class="inner narrow"><h1>Welcome to Kūhaku</h1>' +
     '<p class="p-sub" style="font-size:15px">A few choices, once. Any of them can be changed later in Settings, or by asking Claude.</p>';
   if (!w) { $('page').innerHTML = h + '<div class="p-wait" style="margin-top:24px"><span class="dot"></span>Looking around…</div></div>'; return; }
-  const claude = { ready: 'Signed in. Ask for anything on the home screen.', signin: 'Ready to sign in.',
-    waiting: 'Arriving from Anthropic. This needs the internet.' }[w.claude];
-  h += `<div class="p-label"><span>Claude</span></div><div class="p-rows">
-    <div class="srow"><span class="k">Claude</span><span class="grow">${claude}</span>
-      ${w.claude === 'signin' ? '<button class="p-link" data-wel="signin">Sign in</button>' : ''}</div></div>`;
+  const act = (k, st) => ({
+    ready: '<span class="p-sub" style="margin:0">Signed in</span>',
+    working: '<span class="p-sub" style="margin:0">Signing in…</span>',
+    waiting: '<span class="p-sub" style="margin:0">Arriving…</span>',
+    signin: `<button class="p-link" data-wel="ai" data-v="${k}">Sign in</button>`,
+    get: `<button class="p-link" data-wel="ai" data-v="${k}">Get and sign in</button>`,
+  }[st] || '');
+  h += `<div class="p-label"><span>Your AI</span></div><div class="p-rows">` +
+    WELCOME_AI.map(([k, name, about]) => `<div class="srow"><span class="k">${name}</span><span class="grow">${about}</span>${act(k, (w.ai || {})[k])}</div>`).join('');
+  const L = w.local || {};
+  h += `<div class="srow"><span class="k">This computer</span><span class="grow">A model that runs here, without the cloud, through Ollama.${L.models && L.models.length ? '' : '<div class="p-sub">Slower, and needs a strong computer.</div>'}</span>
+    ${L.running && L.models.length ? '<span class="p-sub" style="margin:0">Ready</span>' : '<a class="p-link" href="https://ollama.com/download">Get Ollama</a>'}</div>
+    <div class="srow"><span class="k"></span><span class="grow p-sub" style="margin:0">The home screen needs Claude for now. The others are optional; Settings, under AI, chooses which one Mail and Tsukuru use.</span></div></div>`;
   const mode = w.permission_mode === 'bypassPermissions' ? 'bypassPermissions' : 'acceptEdits';  // as Settings reads it
   h += `<div class="p-label"><span>How freely Claude works</span></div><div class="p-rows">
     <div class="srow"><span class="k">May do</span><div class="grow">${OPT('permission_mode', [['bypassPermissions', 'Anything, without asking'], ['acceptEdits', 'Careful']], mode)}
@@ -109,12 +122,8 @@ function renderWelcome() {
     <div class="srow"><span class="k">Formats</span><div class="grow">${c.added ? 'All, including H.264 and AAC.' : 'Free formats play now: WebM, VP9, Opus, FLAC, MP3.'}
       ${c.added ? '' : '<div class="p-sub">H.264, AAC and some others are covered by patents in some countries, so Kūhaku does not include them. Whether you may use them depends on where you live; the choice is yours. They come from Debian.</div>'}</div>
       ${c.added ? '' : `<button class="p-link" data-wel="codecs">${c.running ? 'Adding…' : 'Add them'}</button>`}</div></div>`;
-  h += `<div class="p-label"><span>Programs by others</span></div><div class="p-rows">` +
-    (w.programs || []).map((a) => `<div class="srow"><span class="k">${esc(a.name)}</span><span class="grow">${esc(a.about)}<div class="p-sub">${esc(a.by)}</div></span>
-      ${a.installed ? '<span class="p-sub" style="margin:0">Installed</span>'
-        : `<span class="opt${wPicked.has(a.id) ? ' sel' : ''}" data-wel="pick" data-v="${esc(a.id)}">${wPicked.has(a.id) ? 'Chosen' : 'Choose'}</span>`}</div>`).join('') +
-    (wPicked.size ? `<div class="srow"><span class="k"></span><span class="grow"></span><button class="p-link" data-wel="programs">${w.adding ? 'Adding…' : 'Add the chosen ' + (wPicked.size > 1 ? 'programs' : 'program')}</button></div>` : '') +
-    '</div>';
+  h += `<div class="p-label"><span>Everything else</span></div><div class="p-rows">
+    <div class="srow"><span class="k">Programs</span><span class="grow">Just ask on the home screen, like “install LibreOffice” or “I need something to edit photos”.</span></div></div>`;
   h += `<div class="p-rows" style="margin-top:34px"><div class="srow"><span class="k"></span><span class="grow"></span><button class="p-link" data-wel="done" style="font-size:15px;color:var(--fg)">Done</button></div></div></div>`;
   const top = $('page').scrollTop;
   $('page').innerHTML = h; $('page').scrollTop = top;
@@ -125,10 +134,8 @@ $('page').addEventListener('click', (e) => {
   const b = e.target.closest('[data-wel]'); if (!b) return;
   e.stopPropagation();
   const act = b.dataset.wel, pref = (key, value) => native({ type: 'panel', action: 'pref', key, value, quiet: true });
-  if (act === 'pick') { wPicked.has(b.dataset.v) ? wPicked.delete(b.dataset.v) : wPicked.add(b.dataset.v); return renderWelcome(); }
-  if (act === 'signin') pref('welcome-signin', 1);
+  if (act === 'ai') { pref('welcome-ai', b.dataset.v); b.textContent = 'Signing in…'; }
   if (act === 'codecs') { pref('add-codecs', 1); b.textContent = 'Adding…'; }
-  if (act === 'programs') { pref('welcome-programs', [...wPicked]); b.textContent = 'Adding…'; wPicked.clear(); }
   if (act === 'done') { pref('welcome-done', 1); return closePage(); }
   setTimeout(() => native({ type: 'panel', action: 'welcome' }), 600);
 }, true);
@@ -238,7 +245,7 @@ function renderSettings() {
   h += `<div class="p-label" id="sec-updates"><span>Updates</span></div><div class="p-rows">
     <div class="srow"><span class="k">Updates</span><span class="grow">${u.auto ? 'Security fixes install by themselves' : 'Not automatic'}${u.checked ? ' · last ' + when(u.checked) : ''}</span>
       <button class="p-link" data-pref-btn="update-now">${u.running ? 'Updating…' : 'Update now'}</button></div>
-    <div class="srow"><span class="k">First steps</span><span class="grow">Claude, how freely it works, video formats and programs, on one page</span>
+    <div class="srow"><span class="k">First steps</span><span class="grow">Your AI, how freely it works and video formats, on one page</span>
       <span class="p-link" data-act2="welcome">Open</span></div>
     <div class="srow"><span class="k">Video formats</span><span class="grow">${(p.codecs || {}).added ? 'All, including H.264 and AAC' : 'Free formats only. H.264, AAC and others are covered by patents in some countries; adding them is your choice.'}</span>
       ${(p.codecs || {}).added ? '' : `<button class="p-link" data-pref-btn="add-codecs">${(p.codecs || {}).running ? 'Adding…' : 'Add'}</button>`}</div></div>`;

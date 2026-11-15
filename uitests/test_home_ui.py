@@ -90,14 +90,10 @@ class Night(PageCase):
 
 
 WELCOME = {
-    "claude": "signin",
+    "ai": {"claude": "signin", "codex": "get", "gemini": "ready"},
+    "local": {"installed": False, "running": False, "models": []},
     "permission_mode": "bypassPermissions",
     "codecs": {"added": False, "running": False},
-    "programs": [
-        {"id": "firefox", "name": "Firefox", "by": "Mozilla", "about": "A second web browser.", "installed": True},
-        {"id": "gimp", "name": "GIMP", "by": "The GIMP team", "about": "Photos and pictures.", "installed": False},
-    ],
-    "adding": False,
 }
 
 
@@ -112,23 +108,31 @@ class FirstStart(PageCase):
     def text(self):
         return self.page.js("return document.getElementById('page').innerText;")
 
+    def sent(self, key):
+        return [m for m in self.page.messages if isinstance(m, dict) and m.get("key") == key]
+
     def test_the_choices_are_there(self):
         t = self.text()
-        for words in ("Welcome to Kūhaku", "Sign in", "Anything, without asking", "patents", "Add them", "Installed"):
+        for words in (
+            "Welcome to Kūhaku",
+            "YOUR AI",
+            "OpenAI",
+            "Gemini",
+            "Get and sign in",
+            "Signed in",
+            "Anything, without asking",
+            "patents",
+            "Add them",
+            "Just ask",
+        ):
             self.assertIn(words, t)
         self.assertLooksLike("welcome-day", tolerance=0.004)
 
-    def test_choosing_a_program_offers_to_add_it(self):
-        self.assertNotIn("Add the chosen", self.text())
-        self.page.click("[data-wel='pick'][data-v='gimp']")
-        self.assertIn("Add the chosen program", self.text())
-        sent = [m for m in self.page.messages if m.get("key") == "welcome-programs"]
-        self.assertEqual(sent, [])
-        self.page.click("[data-wel='programs']")
-        sent = [m for m in self.page.messages if m.get("key") == "welcome-programs"]
-        self.assertEqual(sent[-1]["value"], ["gimp"])
+    def test_getting_another_ai(self):
+        self.page.click("[data-wel='ai'][data-v='codex']")
+        self.assertEqual(self.sent("welcome-ai")[-1]["value"], "codex")
 
     def test_done_closes_and_remembers(self):
         self.page.click("[data-wel='done']")
-        self.assertTrue([m for m in self.page.messages if m.get("key") == "welcome-done"])
+        self.assertTrue(self.sent("welcome-done"))
         self.assertEqual(self.page.js("return document.getElementById('page').hidden;"), True)
