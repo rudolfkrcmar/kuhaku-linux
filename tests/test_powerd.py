@@ -7,6 +7,7 @@ import json
 import tempfile
 import time
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -39,6 +40,9 @@ class FakePower(kp.Power):
         self.unplugged_at = None
         self.unplugs = []
         self.denied = False
+        self.sensed_at = -1e9
+        self.going = self.here = self.why = None
+        self.places = {}
         self.mtime = None
         self.on_battery = False
         self.closed = lid_closed
@@ -146,8 +150,11 @@ class Charging(unittest.TestCase):
         self.bat = Path(tmp.name) / "BAT0"
         self.bat.mkdir()
         self.limit(0, 100)
-        for name, value in (("SUPPLY", Path(tmp.name)), ("UNPLUGS", Path(tmp.name) / "unplugs.json"),
-                            ("CONFIG", Path(tmp.name) / "desktop.json")):  # fmt: skip
+        self.events, self.net = [], "Home"
+        t = Path(tmp.name)
+        for name, value in (("SUPPLY", t), ("UNPLUGS", t / "unplugs.json"), ("CONFIG", t / "desktop.json"),
+                            ("PLACES", t / "places.json"), ("WHY", t / "why.json"),
+                            ("calendar_events", lambda _now: self.events), ("network", lambda: self.net)):  # fmt: skip
             patch = mock.patch.object(kp, name, value)
             patch.start()
             self.addCleanup(patch.stop)
@@ -200,6 +207,54 @@ class Charging(unittest.TestCase):
         p.on_battery = False
         p.charging(now=1e9 + 120)
         self.assertEqual(p.unplugs, [])
+
+    def test_fills_before_a_trip_in_the_calendar(self):
+        now = 1e9
+        at = lambda h: datetime.fromtimestamp(now + h * 3600).astimezone().isoformat()
+        self.events = [{"title": "Flight to Frankfurt (DE 4485)", "where": "Prague PRG", "allDay": False,
+                        "start": at(17), "end": at(18)}]  # fmt: skip
+        p = FakePower()
+        p.charging(now=now)
+        self.assertEqual(self.limit(), (0, 100))
+        self.assertEqual(json.loads(kp.WHY.read_text()), {"why": "trip", "trip": "Flight to Frankfurt (DE 4485)"})
+        self.events = []
+        p.charging(now=now + 20 * 3600 + kp.SENSE)  # landed, home again
+        self.assertEqual(self.limit(), (75, 80))
+        self.assertEqual(json.loads(kp.WHY.read_text()), {})
+
+    def test_what_counts_as_a_trip(self):
+        now = 1e9
+        at = lambda h: datetime.fromtimestamp(now + h * 3600).astimezone().isoformat()
+        day = lambda d: (datetime.fromtimestamp(now).date() + timedelta(days=d)).isoformat()
+        cases = [
+            ({"title": "Weekly sync", "where": "Meeting room 923", "start": at(1), "end": at(5)}, None),
+            ({"title": "Dinner", "where": "https://example.org", "start": at(1), "end": at(5)}, None),
+            ({"title": "Standup", "where": "", "start": at(1), "end": at(2)}, None),
+            ({"title": "Workshop day", "where": "Castle Hall, Town", "start": at(2), "end": at(8)}, "Workshop day"),
+            (
+                {"title": "Weekend away", "where": "Somewhere 1, Town", "allDay": True, "start": day(0), "end": day(3)},
+                "Weekend away",
+            ),
+            ({"title": "Hotel check-in", "where": "", "start": at(30), "end": at(31)}, None),  # too far ahead
+            ({"title": "Train to Vienna", "where": "", "start": at(-1), "end": at(2)}, "Train to Vienna"),  # under way
+        ]
+        for ev, want in cases:
+            with self.subTest(ev["title"]):
+                self.assertEqual(kp.trip([ev], now), want)
+
+    def test_travelling_is_a_network_not_one_of_your_usual_places(self):
+        p = FakePower()
+        p.charging(now=1e9)  # first plugged in at home: home from the start
+        self.assertEqual(self.limit(), (75, 80))
+        self.net = "Hotel Guest"
+        p.charging(now=1e9 + kp.SENSE)
+        self.assertEqual(self.limit(), (0, 100))
+        self.assertEqual(json.loads(kp.WHY.read_text())["why"], "travelling")
+        today = datetime.fromtimestamp(1e9).date()
+        p.places["seen"]["Office"] = [(today - timedelta(days=d)).isoformat() for d in range(5)]
+        self.net = "Office"
+        p.charging(now=1e9 + 2 * kp.SENSE)
+        self.assertEqual(self.limit(), (75, 80))  # charged on five days: usual
 
     def test_order_keeps_start_below_end(self):
         writes = []

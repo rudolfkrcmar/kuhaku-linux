@@ -10,18 +10,22 @@
   Power key   left to Kūhaku's menu (kuhaku-keys.py), never the system's instant power off.
   Battery     a gentle card at 20% (a good moment to plug in), a firmer one at 10%, and sleep
               before it runs out.
-  Charging    held at 80% to keep the battery young (the firmware keeps the limit). Kūhaku learns
-              when you usually unplug and fills to 100% shortly before; "Full once" fills until the
-              next time you head off, "Always full" turns the care off.
+  Charging    held at 80% to keep the battery young (the firmware keeps the limit). It fills to
+              100% when you will need it: shortly before you usually unplug (learned), before a
+              trip in the calendar (a flight, a train, a hotel, days somewhere), and while you
+              travel (plugged in on a network that is not one of your usual places). "Full once"
+              fills until the next time you head off, "Always full" turns the care off.
 
 The choices live under "power" in ~/.config/kuhaku/desktop.json; Settings writes them.
 """
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from gi.repository import Gio, GLib
@@ -40,6 +44,18 @@ SUPPLY = Path("/sys/class/power_supply")
 UNPLUGS = LID_SAVED.parent.parent / "battery" / "unplugs.json"  # when you headed off, to learn the habit
 AWAY = 20 * 60  # on battery this long counts as heading off (not a cable moved)
 AHEAD = 150 * 60  # fill this long before the usual time: 80 to 100% takes about an hour
+PLACES = UNPLUGS.with_name("places.json")  # the networks you charge on, and on which days
+WHY = UNPLUGS.with_name("why.json")  # why it fills now, for the battery panel
+SENSE = 5 * 60  # how often the calendar and the network are looked at
+BEFORE_TRIP = 18 * 3600  # a trip this soon: fill tonight for tomorrow
+USUAL_DAYS = 5  # a network charged on, on five days of the last sixty, is one of your usual places
+TRAVEL = re.compile(
+    r"✈|🛫|🛬|🚆|🚄|🧳|\b(flight|flug|odlet|přílet|letadl\w*|letiště|airport|flughafen|aeropuerto|aéroport|"
+    r"train|zug|vlak\w*|bahn|railjet|hotel|airbnb|trip|travel\w*|reise|cesta|výlet|dovolen\w*|"
+    r"holiday|vacation|urlaub|conference|konferen\w*|offsite|off-site|retreat|summit|kongres\w*)\b",
+    re.I,
+)
+NOT_AWAY = re.compile(r"https?://|\b(room|meeting|zasedač\w*|teams|zoom|meet\.google|webex|online|call)\b", re.I)
 LOGIN1 = "org.freedesktop.login1"
 UPOWER = "org.freedesktop.UPower"
 
@@ -188,6 +204,85 @@ def save_unplugs(unplugs):
         report()
 
 
+def trip(events, now):
+    """The first calendar event that takes you away from a charger, starting within the next
+    eighteen hours or under way now: travel words, or days somewhere, or hours at a place."""
+    for ev in events:
+        try:
+            s, e = datetime.fromisoformat(ev["start"]), datetime.fromisoformat(ev["end"])
+        except (KeyError, ValueError):
+            continue
+        if ev.get("allDay"):  # from midnight to midnight, here
+            s, e = datetime.combine(s.date(), datetime.min.time()), datetime.combine(e.date(), datetime.min.time())
+        start, end = s.astimezone().timestamp(), e.astimezone().timestamp()
+        if not start - BEFORE_TRIP <= now <= end:
+            continue
+        title, where = ev.get("title", ""), ev.get("where", "")
+        long = end - start
+        if TRAVEL.search(title) or TRAVEL.search(where):
+            return title.strip()
+        if where and not NOT_AWAY.search(where) and (long >= 36 * 3600 if ev.get("allDay") else long >= 3 * 3600):
+            return title.strip()
+    return None
+
+
+def calendar_events(now):
+    try:
+        import calendars
+
+        day = date.fromtimestamp(now)
+        return calendars.events(day - timedelta(days=14), day + timedelta(days=2))
+    except Exception:
+        report()
+        return []
+
+
+def network():
+    """The network you are on now (its connection name), or None."""
+    try:
+        out = subprocess.run(
+            ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show", "--active"],
+            capture_output=True, text=True, timeout=5,
+        ).stdout  # fmt: skip
+    except (OSError, subprocess.SubprocessError):
+        report()
+        return None
+    for line in out.splitlines():
+        name, _, kind = line.rpartition(":")
+        if kind in ("802-11-wireless", "802-3-ethernet"):
+            return name.replace("\\:", ":")
+    return None
+
+
+def load_json(path, empty):
+    try:
+        return json.loads(path.read_text())
+    except FileNotFoundError:
+        return empty
+    except Exception:
+        report()
+        return empty
+
+
+def save_json(path, data):
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data))
+        tmp.replace(path)
+    except OSError:
+        report()
+
+
+def away_from_usual(places, here, today):
+    """Plugged in somewhere new (a hotel, a friend's, a phone's hotspot): you are travelling.
+    The first network ever charged on is home from the start; others become usual with time."""
+    if not here or not places.get("first") or here == places["first"]:
+        return False
+    cutoff = (today - timedelta(days=60)).isoformat()
+    return sum(d >= cutoff for d in places.get("seen", {}).get(here, [])) < USUAL_DAYS
+
+
 def write_power(key, value):
     try:
         cfg = json.loads(CONFIG.read_text())
@@ -213,6 +308,10 @@ class Power:
         self.unplugged_at = None  # when the charger came out, while it stays out
         self.unplugs = load_unplugs()
         self.denied = False  # the charge limit may not be written here (said once)
+        self.sensed_at = -1e9  # the calendar and the network, looked at every few minutes
+        self.going = self.here = None  # a trip in the calendar; the network you are on
+        self.places = load_json(PLACES, {})
+        self.why = None
         self.system = Gio.bus_get_sync(Gio.BusType.SYSTEM)
         self.session = Gio.bus_get_sync(Gio.BusType.SESSION)
         self.key_fd = self.inhibit("handle-power-key", "Kūhaku's power menu")
@@ -441,14 +540,40 @@ class Power:
                 self.cfg["full_once"] = 0
                 write_power("full_once", 0)
                 self.mtime = self.config_mtime()
-        full = int(self.cfg.get("charge") or 80) >= 100 or self.cfg.get("full_once") or likely_away(now, self.unplugs)
-        start, end = FULL if full else CARE
+        if now - self.sensed_at >= SENSE:
+            self.sense(now, plugged=not away)
+        why = (
+            "always" if int(self.cfg.get("charge") or 80) >= 100
+            else "once" if self.cfg.get("full_once")
+            else "trip" if self.going
+            else "travelling" if not away and away_from_usual(self.places, self.here, date.fromtimestamp(now))
+            else "habit" if likely_away(now, self.unplugs)
+            else None
+        )  # fmt: skip
+        if why != self.why:
+            self.why = why
+            save_json(WHY, {"why": why, "trip": self.going} if why else {})
+        start, end = FULL if why else CARE
         for bat in bats:
             if not set_limit(bat, start, end) and not self.denied:
                 self.denied = True
                 print(
                     "kuhaku-powerd: the charge limit is not writable here (dev/system adds the rule)", file=sys.stderr
                 )
+
+    def sense(self, now, plugged):
+        """Every few minutes: a trip coming up in the calendar, and the network you charge on."""
+        self.sensed_at = now
+        self.going = trip(calendar_events(now), now)
+        self.here = network()
+        if plugged and self.here:
+            today = date.fromtimestamp(now).isoformat()
+            self.places.setdefault("first", self.here)
+            days = self.places.setdefault("seen", {}).setdefault(self.here, [])
+            if today not in days:
+                days.append(today)
+                del days[:-60]
+                save_json(PLACES, self.places)
 
 
 def main():

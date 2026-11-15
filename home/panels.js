@@ -358,6 +358,8 @@ function renderBattery() {
     // The firmware holds the limit; kuhaku-powerd.py raises it before you usually head off.
     const why = b.care === 'full' ? 'Always fills to 100%.'
       : b.care === 'once' ? 'Filling to 100% this once, then back to 80% after you head off.'
+      : b.limit >= 100 && b.why?.why === 'trip' ? `Filling to 100% for ${b.why.trip ? '“' + esc(b.why.trip) + '”' : 'your trip'}. Then back to 80%.`
+      : b.limit >= 100 && b.why?.why === 'travelling' ? 'Filling to 100%: you seem to be travelling (a network that is not one of your usual places).'
       : b.limit >= 100 ? 'Filling to 100%: you usually head off around now. Otherwise it stays at 80%.'
       : 'Stops at 80% to keep the battery young, and fills up before you usually head off.';
     h += `<div class="p-label"><span>Charging</span></div><div class="opts">` +

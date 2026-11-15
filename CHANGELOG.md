@@ -12,7 +12,7 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 - **Copilot.** GitHub's Copilot CLI joins them too: one subscription, several models, often already there through work or school.
 - **First steps.** People who add Kūhaku to Debian or Mint without its installer get one quiet page at the first start: sign in to Claude, and to OpenAI (Codex) or Gemini if they like, how freely Claude works, and video formats. OpenAI's and Google's tools are fetched from npm the first time they are chosen (also from Settings → AI, where signing in to them used to fail when they were missing). Other programs: just ask. It shows once, and stays in Settings → Updates → First steps.
 
-- **Battery care.** Plugged in, the battery stops at 80% (the firmware holds the limit, on ThinkPads and most other laptops). Kūhaku learns when you usually head off and fills to 100% shortly before. The battery panel has **Care**, **Full once** (until you next head off) and **Always full**. A gentle card at 20% says it is a good moment to plug in.
+- **Battery care.** Plugged in, the battery stops at 80% (the firmware holds the limit, on ThinkPads and most other laptops). It fills to 100% when you will need it: before a trip in your calendar (a flight, a train, a hotel, days somewhere), while you travel (charging on a network that is not one of your usual places), and shortly before you usually head off, which it learns. The battery panel has **Care**, **Full once** (until you next head off) and **Always full**. A gentle card at 20% says it is a good moment to plug in.
 - **A way out if the home screen freezes.** It restarts itself after about 20 seconds without answering, and **Ctrl+Alt+Backspace** restarts it at once. Open apps are not touched.
 
 ### Changed

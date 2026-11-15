@@ -329,6 +329,7 @@ def battery_details():
         "profiles": [l.strip(" *:") for l in profiles.splitlines() if l.rstrip().endswith(":")],
         "profile": next((l.strip(" *:") for l in profiles.splitlines() if l.startswith("*")), None),
         "limit": charge_limit(),  # what the firmware holds now; kuhaku-powerd.py sets it
+        "why": charge_why(),  # why it fills to 100% now (a trip, travelling, the usual time)
         "care": "full" if read_power()["charge"] >= 100 else "once" if read_power()["full_once"] else "care",
     }
 
@@ -452,6 +453,16 @@ def charge_limit():
         except (OSError, ValueError):
             pass
     return None
+
+
+def charge_why():
+    try:
+        return json.loads((STATE_DIR / "battery" / "why.json").read_text())
+    except FileNotFoundError:
+        return {}
+    except Exception:
+        report()
+        return {}
 
 
 def write_power(key, value):
