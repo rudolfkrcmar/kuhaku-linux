@@ -244,6 +244,7 @@ function renderSettings() {
     ${[['mail', 'Mail uses'], ['dev', 'Dev tools use']].map(([k, label]) =>
       `<div class="srow"><span class="k">${label}</span>${OPT('account_' + k, [['', 'Same as home']].concat(ready.map((a) => [a.id, esc(a.label)])), (p.account_for || {})[k] || '')}</div>`).join('')}
     <div class="srow"><span class="k">Model</span>${OPT('model', [['default', 'Default'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']], p.model)}</div>
+    <div class="srow"><span class="k">Jobs at once</span>${OPT('max_jobs', [['auto', `Best for this computer (${p.jobs_auto || 2})`]].concat(['2', '3', '4', '6', '8'].filter((n) => n !== String(p.jobs_auto)).map((n) => [n, n])).concat([['none', 'No limit, memory decides']]), p.max_jobs || 'auto')}</div>
     <div class="srow"><span class="k">May do</span>${OPT('permission_mode', [['bypassPermissions', 'Anything, without asking'], ['acceptEdits', 'Careful: edit files, no commands']], p.permission_mode === 'default' ? 'acceptEdits' : p.permission_mode)}</div>
     <div class="srow"><span class="k">Microphone</span>${OPT('mic_button', [['talk', 'Talk with Claude'], ['dictate', 'Dictate, offline']], p.mic_button)}</div>
     <div class="srow"><span class="k">Dictation</span>${OPT('dictation_model', [['auto', 'Best for this computer'], ['base', 'Fast'], ['small', 'Accurate, slower']], p.dictation_model)}</div></div>`;

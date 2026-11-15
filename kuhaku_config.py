@@ -34,8 +34,9 @@ DEFAULT_CONFIG = {
     "allowed_tools": ["Bash", "Read", "Edit", "Write", "Glob", "Grep", "WebFetch", "WebSearch"],
     "model": None,
     "terminal": "kuhaku-terminal",
-    # Jobs that may run at once (memory and the Claude plan may allow fewer).
-    "max_jobs": 3,
+    # Jobs that may run at once: "auto" (best for this computer), "none" (only memory
+    # decides) or a number. Memory and the Claude plan may always allow fewer.
+    "max_jobs": "auto",
 }
 
 

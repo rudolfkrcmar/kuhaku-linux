@@ -58,6 +58,22 @@ class Slots(unittest.TestCase):
         self.assertEqual(jobs.may_start([a, b], {"session": {"percent": 95}}), [b])
         self.assertEqual(jobs.may_start([a], {"week": {"percent": 92}}), [])
 
+    def test_recommended_for_the_computer(self):
+        self.assertEqual(jobs.recommended_jobs(8, 16000), 4)  # 4 cores, 16 GB
+        self.assertEqual(jobs.recommended_jobs(16, 32768), 8)
+        self.assertEqual(jobs.recommended_jobs(16, 8192), 2)  # memory is the bound
+        self.assertEqual(jobs.recommended_jobs(2, 4096), 2)  # never fewer than two
+        self.assertIsInstance(jobs.recommended_jobs(), int)
+
+    def test_max_jobs_setting(self):
+        with mock.patch.object(jobs, "recommended_jobs", return_value=4):
+            self.assertEqual(jobs.max_jobs("auto"), 4)
+            self.assertEqual(jobs.max_jobs(None), 4)
+            self.assertEqual(jobs.max_jobs("junk"), 4)
+            self.assertEqual(jobs.max_jobs("6"), 6)
+            self.assertEqual(jobs.max_jobs(3), 3)
+            self.assertGreater(jobs.max_jobs("none"), 100)
+
     def test_mem_available_reads_proc(self):
         self.assertIsInstance(jobs.mem_available_mb(), int)
         with mock.patch.object(jobs.Path, "read_text", side_effect=OSError):

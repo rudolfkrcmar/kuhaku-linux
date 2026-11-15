@@ -248,7 +248,7 @@ class ClaudeJobs(Home):
         # Claude's plan limits only hold back jobs when the home screen asks Claude.
         claude_home = accounts.kind(accounts.pick(purpose="home")) == "claude"
         limits = _limits_cache[1] if claude_home else None
-        room, why, resets = jobs.slots(len(self.tabs.running()), int(self.config.get("max_jobs") or 3), limits)
+        room, why, resets = jobs.slots(len(self.tabs.running()), jobs.max_jobs(self.config.get("max_jobs")), limits)
         allowed = jobs.may_start(waiting, limits)
         starting = allowed[:room]
         for tab in starting:

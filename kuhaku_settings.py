@@ -18,6 +18,7 @@ gi.require_version("WebKit2", "4.1")
 from gi.repository import GLib
 
 import claude_accounts as accounts
+import jobs
 from kuhaku_base import Home
 from kuhaku_config import ANSWERS_FILE, CONFIG_FILE, HERE, HOME
 from kuhaku_log import note as log_note
@@ -148,6 +149,8 @@ class Settings(Home):
             "model": self.config.get("model") or "default",
             "dictation_model": self.config.get("dictation_model") or "auto",
             "mic_button": self.config.get("mic_button") or "talk",
+            "max_jobs": str(self.config.get("max_jobs") or "auto"),
+            "jobs_auto": jobs.recommended_jobs(),
             "displays": read_displays(),
             "power": read_power(),
             "time": read_time(),
@@ -212,6 +215,10 @@ class Settings(Home):
         elif key == "welcome-done":
             self.state["welcomed"] = True
             self.save_state()
+        elif key == "max_jobs" and str(value) in ("auto", "none", "1", "2", "3", "4", "6", "8"):
+            self.config[key] = str(value)
+            CONFIG_FILE.write_text(json.dumps(self.config, indent=2) + "\n")
+            GLib.idle_add(lambda: self.schedule() and False)  # more room may start a job waiting in line
         elif key in ("permission_mode", "model", "dictation_model", "mic_button"):
             self.config[key] = None if value == "default" else value
             CONFIG_FILE.write_text(json.dumps(self.config, indent=2) + "\n")

@@ -10,6 +10,7 @@ Kept in ~/.local/state/kuhaku/tabs.json, so the line survives a restart.
 """
 
 import json
+import os
 import re
 import time
 from datetime import datetime, timedelta
@@ -43,6 +44,38 @@ def plan_room(limits: dict | None) -> tuple[str, str | None]:
     if worst >= 90:
         return "tight", resets
     return "open", resets
+
+
+def mem_total_mb() -> int:
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            if line.startswith("MemTotal:"):
+                return int(line.split()[1]) // 1024
+    except Exception:
+        report()
+    return 8192
+
+
+def recommended_jobs(threads: int | None = None, total_mb: int | None = None) -> int:
+    """Jobs at once that suit this computer: one per two processor threads and per 4 GB, at least two.
+
+    A job mostly waits on Claude, but what it runs (builds, tests, browsers) wants processor and memory.
+    """
+    threads = threads or os.cpu_count() or 2
+    total_mb = total_mb or mem_total_mb()
+    return max(2, min(threads // 2, round(total_mb / 4096)))
+
+
+def max_jobs(setting) -> int:
+    """The person's choice in Settings: "auto" (best for this computer), "none" (memory decides) or a number."""
+    if setting in (None, "", "auto"):
+        return recommended_jobs()
+    if setting == "none":
+        return 1000
+    try:
+        return max(1, int(setting))
+    except (TypeError, ValueError):
+        return recommended_jobs()
 
 
 def slots(running: int, max_jobs: int, limits: dict | None) -> tuple[int, str | None, str | None]:
