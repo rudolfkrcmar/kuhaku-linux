@@ -144,3 +144,17 @@ class Static(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Package(unittest.TestCase):
+    def test_every_system_library_loaded_is_a_dependency(self):
+        """A library opened with ctypes ("libXss.so.1") must be in the package's Depends (libxss1),
+        or a fresh install starts without it."""
+        control = (ROOT / "os/package/DEBIAN/control.in").read_text(encoding="utf-8")
+        depends = set(re.findall(r"[a-z0-9][a-z0-9.+-]+", control.split("Depends:", 1)[1].split("\nRecommends:")[0]))
+        scripts = [p for p in ROOT.glob("kuhaku-*") if p.is_file() and p.read_bytes()[:2] == b"#!"]
+        for f in [*SOURCES, *scripts]:
+            for name, so in re.findall(r'CDLL\("lib([A-Za-z0-9]+)\.so\.(\d+)"\)', f.read_text(encoding="utf-8")):
+                pkg = f"lib{name.lower()}{'-' if name[-1].isdigit() else ''}{so}"
+                with self.subTest(file=f.name, library=pkg):
+                    self.assertIn(pkg, depends)

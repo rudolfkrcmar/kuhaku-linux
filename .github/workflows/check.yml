@@ -29,3 +29,19 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           git config --global user.name ci && git config --global user.email ci@localhost
           xvfb-run -a -s "-screen 0 1440x900x24" dbus-run-session -- dev/check
+
+  # The package, built as a release would be and checked by Debian's own rules (lintian).
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends lintian rsync
+      - name: Build
+        run: KUHAKU_RELEASE=1 os/build-deb.sh
+      - name: lintian
+        run: lintian --fail-on error --info --display-info os/out/kuhaku_*.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kuhaku-deb
+          path: os/out/kuhaku_*.deb

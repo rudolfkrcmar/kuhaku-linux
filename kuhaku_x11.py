@@ -11,7 +11,6 @@ import ctypes
 X = ctypes.CDLL("libX11.so.6")
 Xi = ctypes.CDLL("libXi.so.6")
 Xss = ctypes.CDLL("libXss.so.1")
-Xtst = ctypes.CDLL("libXtst.so.6")
 vp, ul = ctypes.c_void_p, ctypes.c_ulong
 X.XOpenDisplay.restype = vp
 X.XOpenDisplay.argtypes = [ctypes.c_char_p]
@@ -56,7 +55,6 @@ X.XGetWindowProperty.argtypes = [
     ctypes.POINTER(ul), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ul), ctypes.POINTER(ul),
     ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)),
 ]  # fmt: skip
-Xtst.XTestFakeKeyEvent.argtypes = [vp, ctypes.c_uint, ctypes.c_int, ul]
 ERROR_HANDLER = ctypes.CFUNCTYPE(ctypes.c_int, vp, vp)
 
 
@@ -149,11 +147,14 @@ def keycode(dpy, name):
 
 def press(dpy, *names):
     """Presses and releases keys as if typed (XTest): modifiers first, released in reverse."""
+    # XTest only for typing on purpose (tests), so the services never need it to start.
+    xtst = ctypes.CDLL("libXtst.so.6")
+    xtst.XTestFakeKeyEvent.argtypes = [vp, ctypes.c_uint, ctypes.c_int, ul]
     codes = [keycode(dpy, n) for n in names]
     for c in codes:
-        Xtst.XTestFakeKeyEvent(dpy, c, 1, 0)
+        xtst.XTestFakeKeyEvent(dpy, c, 1, 0)
     for c in reversed(codes):
-        Xtst.XTestFakeKeyEvent(dpy, c, 0, 0)
+        xtst.XTestFakeKeyEvent(dpy, c, 0, 0)
     X.XFlush(dpy)
 
 
