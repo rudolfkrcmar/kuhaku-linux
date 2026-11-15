@@ -46,9 +46,21 @@ xfconf-query -c xfwm4 -p /general/show_dock_shadow -s false 2>/dev/null
 # in place of xfsettingsd.
 ( while :; do pkill -x xfsettingsd; python3 "$DIR/kuhaku-keys.py"; sleep 2; done ) >/dev/null 2>&1 &
 
+# Notifications: Kūhaku's own cards (kuhaku-notify.py). D-Bus starts it whenever an app sends one
+# (this file, read before the system's, points there); the loop keeps it running.
+mkdir -p "$HOME/.local/share/dbus-1/services"
+printf '[D-BUS Service]\nName=org.freedesktop.Notifications\nExec=/usr/bin/python3 %s/kuhaku-notify.py\n' "$DIR" \
+  > "$HOME/.local/share/dbus-1/services/org.freedesktop.Notifications.service"
+dbus-send --session --type=method_call --dest=org.freedesktop.DBus / org.freedesktop.DBus.ReloadConfig 2>/dev/null
+( while :; do pkill -x xfce4-notifyd; python3 "$DIR/kuhaku-notify.py"; sleep 2; done ) >/dev/null 2>&1 &
+
 # The screen, sleep, the lid and the battery: Kūhaku's own (kuhaku-powerd.py), in place of
 # xfce4-power-manager.
 ( while :; do pkill -f "^xfce4-power-manager"; python3 "$DIR/kuhaku-powerd.py"; sleep 2; done ) >/dev/null 2>&1 &
+
+# An older kuhaku-start (before the package is updated) still starts XFCE's versions of these
+# three; one may come up after the loops above looked. A last sweep once things have settled.
+( sleep 8; pkill -x xfsettingsd; pkill -x xfce4-notifyd; pkill -f "^xfce4-power-manager"; pkill -x light-locker ) >/dev/null 2>&1 &
 
 # Claude's safety net: never wipe disks, delete whole folders outright, or send secrets away.
 python3 "$DIR/kuhaku-guard.py" install 2>/dev/null

@@ -3,7 +3,7 @@
 import struct
 import unittest
 
-from tests.util import load_file
+from tests.util import ROOT, load_file
 
 kk = load_file("kuhaku-keys.py")
 
@@ -46,6 +46,13 @@ class Keys(unittest.TestCase):
         self.assertEqual(kk.same("TPPS/2 Elan TrackPoint"), kk.same("TPPS2 Elan TrackPoint"))
         self.assertEqual(kk.same("ELAN0672:00 04F3:3187 Touchpad"), kk.same("ELAN067200 04F33187 Touchpad"))
         self.assertNotEqual(kk.same("ELAN0672:00 04F3:3187 Mouse"), kk.same("ELAN067200 04F33187 Touchpad"))
+
+    def test_the_session_starts_kuhakus_own_pieces(self):
+        session = (ROOT / "kuhaku-session").read_text()
+        for piece in ("kuhaku-keys.py", "kuhaku-notify.py", "kuhaku-powerd.py"):
+            self.assertIn(f'python3 "$DIR/{piece}"', session)
+        for xfce in ("xfsettingsd", "xfce4-power-manager", "xfce4-notifyd"):
+            self.assertNotIn(xfce + " &", (ROOT / "os/package/usr/bin/kuhaku-start").read_text())
 
     def test_xsettings_round_trip(self):
         values = {"Xft/DPI": 120 * 1024, "Gtk/FontName": "Inter 10", "Net/ThemeName": "Adwaita", "Gtk/X": ""}
