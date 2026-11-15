@@ -39,7 +39,9 @@ fi
 XKBLAYOUT=us; XKBVARIANT=""
 # shellcheck source=/dev/null
 [ -r /etc/default/keyboard ] && . /etc/default/keyboard
-KB_OPTS="-option terminate:ctrl_alt_bksp"
+# Ctrl+Alt+Backspace is Kūhaku's way out of a frozen home screen (kuhaku-keys.py), so it must
+# never also end the whole session (X's terminate:ctrl_alt_bksp).
+KB_OPTS=""
 grep -qi apple /sys/class/dmi/id/sys_vendor 2>/dev/null && KB_OPTS="$KB_OPTS -option ctrl:swap_lwin_lctl -option ctrl:swap_rwin_rctl"
 # shellcheck disable=SC2086  # KB_OPTS is a list of options, split on purpose
 setxkbmap -layout "${XKBLAYOUT:-us}" -variant "${XKBVARIANT:-}" -option '' $KB_OPTS 2>/dev/null \
