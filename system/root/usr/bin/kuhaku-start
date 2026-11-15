@@ -1,8 +1,6 @@
 #!/bin/sh
 # Kūhaku's own login session: no desktop around it, only the few pieces Kūhaku needs.
-#   window manager (xfwm4), power and lid
-#   (xfce4-power-manager),
-#   password prompts (polkit agent), gestures (touchegg), then Kūhaku itself.
+#   window manager (xfwm4), password prompts (polkit agent), gestures (touchegg), then Kūhaku itself.
 
 LIVE=""
 [ -d /run/live/medium ] && LIVE=1
@@ -49,7 +47,6 @@ setxkbmap -layout "${XKBLAYOUT:-us}" -variant "${XKBVARIANT:-}" -option '' $KB_O
 
 dbus-update-activation-environment --systemd DISPLAY XAUTHORITY PATH 2>/dev/null
 xfwm4 --compositor=on &
-xfce4-power-manager &
 [ -n "$LIVE" ] && xset s off -dpms
 for agent in /usr/libexec/polkit-mate-authentication-agent-1 /usr/lib/x86_64-linux-gnu/polkit-mate/polkit-mate-authentication-agent-1; do
   [ -x "$agent" ] && { "$agent" & break; }

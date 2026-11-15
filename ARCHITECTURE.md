@@ -1,8 +1,10 @@
 # How Kūhaku is built
 
-Kūhaku is a set of small Python programs on Debian 13 (or Linux Mint), X11. It is its own session, not an XFCE desktop, but borrows a few
-XFCE parts that do their one job well: xfwm4 (windows), xfsettingsd and xfconf (keys and settings),
-and xfce4-power-manager (lid, sleep, battery).
+Kūhaku is a set of small Python programs on Debian 13 (or Linux Mint), X11. It is its own session, not an XFCE desktop. The one XFCE part it
+borrows is the window manager, xfwm4 (with xfconf, where xfwm4 keeps its settings). Everything else
+around the apps is Kūhaku's: keys, text size and touchpad (`kuhaku-keys.py`), screen off, sleep, lid
+and battery (`kuhaku-powerd.py`), notifications (`kuhaku-notify.py`), all reading
+`~/.config/kuhaku/desktop.json`.
 Each visible app is a GTK window holding a web page (WebKitGTK): the page draws, Python does the
 work. Claude Code does what people ask, in the background, through its command line.
 
@@ -75,7 +77,7 @@ class is assembled from mixins kept by subject:
 | `kuhaku_voice.py` | Dictation (Whisper, offline, `transcribe.py`) and spoken conversations (Piper, `speak.py`). |
 | `kuhaku_settings.py` | Reading and writing every preference on the Settings page. |
 | `kuhaku_panels.py` | The panels' actions, one small handler each. |
-| `kuhaku_system.py` | Plain functions that read and change the computer through its own tools (`nmcli`, `bluetoothctl`, `xfconf-query`, `xrandr`, `wmctrl`). No window code. |
+| `kuhaku_system.py` | Plain functions that read and change the computer through its own tools (`nmcli`, `bluetoothctl`, `xrandr`, `wmctrl`) and `desktop.json`. No window code. |
 | `kuhaku_config.py` | Where things live, the defaults, and the instructions Claude is given. |
 | `kuhaku_base.py` | `Home`, the base of every mixin: the state and methods they share, declared once so the type checker and the reader both know them. |
 

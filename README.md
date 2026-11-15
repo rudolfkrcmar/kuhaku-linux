@@ -14,7 +14,7 @@ Kūhaku replaces the usual desktop with one quiet screen: you say what you want,
 - **Kiroku** (記録, the record): every job an AI has done here, with model, time, tokens, cost and energy.
 - **Terminal**: a shell in the same design.
 
-It runs as an X11 session on Debian 13 (or Linux Mint) with xfwm4, and is written in Python with GTK/WebKit and Qt WebEngine views.
+It runs as an X11 session on Debian 13 (or Linux Mint) with xfwm4 as its window manager, and is written in Python with GTK/WebKit and Qt WebEngine views.
 
 ## Status
 

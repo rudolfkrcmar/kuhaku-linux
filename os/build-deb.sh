@@ -23,7 +23,7 @@ cp -a "$SRC/system/home/." "$STAGE/usr/share/kuhaku/home/"
 rm -rf "$STAGE/usr/share/kuhaku/home/.claude" "$STAGE/usr/share/kuhaku/home/src" "$STAGE/usr/share/kuhaku/home/.config/autostart" \
        "$STAGE/usr/share/kuhaku/home/.config/kuhaku/mail.json" "$STAGE/usr/share/kuhaku/home/.config/kuhaku/mado-certificates.json" \
        "$STAGE/usr/share/kuhaku/home/.config/systemd" "$STAGE/usr/share/kuhaku/home/.config/pipewire" "$STAGE/usr/share/kuhaku/home/.config/wireplumber"
-# The hidden-app entries stay: they keep the settings tools of the borrowed parts out of the Apps list.
+# The hidden-app entries stay: they keep XFCE's and other desktops' settings tools out of the Apps list.
 # Entries that belong to this machine's own apps (the Claude app installs its own).
 rm -f "$STAGE/usr/share/kuhaku/home/.local/share/applications/com.anthropic.Claude.desktop" \
       "$STAGE/usr/share/kuhaku/home/.local/share/applications/claude-code-url-handler.desktop" \

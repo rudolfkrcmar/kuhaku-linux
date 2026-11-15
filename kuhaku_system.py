@@ -2,7 +2,7 @@
 time, displays, apps and windows, and Claude's usage and plan limits.
 
 Plain functions that read and change the system through its own tools (nmcli, bluetoothctl,
-xfconf-query, xrandr, wmctrl). They never touch the window; kuhaku.py shows what they return.
+xrandr, wmctrl) and Kūhaku's desktop.json. They never touch the window; kuhaku.py shows what they return.
 """
 
 import json
@@ -424,23 +424,18 @@ def note_limits(info):
 
 
 # --- Screens -------------------------------------------------------------------
-# Power: screen off, sleep when idle, the lid. Kept by xfce4-power-manager (running
-# headless in the session); one choice applies on battery and plugged in alike.
-XFPM = "/xfce4-power-manager/"
-POWER_KEYS = {
-    "screen_off": ("dpms-on-battery-off", 10),
-    "sleep_after": ("inactivity-on-battery", 0),
-    "lid": ("lid-action-on-battery", 1),
-}
+# Power: screen off, sleep when idle, the lid. Kept in desktop.json; kuhaku-powerd.py applies
+# them. One choice applies on battery and plugged in alike.
+POWER_KEYS = {"screen_off": 10, "sleep_after": 0, "lid": 1}
 
 
 def read_power():
+    have = read_desktop().get("power") or {}
     out = {}
-    for key, (prop, default) in POWER_KEYS.items():
-        _, v, _ = run(["xfconf-query", "-c", "xfce4-power-manager", "-p", XFPM + prop])
+    for key, default in POWER_KEYS.items():
         try:
-            out[key] = int(v.strip())
-        except ValueError:
+            out[key] = int(have[key])
+        except (KeyError, TypeError, ValueError):
             out[key] = default
     if out["sleep_after"] <= 14:
         out["sleep_after"] = 0
@@ -448,26 +443,10 @@ def read_power():
 
 
 def write_power(key, value):
+    if key not in POWER_KEYS:
+        return
     v = max(0, int(value))
-    props = {
-        "screen_off": [
-            ("dpms-enabled", "bool", "true" if v else "false"),
-            *[(f"dpms-on-{w}-sleep", "uint", str(v)) for w in ("battery", "ac")],
-            *[(f"dpms-on-{w}-off", "uint", str(v)) for w in ("battery", "ac")],
-            *[(f"blank-on-{w}", "int", str(v)) for w in ("battery", "ac")],
-        ],
-        "sleep_after": [
-            *[(f"inactivity-on-{w}", "uint", str(v)) for w in ("battery", "ac")],
-            *[(f"inactivity-sleep-mode-on-{w}", "uint", "1") for w in ("battery", "ac")],
-        ],
-        # Sleep is left to the system (light sleep, then hibernate after two hours: keyboard,
-        # trackpad and speakers survive); lock and screen off are done by the power manager.
-        "lid": [(f"lid-action-on-{w}", "uint", str(v)) for w in ("battery", "ac")]
-        + [("logind-handle-lid-switch", "bool", "true" if v == 1 else "false")],
-    }.get(key, [])
-    for prop, typ, val in props:
-        if run(["xfconf-query", "-c", "xfce4-power-manager", "-p", XFPM + prop, "-s", val])[0]:
-            run(["xfconf-query", "-c", "xfce4-power-manager", "-p", XFPM + prop, "-n", "-t", typ, "-s", val])
+    write_desktop(lambda cfg: cfg.setdefault("power", {}).__setitem__(key, v))
 
 
 # Text size and pointers live in desktop.json; kuhaku-keys.py applies them live.

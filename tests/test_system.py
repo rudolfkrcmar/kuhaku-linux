@@ -312,34 +312,27 @@ class Displays(unittest.TestCase):
 
 
 class Power(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        desk = mock.patch.object(ks, "DESKTOP", Path(tmp.name) / "desktop.json")
+        desk.start()
+        self.addCleanup(desk.stop)
+
     def test_read_power(self):
-        base = "xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/"
-        p, _ = with_run(
-            {
-                base + "dpms-on-battery-off": "15\n",
-                base + "inactivity-on-battery": "10\n",
-                base + "lid-action-on-battery": "oops",
-            }
-        )
-        with p:
-            self.assertEqual(ks.read_power(), {"screen_off": 15, "sleep_after": 0, "lid": 1})
-        p, _ = with_run({base + "inactivity-on-battery": "30\n"})
-        with p:
-            self.assertEqual(ks.read_power(), {"screen_off": 10, "sleep_after": 30, "lid": 1})
+        self.assertEqual(ks.read_power(), {"screen_off": 10, "sleep_after": 0, "lid": 1})  # nothing chosen yet
+        ks.DESKTOP.write_text('{"power": {"screen_off": 15, "sleep_after": 10, "lid": "oops"}}')
+        self.assertEqual(ks.read_power(), {"screen_off": 15, "sleep_after": 0, "lid": 1})
+        ks.DESKTOP.write_text('{"power": {"sleep_after": 30}}')
+        self.assertEqual(ks.read_power(), {"screen_off": 10, "sleep_after": 30, "lid": 1})
 
     def test_write_power(self):
-        p, fake = with_run({"xfconf-query": "ok"})
-        with p:
-            ks.write_power("lid", 1)
-            ks.write_power("unknown", 3)
-        props = [c[c.index("-p") + 1].split("/")[-1] for c in fake.calls]
-        self.assertEqual(props, ["lid-action-on-battery", "lid-action-on-ac", "logind-handle-lid-switch"])
-        self.assertEqual(fake.calls[-1][-1], "true")
-        p, fake = with_run({"xfconf-query": "ok"})
-        with p:
-            ks.write_power("screen_off", -5)
-        self.assertEqual(fake.calls[0][-1], "false")  # clamped to 0: screen never turns off
-        self.assertTrue(all(c[-1] in ("0", "false") for c in fake.calls))
+        ks.DESKTOP.write_text('{"dpi": 120}')
+        ks.write_power("lid", 3)
+        ks.write_power("unknown", 3)
+        ks.write_power("screen_off", -5)
+        saved = json.loads(ks.DESKTOP.read_text())
+        self.assertEqual(saved, {"dpi": 120, "power": {"lid": 3, "screen_off": 0}})  # clamped: never off
 
 
 class Time(unittest.TestCase):

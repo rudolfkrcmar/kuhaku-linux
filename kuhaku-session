@@ -25,12 +25,6 @@ if [ ! -d /run/live/medium ]; then
   (
     for _ in $(seq 1 10); do pkill -x light-locker; sleep 1; done
   ) >/dev/null 2>&1 &
-  xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -n -t bool -s false 2>/dev/null \
-    || xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -s false 2>/dev/null
-  # Anything else that wants the screen locked (the power manager on sleep or lid) uses
-  # this lock too; with no lock command set it shows "None of the screen lock tools ran".
-  xfconf-query -c xfce4-session -p /general/LockCommand -n -t string -s "python3 $DIR/kuhaku-lock.py lock" 2>/dev/null \
-    || xfconf-query -c xfce4-session -p /general/LockCommand -s "python3 $DIR/kuhaku-lock.py lock" 2>/dev/null
   # Keep it watching; if it ever ends, start it again (an open lock simply disappears with it).
   ( while :; do python3 "$DIR/kuhaku-lock.py"; sleep 2; done ) >/dev/null 2>&1 &
 fi
@@ -49,12 +43,12 @@ xfconf-query -c xfwm4 -p /general/button_layout -s "|" 2>/dev/null
 xfconf-query -c xfwm4 -p /general/show_dock_shadow -s false 2>/dev/null
 
 # Keys, the settings apps read (text size, font) and the touchpad: Kūhaku's own (kuhaku-keys.py),
-# in place of xfsettingsd. Brightness keys and the power key are Kūhaku's, not the power manager's.
-for prop in handle-brightness-keys general-notification; do
-  xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -n -t bool -s false 2>/dev/null || xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -s false
-done
-xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action -s 0 2>/dev/null
+# in place of xfsettingsd.
 ( while :; do pkill -x xfsettingsd; python3 "$DIR/kuhaku-keys.py"; sleep 2; done ) >/dev/null 2>&1 &
+
+# The screen, sleep, the lid and the battery: Kūhaku's own (kuhaku-powerd.py), in place of
+# xfce4-power-manager.
+( while :; do pkill -x xfce4-power-manager; python3 "$DIR/kuhaku-powerd.py"; sleep 2; done ) >/dev/null 2>&1 &
 
 # Claude's safety net: never wipe disks, delete whole folders outright, or send secrets away.
 python3 "$DIR/kuhaku-guard.py" install 2>/dev/null
