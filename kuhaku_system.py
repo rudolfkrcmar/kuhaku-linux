@@ -470,12 +470,35 @@ def write_power(key, value):
             run(["xfconf-query", "-c", "xfce4-power-manager", "-p", XFPM + prop, "-n", "-t", typ, "-s", val])
 
 
-# Trackpad: kept by xfsettingsd (channel "pointers"), which applies libinput settings live.
-PAD = "/Apple_SPI_Touchpad/Properties/"
+# Text size and pointers live in desktop.json; kuhaku-keys.py applies them live.
+DESKTOP = HOME / ".config" / "kuhaku" / "desktop.json"
+
+
+def read_desktop():
+    try:
+        return json.loads(DESKTOP.read_text())
+    except FileNotFoundError:
+        return {}  # kuhaku-keys.py writes it at its first start
+    except Exception:
+        report()
+        return {}
+
+
+def write_desktop(change):
+    cfg = read_desktop()
+    change(cfg)
+    DESKTOP.parent.mkdir(parents=True, exist_ok=True)
+    tmp = DESKTOP.with_suffix(".tmp")
+    tmp.write_text(json.dumps(cfg, indent=2) + "\n")
+    tmp.replace(DESKTOP)
+
+
+# Trackpad (the Mac's): libinput settings by their X names.
+PAD = "Apple SPI Touchpad"
 PAD_KEYS = {
-    "tap": ("libinput_Tapping_Enabled", "int", 0),
-    "natural": ("libinput_Natural_Scrolling_Enabled", "int", 0),
-    "speed": ("libinput_Accel_Speed", "double", 0.0),
+    "tap": ("libinput Tapping Enabled", "int", 0),
+    "natural": ("libinput Natural Scrolling Enabled", "int", 0),
+    "speed": ("libinput Accel Speed", "double", 0.0),
 }
 
 
@@ -514,21 +537,20 @@ def read_unlock():
 def read_trackpad():
     if "Apple SPI Touchpad" not in Path("/proc/bus/input/devices").read_text():
         return None
+    have = (read_desktop().get("pointers") or {}).get(PAD) or {}
     out = {}
     for key, (prop, typ, default) in PAD_KEYS.items():
-        _, v, _ = run(["xfconf-query", "-c", "pointers", "-p", PAD + prop])
         try:
-            out[key] = round(float(v.strip().replace(",", ".")), 1) if typ == "double" else int(v.strip())
-        except ValueError:
+            out[key] = round(float(have[prop]), 1) if typ == "double" else int(have[prop])
+        except (KeyError, TypeError, ValueError):
             out[key] = default
     return out
 
 
 def write_trackpad(key, value):
     prop, typ, _ = PAD_KEYS[key]
-    val = str(float(value)) if typ == "double" else str(int(value))
-    if run(["xfconf-query", "-c", "pointers", "-p", PAD + prop, "-s", val])[0]:
-        run(["xfconf-query", "-c", "pointers", "-p", PAD + prop, "-n", "-t", typ, "-s", val])
+    val = float(value) if typ == "double" else int(value)
+    write_desktop(lambda cfg: cfg.setdefault("pointers", {}).setdefault(PAD, {}).__setitem__(prop, val))
 
 
 def read_time():
@@ -595,19 +617,15 @@ def read_displays():
             ):
                 keep.append(mres)
         o["modes"] = keep[:6]
-    _, dpi, _ = run(["xfconf-query", "-c", "xsettings", "-p", "/Xft/DPI"])
-    return {
-        "outputs": outs,
-        "dpi": int(dpi.strip()) if dpi.strip().lstrip("-").isdigit() and int(dpi.strip()) > 0 else 96,
-    }
+    dpi = read_desktop().get("dpi")
+    return {"outputs": outs, "dpi": dpi if isinstance(dpi, int) and dpi > 0 else 96}
 
 
 def write_display(value):
     v = value or {}
     if v.get("dpi"):
-        d = str(int(v["dpi"]))
-        if run(["xfconf-query", "-c", "xsettings", "-p", "/Xft/DPI", "-s", d])[0]:
-            run(["xfconf-query", "-c", "xsettings", "-p", "/Xft/DPI", "-n", "-t", "int", "-s", d])
+        d = int(v["dpi"])
+        write_desktop(lambda cfg: cfg.__setitem__("dpi", d))
         return
     name, mode = v.get("output"), v.get("mode")
     if name and mode:

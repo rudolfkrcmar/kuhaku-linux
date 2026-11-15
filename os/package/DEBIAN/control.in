@@ -5,7 +5,7 @@ Priority: optional
 Architecture: all
 Maintainer: Rudolf Krcmar <3954764+rudolfkrcmar@users.noreply.github.com>
 Depends: python3, python3-gi, python3-gi-cairo, gir1.2-gtk-3.0, gir1.2-webkit2-4.1, gir1.2-vte-2.91, gir1.2-secret-1, gir1.2-polkit-1.0,
- gir1.2-pango-1.0, wmctrl, x11-utils, x11-xserver-utils, x11-xkb-utils, xfwm4, xfce4-settings, xfconf, xfce4-power-manager,
+ gir1.2-pango-1.0, wmctrl, x11-utils, x11-xserver-utils, x11-xkb-utils, xfwm4, xfconf, xfce4-power-manager,
  lightdm, lightdm-gtk-greeter, network-manager, pipewire-pulse, wireplumber, pulseaudio-utils,
  gstreamer1.0-plugins-good, gstreamer1.0-tools,
  plymouth, poppler-utils, power-profiles-daemon, mate-polkit, gnome-keyring, libpam-gnome-keyring, git, gh, rsync, curl,

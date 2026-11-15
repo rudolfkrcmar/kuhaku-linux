@@ -1,6 +1,6 @@
 #!/bin/sh
 # Kūhaku's own login session: no desktop around it, only the few pieces Kūhaku needs.
-#   window manager (xfwm4), keys and settings (xfsettingsd), power and lid
+#   window manager (xfwm4), power and lid
 #   (xfce4-power-manager),
 #   password prompts (polkit agent), gestures (touchegg), then Kūhaku itself.
 
@@ -48,7 +48,6 @@ setxkbmap -layout "${XKBLAYOUT:-us}" -variant "${XKBVARIANT:-}" -option '' $KB_O
   || setxkbmap -layout us -option '' $KB_OPTS
 
 dbus-update-activation-environment --systemd DISPLAY XAUTHORITY PATH 2>/dev/null
-xfsettingsd --daemon
 xfwm4 --compositor=on &
 xfce4-power-manager &
 [ -n "$LIVE" ] && xset s off -dpms

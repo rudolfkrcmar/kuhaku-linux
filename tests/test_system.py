@@ -2,8 +2,10 @@
 with every command's output mocked, and the pure helpers (describe, short, note_limits, daily_tokens)."""
 
 import json
+import tempfile
 import unittest
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest import mock
 
 import kuhaku_system as ks
@@ -238,8 +240,16 @@ HDMI-2 connected (normal left inverted right x axis y axis)
 
 
 class Displays(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        desk = mock.patch.object(ks, "DESKTOP", Path(tmp.name) / "desktop.json")
+        desk.start()
+        self.addCleanup(desk.stop)
+
     def test_read(self):
-        p, _ = with_run({"xrandr --query": XRANDR, "xfconf-query -c xsettings -p /Xft/DPI": "144\n"})
+        ks.DESKTOP.write_text('{"dpi": 144}')
+        p, _ = with_run({"xrandr --query": XRANDR})
         with p:
             d = ks.read_displays()
         self.assertEqual(d["dpi"], 144)
@@ -260,8 +270,9 @@ class Displays(unittest.TestCase):
         self.assertEqual(off["modes"], ["3840x2160", "2560x1440"])
 
     def test_dpi_fallback(self):
-        for dpi in ["", "-1\n", "abc", "0"]:
-            p, _ = with_run({"xrandr --query": "", "xfconf-query -c xsettings -p /Xft/DPI": dpi})
+        for dpi in ["", "{}", '{"dpi": -1}', '{"dpi": "abc"}', '{"dpi": 0}']:
+            ks.DESKTOP.write_text(dpi)
+            p, _ = with_run({"xrandr --query": ""})
             with self.subTest(dpi=dpi), p:
                 self.assertEqual(ks.read_displays(), {"outputs": [], "dpi": 96})
 
@@ -289,11 +300,15 @@ class Displays(unittest.TestCase):
             ks.write_display({"arrange": "sideways"})
         self.assertFalse(any(c[:2] == ["xrandr", "--output"] for c in fake.calls))
 
-    def test_set_dpi_creates_when_missing(self):
-        p, fake = with_run({"xfconf-query -c xsettings -p /Xft/DPI -s": (1, "", "no such property")})
+    def test_set_dpi_keeps_the_rest(self):
+        ks.DESKTOP.write_text('{"pointers": {"Mouse": {"libinput Accel Speed": -0.2}}}')
+        p, fake = with_run({})
         with p:
             ks.write_display({"dpi": 120.0})
-        self.assertEqual(fake.calls[-1][-5:], ["-n", "-t", "int", "-s", "120"])
+        self.assertEqual(fake.calls, [])
+        saved = json.loads(ks.DESKTOP.read_text())
+        self.assertEqual(saved["dpi"], 120)
+        self.assertEqual(saved["pointers"]["Mouse"]["libinput Accel Speed"], -0.2)
 
 
 class Power(unittest.TestCase):
