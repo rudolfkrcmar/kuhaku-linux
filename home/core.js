@@ -204,7 +204,33 @@ window.showAnswer = (entry) => {
   else answerAt = -1;
   renderAnswer(entry, true);
 };
-function closeAnswer() { native({ type: 'dismiss' }); show('home'); }
+function closeAnswer() {
+  if (!$('answerList').hidden) return listAnswers(false);   // Esc or × leaves the overview first
+  native({ type: 'dismiss' }); show('home');
+}
+// Clicking "177 of 182" shows every answer, newest first; clicking one opens it.
+function listAnswers(on) {
+  const list = $('answerList');
+  list.hidden = !on;
+  $('answer').classList.toggle('listing', on);
+  $('askedAnswer').hidden = on; $('answerText').hidden = on;
+  if (!on) return;
+  list.innerHTML = '';
+  for (let i = answers.length - 1; i >= 0; i--) {
+    const e = answers[i], b = document.createElement('button');
+    b.className = i === answerAt ? 'here' : '';
+    const t = document.createElement('span'); t.className = 't'; t.textContent = when(e.time);
+    const q = document.createElement('span'); q.className = 'lq'; q.textContent = e.question || '';
+    const a = document.createElement('span'); a.className = 'la'; a.textContent = plain(e.answer || '').replace(/\s+/g, ' ').slice(0, 300);
+    b.append(t, q, a);
+    b.addEventListener('click', () => showAt(i));
+    list.append(b);
+  }
+  list.scrollTop = 0;
+  const here = list.querySelector('.here');
+  if (here) here.scrollIntoView({ block: 'nearest' });
+}
+$('answerPos').addEventListener('click', () => listAnswers($('answerList').hidden));
 $('prevAnswer').addEventListener('click', () => showAt(answerAt - 1));
 $('nextAnswer').addEventListener('click', () => showAt(answerAt + 1));
 $('closeAnswer').addEventListener('click', closeAnswer);
@@ -232,6 +258,7 @@ function renderAnswer({ question, answer, error }, anim) {
     el.append(' ', a);
   }
   el.scrollTop = 0;
+  listAnswers(false);
   if (anim) { $('answer').style.animation = 'none'; void $('answer').offsetWidth; $('answer').style.animation = ''; }
   show('answer', question);
   drawNav();

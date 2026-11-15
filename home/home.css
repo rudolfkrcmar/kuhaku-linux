@@ -322,7 +322,20 @@ textarea::placeholder { color:currentColor; opacity:.5; }
                       display:flex; align-items:center; justify-content:center; transition:color .15s; }
 .answer .nav button:hover { color:var(--fg); }
 .answer .nav button[disabled] { opacity:.25; pointer-events:none; }
-.answer .nav .pos { font-size:12px; letter-spacing:.04em; font-variant-numeric:tabular-nums; min-width:64px; text-align:center; }
+.answer .nav .pos { font:inherit; font-size:12px; letter-spacing:.04em; font-variant-numeric:tabular-nums; min-width:64px; width:auto;
+                    padding:0 6px; text-align:center; }
+.answer .nav .pos:empty { display:none; }
+.answer.listing .nav .pos { color:var(--fg); }
+/* All answers at once: newest first, one click opens one. */
+.answer .list { display:flex; flex-direction:column; overflow-y:auto; min-height:0; margin:0 -10px; scrollbar-width:none; }
+.answer .list::-webkit-scrollbar { display:none; }
+.answer .list button { all:unset; display:grid; grid-template-columns:96px 1fr; gap:4px 16px; padding:10px; cursor:pointer;
+                       border-radius:6px; transition:background .15s; }
+.answer .list button:hover, .answer .list button:focus-visible { background:color-mix(in srgb, var(--fg) 6%, transparent); }
+.answer .list button.here { box-shadow:inset 2px 0 0 var(--accent); }
+.answer .list .t { grid-row:span 2; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; padding-top:3px; }
+.answer .list .lq { font-size:16px; font-weight:300; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.answer .list .la { font-size:13px; font-weight:300; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .answer .nav .when { font-size:12px; margin-left:8px; }
 .answer .nav .close { margin-left:auto; }
 .answer .q { margin:0; font-size:14px; line-height:1.5; font-weight:300; color:var(--muted); flex-shrink:0;
