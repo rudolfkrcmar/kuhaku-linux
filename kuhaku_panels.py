@@ -187,6 +187,9 @@ class Panels(Home):
         self.write_pref(msg.get("key"), msg.get("value"))
         return QUIET if msg.get("quiet") else Reply("prefs", self.read_prefs())
 
+    def _welcome(self, _msg):
+        return self.read_welcome()
+
     def _unlock(self, msg):
         # Fingers: their own windows do the teaching; Settings is told again when they close.
         what, finger = msg.get("what"), str(msg.get("finger") or "")
@@ -266,6 +269,7 @@ PANEL = {
     "notices-clear": Panels._notices,
     "prefs": Panels._prefs,
     "pref": Panels._pref,
+    "welcome": Panels._welcome,
     "unlock": Panels._unlock,
     **{
         a: Panels._account

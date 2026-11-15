@@ -12,6 +12,7 @@ function openPage(name, section) {
   el.hidden = false; el.scrollTop = 0; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   if (!appList || name === 'apps') native({ type: 'panel', action: 'apps' });
   if (name === 'apps') { appQuery = ''; renderApps(); }
+  if (name === 'welcome') { native({ type: 'panel', action: 'welcome' }); renderWelcome(); }
   if (name === 'settings') {
     native({ type: 'panel', action: 'prefs' });
     if (section) settingsCat = catOf(section);
@@ -82,6 +83,55 @@ function renderApps() {
     if (appQuery.trim()) { const q = 'Open or install the app: ' + appQuery.trim(); closePage(); setAsk(''); show('working', q); native({ type: 'ask', text: q }); }
   });
 }
+// ---- The first start: a few choices, once (for those who added Kūhaku without its installer) ----
+let welcome = null, wPicked = new Set(), wTimer = 0;
+window.setWelcome = (d) => { welcome = d; if (page === 'welcome') renderWelcome(); };
+function renderWelcome() {
+  clearTimeout(wTimer);
+  if (page !== 'welcome') return;
+  wTimer = setTimeout(() => native({ type: 'panel', action: 'welcome' }), 4000);  // Claude may finish arriving
+  const w = welcome;
+  let h = '<div class="inner narrow"><h1>Welcome to Kūhaku</h1>' +
+    '<p class="p-sub" style="font-size:15px">A few choices, once. Any of them can be changed later in Settings, or by asking Claude.</p>';
+  if (!w) { $('page').innerHTML = h + '<div class="p-wait" style="margin-top:24px"><span class="dot"></span>Looking around…</div></div>'; return; }
+  const claude = { ready: 'Signed in. Ask for anything on the home screen.', signin: 'Ready to sign in.',
+    waiting: 'Arriving from Anthropic. This needs the internet.' }[w.claude];
+  h += `<div class="p-label"><span>Claude</span></div><div class="p-rows">
+    <div class="srow"><span class="k">Claude</span><span class="grow">${claude}</span>
+      ${w.claude === 'signin' ? '<button class="p-link" data-wel="signin">Sign in</button>' : ''}</div></div>`;
+  const mode = w.permission_mode === 'bypassPermissions' ? 'bypassPermissions' : 'acceptEdits';  // as Settings reads it
+  h += `<div class="p-label"><span>How freely Claude works</span></div><div class="p-rows">
+    <div class="srow"><span class="k">May do</span><div class="grow">${OPT('permission_mode', [['bypassPermissions', 'Anything, without asking'], ['acceptEdits', 'Careful']], mode)}
+      <div class="p-sub">${mode === 'acceptEdits' ? 'Claude reads and edits files, but runs no commands, so it cannot change settings or install anything.'
+        : 'Recommended. Claude edits, runs and installs on its own, and asks before deleting or anything that cannot be undone.'}</div></div></div></div>`;
+  const c = w.codecs || {};
+  h += `<div class="p-label"><span>Video formats</span></div><div class="p-rows">
+    <div class="srow"><span class="k">Formats</span><div class="grow">${c.added ? 'All, including H.264 and AAC.' : 'Free formats play now: WebM, VP9, Opus, FLAC, MP3.'}
+      ${c.added ? '' : '<div class="p-sub">H.264, AAC and some others are covered by patents in some countries, so Kūhaku does not include them. Whether you may use them depends on where you live; the choice is yours. They come from Debian.</div>'}</div>
+      ${c.added ? '' : `<button class="p-link" data-wel="codecs">${c.running ? 'Adding…' : 'Add them'}</button>`}</div></div>`;
+  h += `<div class="p-label"><span>Programs by others</span></div><div class="p-rows">` +
+    (w.programs || []).map((a) => `<div class="srow"><span class="k">${esc(a.name)}</span><span class="grow">${esc(a.about)}<div class="p-sub">${esc(a.by)}</div></span>
+      ${a.installed ? '<span class="p-sub" style="margin:0">Installed</span>'
+        : `<span class="opt${wPicked.has(a.id) ? ' sel' : ''}" data-wel="pick" data-v="${esc(a.id)}">${wPicked.has(a.id) ? 'Chosen' : 'Choose'}</span>`}</div>`).join('') +
+    (wPicked.size ? `<div class="srow"><span class="k"></span><span class="grow"></span><button class="p-link" data-wel="programs">${w.adding ? 'Adding…' : 'Add the chosen ' + (wPicked.size > 1 ? 'programs' : 'program')}</button></div>` : '') +
+    '</div>';
+  h += `<div class="p-rows" style="margin-top:34px"><div class="srow"><span class="k"></span><span class="grow"></span><button class="p-link" data-wel="done" style="font-size:15px;color:var(--fg)">Done</button></div></div></div>`;
+  const top = $('page').scrollTop;
+  $('page').innerHTML = h; $('page').scrollTop = top;
+}
+$('page').addEventListener('click', (e) => {
+  if (page !== 'welcome') return;
+  if (e.target.closest('[data-pref]')) return setTimeout(() => native({ type: 'panel', action: 'welcome' }), 600);
+  const b = e.target.closest('[data-wel]'); if (!b) return;
+  e.stopPropagation();
+  const act = b.dataset.wel, pref = (key, value) => native({ type: 'panel', action: 'pref', key, value, quiet: true });
+  if (act === 'pick') { wPicked.has(b.dataset.v) ? wPicked.delete(b.dataset.v) : wPicked.add(b.dataset.v); return renderWelcome(); }
+  if (act === 'signin') pref('welcome-signin', 1);
+  if (act === 'codecs') { pref('add-codecs', 1); b.textContent = 'Adding…'; }
+  if (act === 'programs') { pref('welcome-programs', [...wPicked]); b.textContent = 'Adding…'; wPicked.clear(); }
+  if (act === 'done') { pref('welcome-done', 1); return closePage(); }
+  setTimeout(() => native({ type: 'panel', action: 'welcome' }), 600);
+}, true);
 function launch(id) { native({ type: 'panel', action: 'launch', id }); closePage(); }
 
 const OPT = (key, options, current) => '<div class="opts grow">' + options.map(([v, label]) =>
@@ -188,6 +238,8 @@ function renderSettings() {
   h += `<div class="p-label" id="sec-updates"><span>Updates</span></div><div class="p-rows">
     <div class="srow"><span class="k">Updates</span><span class="grow">${u.auto ? 'Security fixes install by themselves' : 'Not automatic'}${u.checked ? ' · last ' + when(u.checked) : ''}</span>
       <button class="p-link" data-pref-btn="update-now">${u.running ? 'Updating…' : 'Update now'}</button></div>
+    <div class="srow"><span class="k">First steps</span><span class="grow">Claude, how freely it works, video formats and programs, on one page</span>
+      <span class="p-link" data-act2="welcome">Open</span></div>
     <div class="srow"><span class="k">Video formats</span><span class="grow">${(p.codecs || {}).added ? 'All, including H.264 and AAC' : 'Free formats only. H.264, AAC and others are covered by patents in some countries; adding them is your choice.'}</span>
       ${(p.codecs || {}).added ? '' : `<button class="p-link" data-pref-btn="add-codecs">${(p.codecs || {}).running ? 'Adding…' : 'Add'}</button>`}</div></div>`;
   const a = p.about;
@@ -266,6 +318,7 @@ $('page').addEventListener('click', (e) => {
   if (ub) { ub.textContent = 'Updating…'; return native({ type: 'panel', action: 'pref', key: ub.dataset.prefBtn, value: 1 }); }
   const t = e.target.closest('[data-act2]'); if (!t) return;
   if (t.dataset.act2 === 'tool') launch(t.dataset.v);
+  if (t.dataset.act2 === 'welcome') openPage('welcome');
   if (t.dataset.act2 === 'time-set') native({ type: 'panel', action: 'pref', key: 'time_set', value: $('timeSet').value });
   if (t.dataset.act2 === 'all-settings') { onlySection = null; renderSettings(); $('page').scrollTop = 0; }
   if (t.dataset.act2 === 'ai-signin') native({ type: 'panel', action: 'ai-signin', set: t.dataset.set, kind: t.dataset.v });

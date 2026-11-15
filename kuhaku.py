@@ -44,7 +44,7 @@ from kuhaku_config import (
 )
 from kuhaku_log import report  # faults go to the log instead of vanishing
 from kuhaku_panels import Panels
-from kuhaku_settings import Settings
+from kuhaku_settings import Settings, welcome_due
 from kuhaku_sun import is_night  # night follows the sun
 from kuhaku_system import (
     _limits_cache,
@@ -206,6 +206,8 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             self.window.present()
             self.view.grab_focus()
             self.js("focusInput()")
+            if welcome_due(self.state):
+                self.js("openPage('welcome')")  # the first start, for those who skipped the installer
 
     def js(self, code):
         self.view.evaluate_javascript(code, -1, None, None, None, None, None)

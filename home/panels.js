@@ -45,6 +45,7 @@ window.panelData = ({ action, data }) => {
   if (action === 'wifi-disconnect') native({ type: 'panel', action: 'wifi' });
   if (action === 'battery' || action === 'power-profile') battery = data;
   if (action === 'apps') { appList = data || []; if (page === 'apps') renderApps(); if (page === 'settings') renderSettings(); }
+  if (action === 'welcome' && data) setWelcome(data);
   if (action === 'prefs' && data) { prefs = data; if (page === 'settings' && !dragging) renderSettings(); }
   if (action === 'calendar' && data) { usage = data.days || {}; if (data.limits) limits = data.limits; if (panel === 'calendar') renderCal(); }
   if (action === 'cal-events' && data) {

@@ -5,6 +5,7 @@ A part of the Kuhaku window class (kuhaku.py), kept here by subject."""
 import json
 import os
 import re
+import shutil
 import subprocess
 import threading
 from pathlib import Path
@@ -18,7 +19,7 @@ from gi.repository import GLib
 
 import claude_accounts as accounts
 from kuhaku_base import Home
-from kuhaku_config import CONFIG_FILE, HERE, HOME
+from kuhaku_config import ANSWERS_FILE, CONFIG_FILE, HERE, HOME
 from kuhaku_log import report
 from kuhaku_system import (
     PAD_KEYS,
@@ -42,6 +43,42 @@ KEEP_CODECS = (
     "{ for p in " + " ".join(CODECS) + "; do dpkg-query -W -f='${Status}' $p 2>/dev/null | grep -q 'ok installed'"
     " && apt-mark manual $p >/dev/null || true; done; } && "
 )
+
+# The first start, for people who added Kūhaku without its installer: the installer's programs by
+# others, from Debian (each with the package names it may have; Mint and Debian differ a little).
+PROGRAMS = (
+    ("firefox", "Firefox", "Mozilla", "A second web browser.", ("firefox-esr", "firefox")),
+    ("thunderbird", "Thunderbird", "Mozilla", "Mail and calendar.", ("thunderbird",)),
+    ("libreoffice", "LibreOffice", "The Document Foundation", "Documents, spreadsheets, slides.", ("libreoffice",)),
+    ("gimp", "GIMP", "The GIMP team", "Photos and pictures.", ("gimp",)),
+    ("inkscape", "Inkscape", "The Inkscape project", "Drawings and vector graphics.", ("inkscape",)),
+    ("krita", "Krita", "KDE", "Painting.", ("krita",)),
+    ("vlc", "VLC", "VideoLAN", "Plays any video or music.", ("vlc",)),
+    ("audacity", "Audacity", "Audacity team", "Records and edits sound.", ("audacity",)),
+    ("blender", "Blender", "Blender Foundation", "3D models and animation.", ("blender",)),
+    ("freecad", "FreeCAD", "FreeCAD project", "3D design for making things.", ("freecad",)),
+)
+
+
+def installed(packages):
+    """Which of these packages are installed."""
+    _, out, _ = run(["dpkg-query", "-W", "-f=${Package} ${Status}\\n", *packages])
+    return {line.split()[0] for line in out.splitlines() if line.endswith("ok installed")}
+
+
+def available(names):
+    """The first of these package names the package sources know (empty when none)."""
+    for name in names:
+        rc, out, _ = run(["apt-cache", "policy", name])
+        if rc == 0 and "Candidate:" in out and "Candidate: (none)" not in out:
+            return name
+    return ""
+
+
+def welcome_due(state):
+    """Shown once, at the very first start, only to people who did not come through the installer
+    (it asked all of this already), and never to a home already in use."""
+    return not state.get("welcomed") and not Path("/etc/kuhaku/permission-mode").exists() and not ANSWERS_FILE.exists()
 
 
 def codecs_added():
@@ -196,6 +233,13 @@ class Settings(Home):
             self.update_now()
         elif key == "add-codecs":
             self.add_codecs()
+        elif key == "welcome-programs":
+            self.add_programs([str(x) for x in (value or []) if isinstance(x, str)])
+        elif key == "welcome-signin":
+            GLib.idle_add(lambda: self.sign_in(accounts.active()["id"]) and False)
+        elif key == "welcome-done":
+            self.state["welcomed"] = True
+            self.save_state()
         elif key in ("permission_mode", "model", "dictation_model", "mic_button"):
             self.config[key] = None if value == "default" else value
             CONFIG_FILE.write_text(json.dumps(self.config, indent=2) + "\n")
@@ -260,3 +304,48 @@ class Settings(Home):
         self.adding_codecs = threading.Thread(target=work, daemon=True)
         self.adding_codecs.start()
         self.note("Video formats", "Adding…")
+
+    def read_welcome(self):
+        """What the first-start page shows: Claude, how freely it works, video formats, programs."""
+        acct = accounts.active()
+        has_claude = Path(self.claude).exists() or bool(shutil.which("claude"))
+        have = installed([n for *_, names in PROGRAMS for n in names])
+        return {
+            "claude": "ready" if accounts.signed_in(acct) else ("signin" if has_claude else "waiting"),
+            "permission_mode": self.config.get("permission_mode") or "default",
+            "codecs": {"added": codecs_added(), "running": bool(getattr(self, "adding_codecs", None))},
+            "programs": [
+                {"id": i, "name": n, "by": by, "about": about, "installed": bool(have & set(names))}
+                for i, n, by, about, names in PROGRAMS
+            ],
+            "adding": bool(getattr(self, "adding_programs", None)),
+        }
+
+    def add_programs(self, ids):
+        """Programs by others chosen on the first-start page, from the system's package sources
+        (asks for the password once)."""
+        wanted = [names for i, *_, names in PROGRAMS if i in ids]
+        if not wanted or getattr(self, "adding_programs", None):
+            return
+
+        def work():
+            names = [n for n in (available(ns) for ns in wanted) if n]
+            rc = 1
+            if names:  # names only from PROGRAMS, never from the page
+                rc = subprocess.run(
+                    [
+                        "pkexec",
+                        "sh",
+                        "-c",
+                        "DEBIAN_FRONTEND=noninteractive apt-get update -q && "
+                        "DEBIAN_FRONTEND=noninteractive apt-get install -y -q " + " ".join(names),
+                    ],
+                    capture_output=True,
+                ).returncode
+            self.adding_programs = None
+            msg = "Added" if rc == 0 else ("Cancelled" if rc in (126, 127) else "Could not finish")
+            GLib.idle_add(self.note, "Programs", msg)
+
+        self.adding_programs = threading.Thread(target=work, daemon=True)
+        self.adding_programs.start()
+        self.note("Programs", "Adding…")

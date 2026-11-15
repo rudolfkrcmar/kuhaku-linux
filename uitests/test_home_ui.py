@@ -87,3 +87,48 @@ class Night(PageCase):
         bg = self.page.js("return getComputedStyle(document.body).backgroundColor;")
         self.assertLess(max(int(x) for x in bg[4:-1].split(",")), 40, f"night is dark, not {bg}")
         self.assertLooksLike("home-night", tolerance=0.004)
+
+
+WELCOME = {
+    "claude": "signin",
+    "permission_mode": "bypassPermissions",
+    "codecs": {"added": False, "running": False},
+    "programs": [
+        {"id": "firefox", "name": "Firefox", "by": "Mozilla", "about": "A second web browser.", "installed": True},
+        {"id": "gimp", "name": "GIMP", "by": "The GIMP team", "about": "Photos and pictures.", "installed": False},
+    ],
+    "adding": False,
+}
+
+
+class FirstStart(PageCase):
+    """The welcome page, for people who added Kūhaku without its installer."""
+
+    def setUp(self):
+        self.page = home()
+        self.page.js("openPage('welcome'); setWelcome(" + json.dumps(WELCOME) + "); return true;")
+        self.page.wait(1500)  # the page has faded in
+
+    def text(self):
+        return self.page.js("return document.getElementById('page').innerText;")
+
+    def test_the_choices_are_there(self):
+        t = self.text()
+        for words in ("Welcome to Kūhaku", "Sign in", "Anything, without asking", "patents", "Add them", "Installed"):
+            self.assertIn(words, t)
+        self.assertLooksLike("welcome-day", tolerance=0.004)
+
+    def test_choosing_a_program_offers_to_add_it(self):
+        self.assertNotIn("Add the chosen", self.text())
+        self.page.click("[data-wel='pick'][data-v='gimp']")
+        self.assertIn("Add the chosen program", self.text())
+        sent = [m for m in self.page.messages if m.get("key") == "welcome-programs"]
+        self.assertEqual(sent, [])
+        self.page.click("[data-wel='programs']")
+        sent = [m for m in self.page.messages if m.get("key") == "welcome-programs"]
+        self.assertEqual(sent[-1]["value"], ["gimp"])
+
+    def test_done_closes_and_remembers(self):
+        self.page.click("[data-wel='done']")
+        self.assertTrue([m for m in self.page.messages if m.get("key") == "welcome-done"])
+        self.assertEqual(self.page.js("return document.getElementById('page').hidden;"), True)

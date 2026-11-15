@@ -5,6 +5,9 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 
 ## Unreleased
 
+### New
+- **First steps.** People who add Kūhaku to Debian or Mint without its installer get one quiet page at the first start: sign in to Claude, how freely it works, video formats, and programs by others. It shows once, and stays in Settings → Updates → First steps.
+
 ### Changed
 - Kūhaku no longer ships media formats covered by patents in some countries (H.264, H.265, AAC and others: the GStreamer bad, ugly and libav plugins). You add them yourself if you choose, with **More video formats** in the installer or **Settings → Updates → Video formats**. Computers that already have them keep them. Without them, screen recordings are saved as WebM (VP8) instead of MP4.
 - Mado runs on a newer engine: Qt WebEngine 6.10 from Debian's backports (Chromium 134 with security fixes to Chromium 144), up from 6.8 (Chromium 122). The package pins only this engine to backports, and unattended upgrades now include backports so its fixes arrive by themselves.
