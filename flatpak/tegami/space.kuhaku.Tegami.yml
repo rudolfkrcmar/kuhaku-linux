@@ -1,0 +1,49 @@
+# Tegami as a Flatpak: Kūhaku's mail on any Linux desktop (GNOME, KDE, Mint, Fedora, X11 or Wayland).
+#   flatpak-builder --user --install --force-clean build flatpak/tegami/space.kuhaku.Tegami.yml
+# Run from the project root. GTK 4, WebKitGTK 6, Python and libsecret all come with the GNOME runtime.
+id: space.kuhaku.Tegami
+runtime: org.gnome.Platform
+runtime-version: "49"
+sdk: org.gnome.Sdk
+command: tegami
+finish-args:
+  - --share=network             # IMAP and SMTP
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --talk-name=org.freedesktop.secrets   # passwords stay in the desktop's keyring
+  - --talk-name=org.freedesktop.Flatpak   # the assistant: Claude Code installed on the computer (optional)
+  - --filesystem=xdg-download             # attachments are saved to Downloads
+  - --persist=.config/kuhaku              # accounts (mail.json, never passwords)
+  - --persist=.local/state/kuhaku         # the mail itself, kept for offline
+modules:
+  - name: fonts
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 InterVariable.ttf /app/share/fonts/inter/InterVariable.ttf
+      - install -Dm644 "fonts/variable/JetBrainsMono[wght].ttf" /app/share/fonts/jetbrains-mono/JetBrainsMono.ttf
+    sources:
+      - type: archive
+        url: https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
+        sha256: 9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e
+        strip-components: 0
+      - type: archive
+        url: https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip
+        sha256: 6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf
+        strip-components: 0
+  - name: tegami
+    buildsystem: simple
+    build-commands:
+      - install -d /app/share/tegami/mail
+      - install -m644 tegami.py tegami_*.py kuhaku_webapp.py kuhaku_menus.py kuhaku_log.py kuhaku_sun.py claude_accounts.py desktop.py invites.py keepawake.py /app/share/tegami/
+      - install -m644 mail/*.html /app/share/tegami/mail/
+      - install -Dm755 flatpak/tegami/tegami.sh /app/bin/tegami
+      - install -Dm755 flatpak/tegami/claude.sh /app/bin/claude
+      - install -Dm644 flatpak/tegami/space.kuhaku.Tegami.desktop /app/share/applications/space.kuhaku.Tegami.desktop
+      - install -Dm644 flatpak/tegami/space.kuhaku.Tegami.metainfo.xml /app/share/metainfo/space.kuhaku.Tegami.metainfo.xml
+      - install -Dm644 icons/apps-night/tegami.png /app/share/icons/hicolor/128x128/apps/space.kuhaku.Tegami.png
+    sources:
+      - type: dir
+        path: ../..
+        skip: [build, .flatpak-builder, .git, os, uitests, tests, ide, home, miru, kansei, kiroku, browser]

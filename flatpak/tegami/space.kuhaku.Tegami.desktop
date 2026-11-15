@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Tegami
+GenericName=Mail
+Comment=Calm mail that sorts itself and works offline
+Exec=tegami %u
+Icon=space.kuhaku.Tegami
+Terminal=false
+Categories=Network;Email;
+MimeType=x-scheme-handler/mailto;
+Keywords=mail;email;imap;gmail;
+StartupWMClass=tegami.py

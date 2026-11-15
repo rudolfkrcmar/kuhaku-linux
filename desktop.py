@@ -18,7 +18,9 @@ def _spawn(argv):
 
 
 def open_url(url):
-    _spawn(["open", url] if MAC else [str(HOME / ".local/bin/mado"), url])
+    """Mado inside Kūhaku; the default browser on a Mac or another Linux desktop."""
+    mado = HOME / ".local/bin/mado"
+    _spawn(["open", url] if MAC else [str(mado), url] if mado.exists() else ["xdg-open", url])
 
 
 def open_file(path, viewable=False):

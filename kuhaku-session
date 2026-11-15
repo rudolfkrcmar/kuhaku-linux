@@ -1,6 +1,7 @@
 #!/bin/bash
 # Started at login by kuhaku-start. Sets up the keys, lock and look, and keeps Kūhaku running.
 export PATH="$HOME/.local/bin:$PATH"
+export KUHAKU_SESSION=1  # apps that also run elsewhere know they are home
 DIR="$(dirname "$(readlink -f "$0")")"
 
 # When something needs your password: Kūhaku's own window (kuhaku-polkit.py). If it cannot

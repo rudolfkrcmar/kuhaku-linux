@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>space.kuhaku.Tegami</id>
+  <name>Tegami</name>
+  <summary>Calm mail that sorts itself and works offline</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="space.kuhaku"><name>Kūhaku</name></developer>
+  <url type="homepage">https://www.kuhaku.space/tegami/</url>
+  <url type="vcs-browser">https://github.com/rudolfkrcmar/kuhaku-linux</url>
+  <launchable type="desktop-id">space.kuhaku.Tegami.desktop</launchable>
+  <description>
+    <p>Tegami opens on the few letters that need you today, in the order to read them. The rest sorts itself into Important, Purchases, Updates and Newsletters.</p>
+    <ul>
+      <li>Your mail is kept on the computer. Read and answer offline; replies send themselves when you are back.</li>
+      <li>Pictures from the internet and trackers stay out of your letters.</li>
+      <li>With Claude Code on the computer, ask about your mail and get drafts. Nothing is ever sent without you.</li>
+      <li>Gmail, iCloud, Fastmail, Seznam and any IMAP mailbox. Passwords stay in the keyring.</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default"><image>https://www.kuhaku.space/img/tegami-made-day.png</image><caption>Today: the letters that need you</caption></screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases><release version="0.4.0" date="2026-11-15"/></releases>
+</component>

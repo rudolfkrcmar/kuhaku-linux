@@ -55,7 +55,9 @@ flowchart TB
 
 ## The pattern every app follows
 
-1. **A GTK window with one WebKit view.** The page lives beside the app (`index.html` + `home/`,
+1. **A GTK window with one WebKit view.** Tegami's comes from `kuhaku_webapp.py`, which uses GTK 4 and
+   WebKitGTK 6 where installed (GTK 3 otherwise) and also runs outside Kūhaku: see `flatpak/README.md`.
+   The page lives beside the app (`index.html` + `home/`,
    `miru/`, `kansei/`, `kiroku/`, `mail/`, `ide/`) as plain HTML, CSS and classic scripts. No bundler.
 2. **Page to Python**: the page posts JSON to `window.webkit.messageHandlers.<app>`. Python looks the
    message's `type` up in a `MESSAGES` table and calls one method. The home screen's panels (Wi-Fi,
