@@ -34,6 +34,7 @@ MARGIN = 20  # from the screen's edge
 TOP = 64  # under Kūhaku's bar
 GAP = 10
 SHOW_MS = 6000
+QUIET_S = 300  # with no card for this long it closes; D-Bus starts it again for the next notice
 
 IFACE = """
 <node>
@@ -227,7 +228,10 @@ class Card:
 class Server:
     def __init__(self):
         self.cards: dict[int, Card] = {}
-        self.next_id = 1
+        # Numbers carry on across restarts, so an app replacing an old notice never hits a new one.
+        self.next_id = int(time.time()) % 1_000_000 * 1000 + 1
+        self.last = time.monotonic()
+        GLib.timeout_add_seconds(30, self.rest)
         self.conn = None
         self.provider = Gtk.CssProvider()
         self.look = None
@@ -277,6 +281,12 @@ class Server:
             report()
             inv.return_dbus_error("org.freedesktop.DBus.Error.Failed", str(e))
 
+    def rest(self):
+        if not self.cards and time.monotonic() - self.last > QUIET_S:
+            Gtk.main_quit()
+            return False
+        return True
+
     def notify(self, app, replaces, _icon, summary, body, actions, hints, timeout):
         nid = replaces if replaces in self.cards else self.next_id
         if nid == self.next_id:
@@ -291,6 +301,7 @@ class Server:
         self.cards[nid] = card
         card.fill(app, title, text, pairs, urgent, value if isinstance(value, int) else None, timeout)
         self.place()
+        self.last = time.monotonic()
         return nid
 
     def close(self, nid, reason):
