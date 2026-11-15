@@ -46,7 +46,7 @@ KEEP_CODECS = (
 )
 
 # Other AIs Kūhaku can work with, fetched from their makers (npm) the first time they are chosen.
-AI_TOOLS = {"codex": "@openai/codex", "gemini": "@google/gemini-cli"}
+AI_TOOLS = {"codex": "@openai/codex", "gemini": "@google/gemini-cli", "grok": "@xai-official/grok"}
 
 
 def welcome_due(state):
@@ -195,7 +195,7 @@ class Settings(Home):
         elif key == "home_set":
             ident = accounts.ensure(str(value), "claude")
             GLib.idle_add(lambda: self.switch_account(ident) and False)
-        elif key in ("account_mail", "account_dev"):
+        elif key in ("account_home", "account_mail", "account_dev"):
             accounts.set_for(key[8:], str(value or ""))
         elif key == "local_model":
             accounts.set_local_model(value)
@@ -278,7 +278,7 @@ class Settings(Home):
         self.note("Video formats", "Adding…")
 
     def read_welcome(self):
-        """What the first-start page shows: the AIs, how freely Claude works, video formats."""
+        """What the first-start page shows: the AIs, which one the home screen uses, how freely it works, video formats."""
         home_set = accounts.active()["set"]
         signing: set[str] = getattr(self, "signing", set())
         getting: set[str] = getattr(self, "getting_ai", set())
@@ -296,15 +296,17 @@ class Settings(Home):
                 ai[k] = "waiting" if k == "claude" else "get"  # Claude Code arrives by itself at the first start
         return {
             "ai": ai,
+            "home": accounts.uses()["home"],
+            "ready": [{"id": a["id"], "label": accounts.label(a), "kind": accounts.kind(a)} for a in accounts.ready()],
             "local": accounts.local_status(),
             "permission_mode": self.config.get("permission_mode") or "default",
             "codecs": {"added": codecs_added(), "running": bool(getattr(self, "adding_codecs", None))},
         }
 
-    def get_ai(self, k):
+    def get_ai(self, k, set_name=None):
         """Sign in to one of the AIs; OpenAI's Codex and Google's Gemini CLI are fetched from npm
         into ~/.local first if they are not here (Node from Debian, asking for the password once)."""
-        home_set = accounts.active()["set"]
+        home_set = set_name or accounts.active()["set"]
         getting: set[str] = self.__dict__.setdefault("getting_ai", set())
         if k in getting:
             return

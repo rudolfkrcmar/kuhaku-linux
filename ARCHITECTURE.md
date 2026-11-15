@@ -73,7 +73,8 @@ class is assembled from mixins kept by subject:
 
 | Module | What it holds |
 |---|---|
-| `kuhaku_claude.py` | Questions as jobs. Each tab runs `claude -p … --output-format stream-json` in the background; `jobs.py` decides how many may run (memory, plan limits) and keeps the line; `kuhaku_system.describe()` turns the event stream into the plain words shown while Claude works; the final answer is saved and shown. |
+| `kuhaku_claude.py` | Questions as jobs. Each tab runs `claude -p … --output-format stream-json` in the background; `jobs.py` decides how many may run (memory, plan limits) and keeps the line; `kuhaku_system.describe()` turns the event stream into the plain words shown while Claude works; the final answer is saved and shown. The home screen may instead use OpenAI's Codex, Google's Gemini CLI, xAI's Grok Build or a local model (Settings → AI → Home uses, or one tab at a time). |
+| `home_ai.py` | The other AIs on the home screen: their command lines, and their events turned into Claude Code's stream-json shape (Grok Build already speaks it; Codex `exec --json` and Gemini CLI `stream-json` are translated), so the rest of Kūhaku reads one shape. |
 | `kuhaku_voice.py` | Dictation (Whisper, offline, `transcribe.py`) and spoken conversations (Piper, `speak.py`). |
 | `kuhaku_settings.py` | Reading and writing every preference on the Settings page. |
 | `kuhaku_panels.py` | The panels' actions, one small handler each. |

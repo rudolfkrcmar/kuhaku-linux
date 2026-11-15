@@ -87,9 +87,10 @@ function renderApps() {
 let welcome = null, wTimer = 0;
 window.setWelcome = (d) => { welcome = d; if (page === 'welcome') renderWelcome(); };
 const WELCOME_AI = [
-  ['claude', 'Claude', 'By Anthropic. Kūhaku\'s home screen talks to Claude.'],
-  ['codex', 'OpenAI', 'Codex, by OpenAI. Can do mail and code work instead of Claude.'],
-  ['gemini', 'Gemini', 'Gemini CLI, by Google. Can do mail and code work instead of Claude.'],
+  ['claude', 'Claude', 'Claude Code, by Anthropic.'],
+  ['codex', 'OpenAI', 'Codex, by OpenAI.'],
+  ['gemini', 'Gemini', 'Gemini CLI, by Google.'],
+  ['grok', 'Grok', 'Grok Build, by xAI.'],
 ];
 function renderWelcome() {
   clearTimeout(wTimer);
@@ -97,7 +98,7 @@ function renderWelcome() {
   wTimer = setTimeout(() => native({ type: 'panel', action: 'welcome' }), 4000);  // sign-ins finish elsewhere
   const w = welcome;
   let h = '<div class="inner narrow"><h1>Welcome to Kūhaku</h1>' +
-    '<p class="p-sub" style="font-size:15px">A few choices, once. Any of them can be changed later in Settings, or by asking Claude.</p>';
+    '<p class="p-sub" style="font-size:15px">A few choices, once. Any of them can be changed later in Settings, or just by asking.</p>';
   if (!w) { $('page').innerHTML = h + '<div class="p-wait" style="margin-top:24px"><span class="dot"></span>Looking around…</div></div>'; return; }
   const act = (k, st) => ({
     ready: '<span class="p-sub" style="margin:0">Signed in</span>',
@@ -111,12 +112,16 @@ function renderWelcome() {
   const L = w.local || {};
   h += `<div class="srow"><span class="k">This computer</span><span class="grow">A model that runs here, without the cloud, through Ollama.${L.models && L.models.length ? '' : '<div class="p-sub">Slower, and needs a strong computer.</div>'}</span>
     ${L.running && L.models.length ? '<span class="p-sub" style="margin:0">Ready</span>' : '<a class="p-link" href="https://ollama.com/download">Get Ollama</a>'}</div>
-    <div class="srow"><span class="k"></span><span class="grow p-sub" style="margin:0">The home screen needs Claude for now. The others are optional; Settings, under AI, chooses which one Mail and Tsukuru use.</span></div></div>`;
+    <div class="srow"><span class="k"></span><span class="grow p-sub" style="margin:0">Sign in to the ones you use; one is enough. Each is fetched from its maker and signs in with your own account.</span></div>`;
+  const others = (w.ready || []).filter((a) => a.kind !== 'claude');
+  if (others.length) h += `<div class="srow"><span class="k">Home uses</span><div class="grow">${OPT('account_home', [['', 'Claude']].concat(others.map((a) => [a.id, esc(a.label)])), w.home || '')}
+    <div class="p-sub">The AI the home screen asks. Mail and Tsukuru can use another, in Settings, under AI.</div></div></div>`;
+  h += '</div>';
   const mode = w.permission_mode === 'bypassPermissions' ? 'bypassPermissions' : 'acceptEdits';  // as Settings reads it
-  h += `<div class="p-label"><span>How freely Claude works</span></div><div class="p-rows">
+  h += `<div class="p-label"><span>How freely it works</span></div><div class="p-rows">
     <div class="srow"><span class="k">May do</span><div class="grow">${OPT('permission_mode', [['bypassPermissions', 'Anything, without asking'], ['acceptEdits', 'Careful']], mode)}
-      <div class="p-sub">${mode === 'acceptEdits' ? 'Claude reads and edits files, but runs no commands, so it cannot change settings or install anything.'
-        : 'Recommended. Claude edits, runs and installs on its own, and asks before deleting or anything that cannot be undone.'}</div></div></div></div>`;
+      <div class="p-sub">${mode === 'acceptEdits' ? 'The AI reads and edits files, but runs no commands, so it cannot change settings or install anything.'
+        : 'Recommended. The AI edits, runs and installs on its own, and asks before deleting or anything that cannot be undone.'}</div></div></div></div>`;
   const c = w.codecs || {};
   h += `<div class="p-label"><span>Video formats</span></div><div class="p-rows">
     <div class="srow"><span class="k">Formats</span><div class="grow">${c.added ? 'All, including H.264 and AAC.' : 'Free formats play now: WebM, VP9, Opus, FLAC, MP3.'}
@@ -211,10 +216,10 @@ function renderSettings() {
     <div class="srow"><span class="k">Closing the lid</span>${OPT('lid', [[1, 'Sleep'], [3, 'Lock'], [0, 'Screen off']], p.power.lid)}</div>` : ''}
     ${p.about.battery != null ? `<div class="srow"><span class="k">Battery</span><span class="grow"><button class="p-link" data-act2="battery">${p.about.battery}% · details</button></span></div>` : ''}
     <div class="srow"><span class="k">Network</span><span class="grow"><button class="p-link" data-act2="wifi">Wi‑Fi networks</button></span></div></div>`;
-  // AI: sets (Personal, Work, …) of a Claude, an OpenAI and a Gemini account; then what uses which.
+  // AI: sets (Personal, Work, …) of a Claude, an OpenAI, a Gemini and a Grok account; then what uses which.
   const sets = p.ai_sets || [], signing = p.ai_signing || [], accts = p.accounts || [],
     ready = accts.filter((a) => a.signedIn), home = accts.find((a) => a.active) || {},
-    KIND = [['claude', 'Claude'], ['codex', 'OpenAI'], ['gemini', 'Gemini']];
+    KIND = [['claude', 'Claude'], ['codex', 'OpenAI'], ['gemini', 'Gemini'], ['grok', 'Grok']];
   const slot = (set, k) => { const a = set.slots[k];
     if (a && a.signedIn) return '<span class="aiok">Signed in</span>';
     if (a && signing.includes(a.id)) return '<span class="aiwait">Signing in…</span>';
@@ -234,7 +239,8 @@ function renderSettings() {
     <div class="srow"><span class="k"></span><div class="grow">${acctAdding
       ? '<label class="acctadd"><span class="line"></span><input id="acctNew" placeholder="Name of the set, like Client" spellcheck="false"></label>'
       : '<div class="opts"><span class="opt" data-act2="ai-set-add">Add a set</span></div>'}</div></div>
-    <div class="srow"><span class="k">Home uses</span>${OPT('home_set', sets.map((x) => [x.name, esc(x.name) + ' Claude']), home.set)}</div>
+    <div class="srow"><span class="k">Home uses</span>${OPT('account_home', [['', 'Claude']].concat(ready.filter((a) => a.kind !== 'claude').map((a) => [a.id, esc(a.label)])), (p.account_for || {}).home || '')}</div>
+    <div class="srow"><span class="k">Claude account</span>${OPT('home_set', sets.map((x) => [x.name, esc(x.name) + ' Claude']), home.set)}</div>
     ${[['mail', 'Mail uses'], ['dev', 'Dev tools use']].map(([k, label]) =>
       `<div class="srow"><span class="k">${label}</span>${OPT('account_' + k, [['', 'Same as home']].concat(ready.map((a) => [a.id, esc(a.label)])), (p.account_for || {})[k] || '')}</div>`).join('')}
     <div class="srow"><span class="k">Model</span>${OPT('model', [['default', 'Default'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']], p.model)}</div>

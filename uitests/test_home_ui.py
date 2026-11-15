@@ -90,7 +90,12 @@ class Night(PageCase):
 
 
 WELCOME = {
-    "ai": {"claude": "signin", "codex": "get", "gemini": "ready"},
+    "ai": {"claude": "ready", "codex": "get", "gemini": "ready", "grok": "get"},
+    "home": "",
+    "ready": [
+        {"id": "private", "label": "Personal Claude", "kind": "claude"},
+        {"id": "personal-gemini", "label": "Personal Gemini", "kind": "gemini"},
+    ],
     "local": {"installed": False, "running": False, "models": []},
     "permission_mode": "bypassPermissions",
     "codecs": {"added": False, "running": False},
@@ -119,6 +124,8 @@ class FirstStart(PageCase):
             "OpenAI",
             "Gemini",
             "Get and sign in",
+            "Grok",
+            "Home uses",
             "Signed in",
             "Anything, without asking",
             "patents",

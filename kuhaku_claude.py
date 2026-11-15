@@ -21,6 +21,7 @@ gi.require_version("WebKit2", "4.1")
 from gi.repository import GLib
 
 import claude_accounts as accounts
+import home_ai
 import jobs
 import keepawake
 from kuhaku_base import Home
@@ -172,19 +173,42 @@ class ClaudeJobs(Home):
                     "about": "your agent" + (": " + d.group(1).strip().strip("\"'")[:90] if d else ""),
                 }
             )
-        accts = accounts.ready("claude")  # an account that is not signed in cannot do a job
+        accts = accounts.ready()  # an account that is not signed in cannot do a job
         if len(accts) > 1:
             out += [
                 {
                     "id": "acct:" + a["id"],
-                    "name": "Claude · " + a["name"],
-                    "about": jobs.model_label(default) + " in your " + a["name"] + " account",
+                    "name": accounts.KINDS[accounts.kind(a)]["label"] + " · " + a["name"],
+                    "about": (
+                        jobs.model_label(default) + " in your " + a["name"] + " account"
+                        if accounts.kind(a) == "claude"
+                        else "this tab asks " + accounts.label(a)
+                    ),
                 }
                 for a in accts
             ]
         return out
 
-    def argv_for(self, tab):
+    def argv_for(self, tab, acct=None):
+        a = accounts.pick(ident=acct, purpose="home")
+        k = accounts.kind(a)
+        if (tab.get("session_kind") or "claude") != k:
+            tab["session_id"] = None  # a conversation lives with one AI; another starts afresh
+        tab["session_kind"] = k
+        if k != "claude":
+            local = []
+            if k == "local":
+                local = ["--oss", "--local-provider", "ollama"]
+                local += ["-m", accounts.local_model()] if accounts.local_model() else []
+            return home_ai.argv(
+                k,
+                accounts.exe(k),
+                tab["question"],
+                SYSTEM_PROMPT + (VOICE_PROMPT if tab.get("voice") else ""),
+                tab.get("session_id"),
+                self.config.get("permission_mode") != "bypassPermissions",
+                local,
+            )
         argv = [
             self.claude,
             "-p",
@@ -228,10 +252,11 @@ class ClaudeJobs(Home):
             tab.update(status="running", note=None)
             self.live[tab["id"]] = {"activity": [], "tokens": None}
             acct = (tab.get("agent") or "")[5:] if (tab.get("agent") or "").startswith("acct:") else None
-            if acct and acct not in {a["id"] for a in accounts.ready("claude")}:
-                acct = None  # chosen before it was signed in (or signed out since): the active one does it
+            if acct and acct not in {a["id"] for a in accounts.ready()}:
+                acct = None  # chosen before it was signed in (or signed out since): the home's AI does it
+            acct = acct or accounts.pick(purpose="home")["id"]
             threading.Thread(
-                target=self.run_claude, args=(self.argv_for(tab), tab["question"], tab["id"], acct), daemon=True
+                target=self.run_claude, args=(self.argv_for(tab, acct), tab["question"], tab["id"], acct), daemon=True
             ).start()
         back = ""
         if resets:
@@ -317,7 +342,12 @@ class ClaudeJobs(Home):
         self.schedule()
 
     def run_claude(self, argv, question, tab_id, acct=None):
+        who = accounts.pick(ident=acct)
+        kind = accounts.kind(who)
+        name = accounts.KINDS[kind]["label"]
+        translate = home_ai.Translate(kind)  # every AI's events in Claude Code's shape
         env = accounts.env(ident=acct)
+        env.update(home_ai.ENV.get(kind, {}))
         env["PATH"] = f"{HOME}/.local/bin:" + env.get("PATH", "/usr/bin:/bin")
         result, error, session_id, lost = None, None, None, False
         keepawake.hold()  # no idle sleep while Claude works; released when the answer is in
@@ -362,78 +392,38 @@ class ClaudeJobs(Home):
                             watts.append(w)
                         peak = max(peak, jobs.memory_mb(proc.pid) or 0)
                     try:
-                        ev = json.loads(line)
+                        raw = json.loads(line)
                     except ValueError:
                         continue
-                    session_id = ev.get("session_id") or session_id
-                    if ev.get("type") == "rate_limit_event":
-                        lim = note_limits(ev.get("rate_limit_info"))
-                        if lim:
-                            GLib.idle_add(self.send, "setLimits", lim)
-                    if ev.get("subtype") == "init":
-                        run.update(model=ev.get("model"), cwd=ev.get("cwd"))
-                        if ev.get("model") and not run["agent"].startswith(("agent:", "acct:")):
-                            self.state.setdefault("models", {})[run["agent"]] = ev["model"]
-                    for step in describe(ev):
-                        live["activity"] = (live["activity"] + [step])[-200:]
-                        GLib.idle_add(self.send, "addActivity", dict(step, tab=tab_id))
-                    if ev.get("type") == "assistant":
-                        msg = ev.get("message") or {}
-                        u = msg.get("usage") or {}
-                        if u:
-                            # The latest call's input is the whole conversation so far.
-                            tokens["context"] = (
-                                u.get("input_tokens", 0)
-                                + u.get("cache_read_input_tokens", 0)
-                                + u.get("cache_creation_input_tokens", 0)
-                            )
-                            tokens["out"][msg.get("id")] = u.get("output_tokens", 0)
-                            tokens["steps"] = len(tokens["out"])
-                            live["tokens"] = {
-                                "context": tokens["context"],
-                                "written": sum(tokens["out"].values()),
-                                "steps": tokens["steps"],
-                                "tab": tab_id,
-                            }
-                            GLib.idle_add(self.send, "setTokens", live["tokens"])
-                    if ev.get("type") == "result":
-                        if ev.get("is_error") and not ev.get("result"):
-                            why = "; ".join(str(e) for e in (ev.get("errors") or []))[:300]
-                            if "No conversation found" in why and "--resume" in argv:
-                                # The conversation lives in another account: start this tab afresh there.
-                                lost = True
-                            error = "Something went wrong" + (": " + why if why else ".")
-                        result = ev.get("result")
-                        u = ev.get("usage") or {}
-                        run.update(
-                            cost=ev.get("total_cost_usd"),
-                            turns=ev.get("num_turns"),
-                            api_ms=ev.get("duration_api_ms"),
-                            models=ev.get("modelUsage"),
-                            tokens={
-                                "in": u.get("input_tokens", 0),
-                                "out": u.get("output_tokens", 0),
-                                "cache_read": u.get("cache_read_input_tokens", 0),
-                                "cache_write": u.get("cache_creation_input_tokens", 0),
-                            },
+                    if not isinstance(raw, dict):
+                        continue
+                    for ev in translate(raw):
+                        session_id, result, error, lost = self.take_event(
+                            ev, run, tab_id, live, tokens, argv, session_id, result, error, lost
                         )
                 code = proc.wait()
                 # First start: Claude Code is there but not signed in yet. Open its sign-in once.
                 said = (result or "") + " " + (error or "")
-                if any(
+                if kind == "claude" and any(
                     k in said for k in ("Invalid API key", "/login", "Not logged in", "not logged in", "Please run")
                 ):
                     result, error = None, "Sign in to Claude in the window that just opened, then ask again."
                     GLib.idle_add(self.first_sign_in)
+                elif kind in ("codex", "gemini", "grok") and not result and not accounts.signed_in(who):
+                    result, error = None, f"Sign in to {name} in the window that just opened, then ask again."
+                    GLib.idle_add(lambda: self.sign_in(who["id"]) and False)
                 if self.procs.get(tab_id) is not proc:
                     return  # cancelled
                 run["outcome"] = "done" if result else "error"
                 if result is None and error is None:
-                    error = "Claude stopped unexpectedly." if code else "Done."
+                    error = f"{name} stopped unexpectedly." if code else "Done."
             except FileNotFoundError:
-                error = "Claude is getting ready. Connect to Wi‑Fi; it installs itself in a minute, then ask again."
                 run["outcome"] = "error"
-                GLib.idle_add(self.install_claude_code)
+                if kind == "claude":
+                    error = "Claude is getting ready. Connect to Wi‑Fi; it installs itself in a minute, then ask again."
+                    GLib.idle_add(self.install_claude_code)
+                else:
+                    error = f"{name} is not on this computer yet. Get it in Settings, under AI, then ask again."
             finally:
                 if self.procs.get(tab_id) is not None and self.procs[tab_id].poll() is not None:
                     self.procs.pop(tab_id, None)
@@ -456,6 +446,62 @@ class ClaudeJobs(Home):
                 self.tabs.get(tab_id)["session_id"] = None
             return self.run_claude(argv[:i] + argv[i + 2 :], question, tab_id, acct)
         GLib.idle_add(self.finish, question, result, error, session_id, tab_id)
+
+    def take_event(self, ev, run, tab_id, live, tokens, argv, session_id, result, error, lost):
+        """One event of a job, in Claude Code's stream-json shape: steps, tokens, limits, the answer."""
+        session_id = ev.get("session_id") or session_id
+        if ev.get("type") == "rate_limit_event":
+            lim = note_limits(ev.get("rate_limit_info"))
+            if lim:
+                GLib.idle_add(self.send, "setLimits", lim)
+        if ev.get("subtype") == "init":
+            run.update(model=ev.get("model"), cwd=ev.get("cwd"))
+            if ev.get("model") and not run["agent"].startswith(("agent:", "acct:")):
+                self.state.setdefault("models", {})[run["agent"]] = ev["model"]
+        for step in describe(ev):
+            live["activity"] = (live["activity"] + [step])[-200:]
+            GLib.idle_add(self.send, "addActivity", dict(step, tab=tab_id))
+        if ev.get("type") == "assistant":
+            msg = ev.get("message") or {}
+            u = msg.get("usage") or {}
+            if u:
+                # The latest call's input is the whole conversation so far.
+                tokens["context"] = (
+                    u.get("input_tokens", 0)
+                    + u.get("cache_read_input_tokens", 0)
+                    + u.get("cache_creation_input_tokens", 0)
+                )
+                tokens["out"][msg.get("id")] = u.get("output_tokens", 0)
+                tokens["steps"] = len(tokens["out"])
+                live["tokens"] = {
+                    "context": tokens["context"],
+                    "written": sum(tokens["out"].values()),
+                    "steps": tokens["steps"],
+                    "tab": tab_id,
+                }
+                GLib.idle_add(self.send, "setTokens", live["tokens"])
+        if ev.get("type") == "result":
+            if ev.get("is_error") and not ev.get("result"):
+                why = "; ".join(str(e) for e in (ev.get("errors") or []))[:300]
+                if "No conversation found" in why and "--resume" in argv:
+                    # The conversation lives in another account: start this tab afresh there.
+                    lost = True
+                error = "Something went wrong" + (": " + why if why else ".")
+            result = ev.get("result")
+            u = ev.get("usage") or {}
+            run.update(
+                cost=ev.get("total_cost_usd"),
+                turns=ev.get("num_turns"),
+                api_ms=ev.get("duration_api_ms"),
+                models=ev.get("modelUsage"),
+                tokens={
+                    "in": u.get("input_tokens", 0),
+                    "out": u.get("output_tokens", 0),
+                    "cache_read": u.get("cache_read_input_tokens", 0),
+                    "cache_write": u.get("cache_creation_input_tokens", 0),
+                },
+            )
+        return session_id, result, error, lost
 
     def first_sign_in(self):
         """Right after Claude Code is installed: its own first start, which signs in."""

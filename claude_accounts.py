@@ -26,11 +26,12 @@ KINDS = {
     "claude": {"label": "Claude", "bin": "claude", "var": "CLAUDE_CONFIG_DIR"},
     "codex": {"label": "OpenAI", "bin": "codex", "var": "CODEX_HOME"},
     "gemini": {"label": "Gemini", "bin": "gemini", "var": "GEMINI_CLI_HOME"},
+    "grok": {"label": "Grok", "bin": "grok", "var": "GROK_HOME"},
     # A model on this computer (Ollama), driven by Codex in its open-source mode. Not part of the
     # sets: there is one per computer, "signed in" whenever Ollama runs with a model.
     "local": {"label": "Local", "bin": "codex", "var": "CODEX_HOME"},
 }
-CLOUD = ("claude", "codex", "gemini")
+CLOUD = ("claude", "codex", "gemini", "grok")
 LOCAL_ID = "local"
 OLLAMA = (os.environ.get("OLLAMA_HOST") or "http://127.0.0.1:11434").rstrip("/")
 if "://" not in OLLAMA:
@@ -106,7 +107,7 @@ def config_dir(acct=None):
 
 
 # What can have its own account: mail (Tegami) and dev tools (Tsukuru). Unset follows home.
-PURPOSES = ("mail", "dev")
+PURPOSES = ("home", "mail", "dev")  # home: the home screen, when not the active Claude
 
 
 def pick(ident=None, purpose=None):
@@ -119,6 +120,8 @@ def pick(ident=None, purpose=None):
     chosen = by_id.get((data.get("for") or {}).get(purpose)) if purpose else None
     if chosen and signed_in(chosen):
         return chosen
+    if purpose and purpose != "home":
+        return pick(purpose="home")  # "Same as home"
     return active()
 
 
@@ -142,7 +145,7 @@ def shell_prefix(purpose=None):
 
 
 def command(purpose=None):
-    """The command line tool of the account used for a purpose: claude, codex or gemini."""
+    """The command line tool of the account used for a purpose: claude, codex, gemini or grok."""
     return exe(kind(pick(purpose=purpose)))
 
 
@@ -201,9 +204,14 @@ def signed_in(acct):
     if kind(acct) == "local":
         return bool(ollama_models())
     d = config_dir(acct)
-    return {"claude": d / ".credentials.json", "codex": d / "auth.json", "gemini": d / ".gemini" / "oauth_creds.json"}[
-        kind(acct)
-    ].exists()
+    if kind(acct) == "grok":
+        d = Path(acct["dir"]) if acct.get("dir") else HOME / ".grok"
+    return {
+        "claude": d / ".credentials.json",
+        "codex": d / "auth.json",
+        "gemini": d / ".gemini" / "oauth_creds.json",
+        "grok": d / "auth.json",
+    }[kind(acct)].exists()
 
 
 def ready(k=None):
@@ -240,11 +248,11 @@ def login_command(acct):
         if not settings.exists():
             settings.write_text(json.dumps({"security": {"auth": {"selectedType": "oauth-personal"}}}, indent=2))
         return f"{prefix}{shlex.quote(exe(k))} -p 'Reply only with: signed in'"
-    return prefix + shlex.quote(exe(k)) + (" auth login" if k == "claude" else " login")
+    return prefix + shlex.quote(exe(k)) + (" auth login" if k == "claude" else " login")  # grok login, codex login
 
 
 def ask(prompt, system, purpose=None, cwd=None, timeout=300, schema=None):
-    """One answer from an OpenAI or Gemini account, read-only (no edits, no commands that change
+    """One answer from an OpenAI, Gemini or Grok account, read-only (no edits, no commands that change
     anything). With a schema the answer is parsed JSON. Claude callers keep their own richer call."""
     import subprocess
     import tempfile
@@ -295,8 +303,31 @@ def ask(prompt, system, purpose=None, cwd=None, timeout=300, schema=None):
                 stdin=subprocess.DEVNULL,
             )
             answer = r.stdout.strip()
+        elif k == "grok":
+            r = subprocess.run(
+                [
+                    exe(k),
+                    "-p",
+                    text,
+                    "--output-format",
+                    "json",
+                    "--tools",
+                    "read_file,grep,list_dir",
+                    "--no-auto-update",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=cwd or str(HOME),
+                env=env(purpose=purpose),
+                stdin=subprocess.DEVNULL,
+            )
+            try:
+                answer = (json.loads(r.stdout or "{}").get("text") or "").strip()
+            except ValueError:
+                answer = ""
         else:
-            raise RuntimeError("ask() is for OpenAI, Gemini and local accounts")
+            raise RuntimeError("ask() is for OpenAI, Gemini, Grok and local accounts")
     if not answer:
         raise RuntimeError((r.stderr or "no answer").strip()[-200:])
     if schema:
@@ -306,7 +337,7 @@ def ask(prompt, system, purpose=None, cwd=None, timeout=300, schema=None):
 
 
 def uses():
-    """Which account mail and dev tools use ('' = the same as home)."""
+    """Which account the home screen, mail and dev tools use ('' = the active Claude, or the same as home)."""
     f = load().get("for") or {}
     return {p: f.get(p) or "" for p in PURPOSES}
 
@@ -393,7 +424,12 @@ def add(name, k="claude"):
     os.chmod(d, 0o700)
     # The same notes about this computer follow into the new account.
     notes = HOME / ".claude" / "CLAUDE.md"
-    target = {"claude": d / "CLAUDE.md", "codex": d / "AGENTS.md", "gemini": d / ".gemini" / "GEMINI.md"}[k]
+    target = {
+        "claude": d / "CLAUDE.md",
+        "codex": d / "AGENTS.md",
+        "gemini": d / ".gemini" / "GEMINI.md",
+        "grok": d / "rules" / "this-computer.md",  # every .md in $GROK_HOME/rules is a rule everywhere
+    }[k]
     if notes.exists() and not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(notes.read_text())

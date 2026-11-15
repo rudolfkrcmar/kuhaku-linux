@@ -6,6 +6,8 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 ## Unreleased
 
 ### New
+- **Any AI on the home screen.** The home screen can ask OpenAI (Codex), Gemini, Grok or a model on this computer instead of Claude: Settings → AI → Home uses, or First steps, or one tab at a time. Their steps show the same way Claude's do.
+- **Grok.** xAI's Grok Build joins Claude, OpenAI and Gemini in Settings → AI, for the home screen, Mail and Tsukuru.
 - **First steps.** People who add Kūhaku to Debian or Mint without its installer get one quiet page at the first start: sign in to Claude, and to OpenAI (Codex) or Gemini if they like, how freely Claude works, and video formats. OpenAI's and Google's tools are fetched from npm the first time they are chosen (also from Settings → AI, where signing in to them used to fail when they were missing). Other programs: just ask. It shows once, and stays in Settings → Updates → First steps.
 
 ### Changed

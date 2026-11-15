@@ -120,7 +120,7 @@ class AddAndRemove(AccountsCase):
         self.assertTrue(acc.remove(w))
         data = acc.load()
         self.assertEqual(data["active"], "private")
-        self.assertEqual(acc.uses(), {"mail": "", "dev": ""})
+        self.assertEqual(acc.uses(), {"home": "", "mail": "", "dev": ""})
         self.assertTrue((acc.ROOT / w).is_dir())  # its folder stays
 
     def test_sets(self):

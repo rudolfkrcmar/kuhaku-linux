@@ -220,8 +220,11 @@ class Panels(Home):
     def _account(self, msg):
         action = msg.get("action")
         if action == "ai-signin":
-            ident = accounts.ensure(str(msg.get("set") or "Personal"), str(msg.get("kind") or "claude"))
-            later(self.sign_in, ident)
+            set_name, k = str(msg.get("set") or "Personal"), str(msg.get("kind") or "claude")
+            if k in accounts.CLOUD and k != "claude":
+                self.get_ai(k, set_name)  # fetches the tool first when it is not here yet
+            else:
+                later(self.sign_in, accounts.ensure(set_name, k))
         elif action == "ai-set-add":
             accounts.add_set(msg.get("name"))
         elif action == "ai-set-remove":
