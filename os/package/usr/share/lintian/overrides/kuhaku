@@ -8,8 +8,6 @@ kuhaku: package-installs-apt-sources [etc/apt/sources.list.d/kuhaku.sources]
 # Kūhaku's udev rules give the person at the screen access to their own laptop (the tablet
 # switch, battery care); they are not hardware support that should be advertised.
 kuhaku: appstream-metadata-missing-modalias-provide *
-# Likewise the battery rule: it lets the charge limit be set, it supports no new hardware.
-kuhaku: appstream-metadata-missing-modalias-provide [usr/lib/udev/rules.d/72-kuhaku-battery.rules]
 
 # Mado needs Qt WebEngine from Debian's backports (a newer Chromium); the pin is that choice.
 kuhaku: package-installs-apt-preferences [etc/apt/preferences.d/kuhaku-mado]
