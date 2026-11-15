@@ -26,6 +26,28 @@ ROOT = Path(__file__).resolve().parent.parent
 SHOTS = Path(__file__).resolve().parent / "shots"
 WIDTH, HEIGHT = 1280, 800
 
+# Text is drawn the same whatever desktop runs the tests: these would otherwise come from the
+# running settings service (XSETTINGS), and a change there changed every screenshot.
+_gtk = Gtk.Settings.get_default()
+if _gtk:
+    for prop, value in (
+        ("gtk-xft-antialias", -1),  # -1: as fontconfig says (how the expected shots were made)
+        ("gtk-xft-hinting", -1),
+        ("gtk-xft-hintstyle", "hintnone"),
+        ("gtk-xft-rgba", "none"),
+        ("gtk-xft-dpi", 96 * 1024),
+        ("gtk-font-name", "Inter 10"),
+        ("gtk-cursor-blink", False),
+    ):
+        _gtk.set_property(prop, value)
+
+# Nothing moves while a screenshot is taken: no transitions, animations or blinking caret.
+STILL = (
+    "document.documentElement.appendChild(Object.assign(document.createElement('style'), {textContent:"
+    " '*, *::before, *::after { transition: none !important; animation: none !important;"
+    " caret-color: transparent !important; }'}));"
+)
+
 
 class Page:
     def __init__(self, path, handler, html=None, query=""):
@@ -56,6 +78,15 @@ class Page:
                 " class Frozen extends D { constructor(...a) { super(...(a.length ? a : [T])); }"
                 " static now() { return T; } }"
                 " window.Date = Frozen; })();",
+                WebKit2.UserContentInjectedFrames.TOP_FRAME,
+                WebKit2.UserScriptInjectionTime.START,
+                None,
+                None,
+            )
+        )
+        ucm.add_script(
+            WebKit2.UserScript.new(
+                f"document.addEventListener('DOMContentLoaded', () => {{ {STILL} }});",
                 WebKit2.UserContentInjectedFrames.TOP_FRAME,
                 WebKit2.UserScriptInjectionTime.START,
                 None,
@@ -134,7 +165,36 @@ class Page:
         )
         self.wait(80)
 
+    def settle(self):
+        """Waits until the fonts are in and two frames have been drawn."""
+        loop = GLib.MainLoop()
+        self.view.call_async_javascript_function(
+            "await document.fonts.ready;"
+            " await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return true;",
+            -1,
+            None,
+            None,
+            None,
+            None,
+            lambda v, r: (v.call_async_javascript_function_finish(r), loop.quit()),
+        )
+        GLib.timeout_add(3000, lambda: loop.quit() or False)
+        loop.run()
+
     def screenshot(self):
+        """The page once it has stopped changing: two snapshots in a row the same (at most five tries)."""
+        self.settle()
+        last = None
+        for _ in range(5):
+            shot = self.snapshot()
+            data = bytes(shot.get_data())
+            if data == last:
+                return shot
+            last = data
+            self.wait(80)
+        return shot
+
+    def snapshot(self):
         out, loop = {}, GLib.MainLoop()
 
         def done(view, res):
