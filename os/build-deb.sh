@@ -36,6 +36,22 @@ sed -i 's/^icon-theme-name=.*/icon-theme-name=Adwaita/' "$STAGE/usr/share/kuhaku
 if grep -rIl "Mint-Y\|linuxmint" "$STAGE/usr" --exclude-dir=lib --exclude-dir=vendor | grep -v "browser.py\|browser_webkit.py"; then
   echo "Mint leftovers above"; exit 1
 fi
+# Debian's rules (lintian, run by CI on every push):
+# Depends on one line; every file under /etc is the person's to change (a conffile, kept on update).
+awk '/^Depends:/ {d = 1; printf "%s", $0; next} d && /^ / {sub(/^ +/, " "); printf "%s", $0; next}
+     d {d = 0; print ""} {print}' "$STAGE/DEBIAN/control" > "$STAGE/DEBIAN/control.one" && mv "$STAGE/DEBIAN/control.one" "$STAGE/DEBIAN/control"
+(cd "$STAGE" && find etc -type f | sort | sed 's|^|/|') > "$STAGE/DEBIAN/conffiles"
+# No version-control files in the package.
+find "$STAGE" -name .gitignore -delete
+# The changelog, in Debian's form, pointing at the full notes shipped beside it.
+DOC="$STAGE/usr/share/doc/kuhaku"
+mkdir -p "$DOC"
+gzip -9n < "$SRC/CHANGELOG.md" > "$DOC/CHANGELOG.md.gz"
+MAINT="$(sed -n 's/^Maintainer: //p' "$STAGE/DEBIAN/control")"
+WHEN="$(date -R -d "@$(git -C "$SRC" log -1 --format=%ct 2>/dev/null || date +%s)")"
+printf 'kuhaku (%s) stable; urgency=medium\n\n  * Kūhaku %s. What changed: /usr/share/doc/kuhaku/CHANGELOG.md.gz\n\n -- %s  %s\n' \
+  "$VERSION" "$VERSION" "$MAINT" "$WHEN" | gzip -9n > "$DOC/changelog.gz"
+chmod 644 "$DOC/changelog.gz" "$DOC/CHANGELOG.md.gz"
 mkdir -p out
 dpkg-deb --root-owner-group -Zxz --build "$STAGE" "out/kuhaku_${VERSION}_all.deb" >/dev/null
 echo "out/kuhaku_${VERSION}_all.deb"

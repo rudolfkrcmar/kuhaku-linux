@@ -28,19 +28,19 @@ if [ "$1" = configure ]; then
   udevadm control --reload-rules >/dev/null 2>&1 || true
   udevadm trigger --subsystem-match=input --action=change >/dev/null 2>&1 || true
   # The Claude desktop app comes from Anthropic on this computer, never inside Kūhaku's image.
-  systemctl enable kuhaku-claude-desktop.service >/dev/null 2>&1 || true
+  deb-systemd-helper enable kuhaku-claude-desktop.service >/dev/null 2>&1 || true
   # Formats covered by patents in some countries are no longer pulled in by Kūhaku; a computer
   # that already has them keeps them (otherwise autoremove would take them away unasked).
   for pkg in gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav; do
     dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' && apt-mark manual "$pkg" >/dev/null 2>&1 || true
   done
   # Programs by others chosen in the installer (it does nothing without that list).
-  systemctl enable kuhaku-programs.service >/dev/null 2>&1 || true
-  systemctl enable kuhaku-solidcraft.service >/dev/null 2>&1 || true
+  deb-systemd-helper enable kuhaku-programs.service >/dev/null 2>&1 || true
+  deb-systemd-helper enable kuhaku-solidcraft.service >/dev/null 2>&1 || true
   # A clock that keeps time, and a real language setting (some programs quit without one).
   systemctl enable systemd-timesyncd.service >/dev/null 2>&1 || true
   # Idle parts of the computer may sleep: longer on battery.
-  systemctl enable kuhaku-powersave.service >/dev/null 2>&1 || true
+  deb-systemd-helper enable kuhaku-powersave.service >/dev/null 2>&1 || true
   if [ -f /etc/locale.gen ] && ! locale -a 2>/dev/null | grep -qi '^en_US.utf-\?8$'; then
     sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
     locale-gen >/dev/null 2>&1 || true

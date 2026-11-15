@@ -1,0 +1,24 @@
+# Kūhaku is a whole system on top of Debian, so a few of Debian's rules for single programs
+# are knowingly bent. Each line says why.
+
+# Mado needs Qt WebEngine from Debian's backports (a newer Chromium); the pin is that choice.
+kuhaku: package-installs-apt-preferences [etc/apt/preferences.d/kuhaku-mado]
+
+# Helpers run by the system itself (login, installer, power, fetching), never typed by people.
+kuhaku: no-manual-page [usr/bin/kuhaku-start]
+kuhaku: no-manual-page [usr/bin/kuhaku-setup-user]
+kuhaku: no-manual-page [usr/sbin/*]
+
+# Tsukuru's editor ships the exact CodeMirror build it is tested with.
+kuhaku: embedded-javascript-library *[usr/share/kuhaku/app/ide/vendor/codemirror/*]
+
+# Vendored python-dateutil keeps its own time-zone archive as published.
+kuhaku: package-contains-timestamped-gzip *[usr/share/kuhaku/app/lib/dateutil/zoneinfo/dateutil-zoneinfo.tar.gz]
+
+# The login screen's fonts go to /usr/local/share/fonts (outside the fontconfig trigger);
+# the greeter's own settings folder belongs to the lightdm user.
+kuhaku: maintainer-script-updates-fontconfig-cache-improperly *
+kuhaku: recursive-privilege-change *
+
+# A reliable clock is part of Kūhaku: it switches on systemd-timesyncd, which it does not ship.
+kuhaku: maintainer-script-calls-systemctl *
