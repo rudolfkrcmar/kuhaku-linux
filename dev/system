@@ -1,0 +1,47 @@
+#!/bin/sh
+# Brings this computer's system part of Kūhaku up to date with the project, in one step:
+# builds the package (os/build-deb.sh), then, after one password in Kūhaku's own window,
+# installs it and takes away the programs Kūhaku has replaced (and what only they needed).
+#
+#   dev/system           build, install, tidy
+#   dev/system --dry     say what would change, change nothing
+#
+# dev/install keeps your own copy of Kūhaku current; this keeps the system's (login session,
+# boot and login look, the packages Kūhaku needs).
+set -e
+
+# Programs Kūhaku now does itself: keys and settings (kuhaku-keys.py), notifications
+# (kuhaku-notify.py), power (kuhaku-powerd.py), the lock screen (kuhaku-lock.py).
+REPLACED="xfce4-settings xfce4-notifyd xfce4-power-manager light-locker"
+
+if [ "$1" = --as-root ]; then
+  deb="$2"
+  export DEBIAN_FRONTEND=noninteractive
+  remove=""
+  for p in $REPLACED; do
+    dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' && remove="$remove $p-"
+  done
+  # shellcheck disable=SC2086  # one word per package
+  apt-get install -y --autoremove "$deb" $remove
+  exit 0
+fi
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+rm -f "$ROOT"/os/out/kuhaku_*.deb
+"$ROOT/os/build-deb.sh" >/dev/null
+deb="$(ls "$ROOT"/os/out/kuhaku_*.deb)"
+echo "· built $(basename "$deb")"
+
+remove=""
+for p in $REPLACED; do
+  dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' && remove="$remove $p-"
+done
+# shellcheck disable=SC2086  # one word per package
+plan="$(apt-get -s install --autoremove "$deb" $remove 2>/dev/null)"
+echo "$plan" | sed -n 's/^Inst \([^ ]*\) .*(\([^ ]*\) .*/· install \1 \2/p'
+gone="$(echo "$plan" | sed -n 's/^Remv \([^ ]*\) .*/\1/p' | tr '\n' ' ')"
+[ -n "$gone" ] && echo "· take away (Kūhaku does their work now, or only they needed them): $gone"
+[ "$1" = --dry ] && exit 0
+
+pkexec "$ROOT/dev/system" --as-root "$deb"
+echo "· done. Log out and in (or restart) to start the new session."
