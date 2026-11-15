@@ -20,6 +20,12 @@ It runs as an X11 session on Debian 13 (or Linux Mint) with xfwm4 as its window 
 
 Claude is the default, but the home screen, Mail and Tsukuru can each use another AI you sign in to: OpenAI's Codex, Google's Gemini CLI, xAI's Grok Build, GitHub's Copilot CLI, or a model on your own computer through Ollama. Each tool is fetched from its maker the first time you choose it, and you sign in with your own account (Settings → AI). On the home screen they work the way Claude does, with their steps shown as they go. Careful mode keeps them as close to "no commands" as each tool allows.
 
+## Battery care
+
+Plugged in, the battery stops at 80%, which keeps it healthy for longer. Kūhaku charges it to 100% only when you'll need it: before a trip in your calendar (a flight, a train, a hotel, a few days away), while you travel (charging on a network that isn't one of your usual places), and shortly before the time you usually unplug, which it learns. Everything it learns stays on your computer. The battery panel says why it is filling, and offers **Full once** and **Always full**. At 20% a gentle card suggests plugging in.
+
+The limit is kept by the laptop's own firmware, through the kernel's standard charge limit setting. Most ThinkPads have it, and so do many Dell, ASUS, Framework, Huawei, Samsung, LG, MSI and System76 laptops. On a computer without it (Macs, for one), the battery charges as it always has.
+
 ## If it ever freezes
 
 The home screen restarts itself if it stops answering for about 20 seconds, and **Ctrl+Alt+Backspace** restarts it at once, from anywhere. Open apps and their windows stay as they were.
