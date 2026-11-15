@@ -15,7 +15,7 @@ function openPanel(name) {
   const el = $('panel');
   el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   clearInterval(panelTimer);
-  if (name === 'calendar') { native({ type: 'panel', action: 'calendar' }); cal.y = today().getFullYear(); cal.m = today().getMonth(); cal.mode = 'month'; cal.sel = today(); renderCal(); askEvents(); }
+  if (name === 'calendar') { calAdding = false; calNote = ''; calAsked = ''; native({ type: 'panel', action: 'calendar' }); cal.y = today().getFullYear(); cal.m = today().getMonth(); cal.mode = 'month'; cal.sel = today(); renderCal(); askEvents(); }
   if (name === 'light') renderLight();
   if (name === 'notices') { notices = null; renderNotices(); native({ type: 'panel', action: 'notices' }); }
   if (name === 'wifi') { bt.note = ''; native({ type: 'panel', action: 'bt' }); wifi.open = null; renderWifi(); native({ type: 'panel', action: 'wifi' }); native({ type: 'panel', action: 'wifi', rescan: true }); }
