@@ -541,8 +541,22 @@ def read_time():
         "synced": v.get("NTPSynchronized") == "yes",
         "can_auto": v.get("CanNTP") == "yes",
         "zone": v.get("Timezone", ""),
+        "zones": all_zones(),
         "now": time.strftime("%Y-%m-%dT%H:%M"),
     }
+
+
+def all_zones():
+    """Every place's time zone, from tzdata's own table, so any place can be chosen (none is suggested first)."""
+    zones = set()
+    try:
+        for line in Path("/usr/share/zoneinfo/zone1970.tab").read_text(encoding="utf-8").splitlines():
+            parts = line.split("\t")
+            if not line.startswith("#") and len(parts) >= 3:
+                zones.add(parts[2])
+    except OSError:
+        report()
+    return sorted(zones) + ["UTC"]
 
 
 def write_time(key, value):

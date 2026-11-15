@@ -34,7 +34,7 @@ class Preview:
         self.view.load_uri((HERE / "installer.html").as_uri())
         self.view.connect("load-changed", lambda v, e: e == WebKit2.LoadEvent.FINISHED and self.js(
             "facts", {"disk": {"dev": "/dev/pretend", "size": 512e9, "model": "Pretend drive (preview)"},
-                      "carry": None, "zone": "Europe/Prague"}))
+                      "carry": None, "zone": ""}))
         self.win.show_all()
 
     def js(self, fn, data=None):

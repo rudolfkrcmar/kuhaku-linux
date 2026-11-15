@@ -81,6 +81,7 @@
   <div class="field"><label for="iTry">Try it</label><input id="iTry" placeholder="Type a few letters here" spellcheck="false" autocomplete="off"></div>
   <div class="field"><label for="iLang">Language</label><select id="iLang"></select></div>
   <div class="field"><label for="iZone">Time zone</label><select id="iZone"></select></div>
+  <p class="quiet" id="zoneWhy" style="font-size:15px" hidden>Kūhaku could not tell where this computer is. Choose your time zone, so the clock is right.</p>
   <p class="quiet" style="font-size:15px;margin-top:22px">Kūhaku itself speaks English. The language is for other programs, dates and numbers.</p>
   <div class="acts"><button class="go" id="bPlace">Continue</button><button class="soft" id="bBackP">Back</button></div>
 </div></section>
@@ -205,13 +206,14 @@
     fill($('iKeys'), KEYS.some((k) => k[0] === live) ? KEYS : [[live, live], ...KEYS], live);
     if (near[0]) [...$('iKeys').options].forEach((o) => { if (o.value === near[0] && o.value !== live) o.textContent += ' · likely here'; });
     fill($('iLang'), LANGS, 'en_US');
-    const zones = (f.zones && f.zones.length ? f.zones : [f.zone || 'UTC']);
-    fill($('iZone'), zones.map((z) => [z, z.replace(/_/g, ' ').replace(/\//g, ' / ')]), f.zone || 'UTC');
+    // The zone found where the computer is; if none was found, nothing is picked: the person chooses.
+    const zones = (f.zones && f.zones.length ? f.zones : f.zone ? [f.zone] : ['UTC']);
+    fill($('iZone'), (f.zone ? [] : [['', 'Choose where you are']]).concat(zones.map((z) => [z, z.replace(/_/g, ' ').replace(/\//g, ' / ')])), f.zone || '');
     driveNote();
   };
   // The chosen keyboard works at once, so the password on the next screen is typed with it.
   $('iKeys').onchange = () => { $('iKeys').dataset.touched = 1; send({ type: 'keyboard', keys: $('iKeys').value }); $('iTry').value = ''; $('iTry').focus(); };
-  $('iZone').onchange = () => { $('iZone').dataset.touched = 1; driveNote(); };
+  $('iZone').onchange = () => { $('iZone').dataset.touched = 1; $('zoneWhy').hidden = true; driveNote(); };
   $('iLang').onchange = () => { $('iLang').dataset.touched = 1; };
   place({});
   // Programs: ours are hidden when left out (they stay installed, so nothing breaks); others are installed online.
@@ -253,7 +255,7 @@
   $('bApps').onclick = () => show('drive');
   $('bBackA').onclick = () => show('claude');
   $('bBegin').onclick = () => show('place');
-  $('bPlace').onclick = () => show('you');
+  $('bPlace').onclick = () => { if (!$('iZone').value) { $('zoneWhy').hidden = false; $('iZone').focus(); return; } show('you'); };
   $('bBackP').onclick = () => show('welcome');
   $('bLook').onclick = () => send({ type: 'close' });
   $('bBack').onclick = () => show('place');

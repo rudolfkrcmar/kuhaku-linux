@@ -208,7 +208,7 @@ function renderSettings() {
     <div class="srow"><span class="k">Now</span><span class="grow">${tm.auto ? (tm.synced ? 'In step with the internet' : 'Not yet checked with the internet') : ''}</span>
       ${tm.auto ? '' : `<input type="datetime-local" id="timeSet" value="${tm.now}" style="font:inherit;background:none;border:0;color:var(--fg);color-scheme:dark light"><button class="p-link" data-act2="time-set">Set</button>`}</div>
     <div class="srow"><span class="k">Time zone</span><input id="timeZone" list="zones" value="${esc(tm.zone)}" spellcheck="false" style="font:inherit;background:none;border:0;color:var(--fg);flex:1">
-      <datalist id="zones">${['Europe/Prague','Europe/London','Europe/Berlin','Europe/Paris','America/New_York','America/Los_Angeles','Asia/Tokyo','UTC'].map((z) => `<option value="${z}">`).join('')}</datalist></div></div>`;
+      <datalist id="zones">${(tm.zones || []).map((z) => `<option value="${z}">`).join('')}</datalist></div></div>`;
   h += `<div class="p-label" id="sec-power"><span>Power</span></div><div class="p-rows">
     ${p.profile ? `<div class="srow"><span class="k">Power mode</span>${OPT('profile', [['power-saver', 'Saver'], ['balanced', 'Balanced'], ['performance', 'Performance']], p.profile)}</div>` : ''}
     ${p.power ? `<div class="srow"><span class="k">Screen off</span>${OPT('screen_off', [[2, '2 min'], [5, '5 min'], [10, '10 min'], [0, 'Never']], p.power.screen_off)}</div>

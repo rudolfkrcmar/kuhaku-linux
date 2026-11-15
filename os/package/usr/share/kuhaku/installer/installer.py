@@ -75,7 +75,8 @@ def password_opens_carry(password):
 
 def find_timezone():
     """Where the computer is: the live system's own zone if someone set it, otherwise the zone
-    of this internet connection (one HTTPS question, nothing about the person is sent), else UTC."""
+    of this internet connection (one HTTPS question, nothing about the person is sent), else ""
+    (unknown: the person chooses it; nothing is picked for them)."""
     real = real_zone
     zone = sh(["timedatectl", "show", "-p", "Timezone", "--value"]).stdout.strip()
     if real(zone) and zone not in ("UTC", "Etc/UTC"):
@@ -87,7 +88,7 @@ def find_timezone():
             zone = ""
         if real(zone):
             return zone
-    return "UTC"
+    return ""
 
 
 KEYS_RE = re.compile(r"[a-z]{2,6}(:[a-z0-9_]{1,24})?")
@@ -153,8 +154,9 @@ class Installer:
     def start(self):
         def work():
             self.disk, self.carry = find_disk(), find_carry()
-            self.zone = find_timezone()
-            GLib.idle_add(self.js, "facts", {"disk": self.disk, "carry": self.carry, "zone": self.zone,
+            found = find_timezone()
+            self.zone = found or "UTC"  # only if nothing comes from the page either
+            GLib.idle_add(self.js, "facts", {"disk": self.disk, "carry": self.carry, "zone": found,
                                              "zones": find_zones(), "keyboard": find_keyboard()})
         threading.Thread(target=work, daemon=True).start()
 
