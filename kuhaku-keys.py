@@ -97,9 +97,10 @@ XSETTINGS = {
     "Net/DndDragThreshold": 8,
     "Net/EnableEventSounds": 0,
     "Net/EnableInputFeedbackSounds": 0,
-    "Xft/Antialias": 1,
-    "Xft/Hinting": 1,
-    "Xft/HintStyle": "hintslight",
+    # Text drawn as Kūhaku's pages were designed with: no hinting, no colour fringes.
+    "Xft/Antialias": -1,  # -1: as fontconfig says
+    "Xft/Hinting": -1,
+    "Xft/HintStyle": "hintnone",
     "Xft/RGBA": "none",
 }
 
@@ -219,6 +220,10 @@ def parse(spec):
         name, rest = rest[1:].split(">", 1)
         mask |= MODS.get(name, 0)
     return mask, rest
+
+
+def same(name):
+    return "".join(c for c in name.lower() if c.isalnum())
 
 
 def encode_xsettings(values, serial):
@@ -382,7 +387,13 @@ class Keys:
         X.XFlush(self.dpy)
 
     def apply(self, did, name):
-        wanted = dict((self.cfg.get("pointers") or {}).get(name) or {})
+        # Names compared by their letters and digits: older settings wrote "TPPS2 Elan TrackPoint"
+        # for "TPPS/2 Elan TrackPoint".
+        key = same(name)
+        wanted = {}
+        for dev, props in (self.cfg.get("pointers") or {}).items():
+            if same(dev) == key and isinstance(props, dict):
+                wanted.update(props)
         if "touchpad" in name.lower():
             wanted.setdefault("libinput Tapping Enabled", 1)  # tap to click, as people expect
         for prop, value in wanted.items():

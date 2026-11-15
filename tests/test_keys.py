@@ -42,6 +42,11 @@ class Keys(unittest.TestCase):
                 self.assertTrue(kk.parse(spec)[1])
                 self.assertTrue(cmd.split()[-1] and ("kuhaku" in cmd or "/.local/bin/" in cmd))
 
+    def test_device_names_match_without_punctuation(self):
+        self.assertEqual(kk.same("TPPS/2 Elan TrackPoint"), kk.same("TPPS2 Elan TrackPoint"))
+        self.assertEqual(kk.same("ELAN0672:00 04F3:3187 Touchpad"), kk.same("ELAN067200 04F33187 Touchpad"))
+        self.assertNotEqual(kk.same("ELAN0672:00 04F3:3187 Mouse"), kk.same("ELAN067200 04F33187 Touchpad"))
+
     def test_xsettings_round_trip(self):
         values = {"Xft/DPI": 120 * 1024, "Gtk/FontName": "Inter 10", "Net/ThemeName": "Adwaita", "Gtk/X": ""}
         serial, got = decode(kk.encode_xsettings(values, 7))
