@@ -247,10 +247,11 @@ class ClaudeJobs(Home):
             threading.Thread(target=plan_limits, daemon=True).start()  # fresh numbers for the next look
         # Claude's plan limits only hold back jobs when the home screen asks Claude.
         claude_home = accounts.kind(accounts.pick(purpose="home")) == "claude"
-        room, why, resets = jobs.slots(
-            len(self.tabs.running()), int(self.config.get("max_jobs") or 3), _limits_cache[1] if claude_home else None
-        )
-        for tab in waiting[:room]:
+        limits = _limits_cache[1] if claude_home else None
+        room, why, resets = jobs.slots(len(self.tabs.running()), int(self.config.get("max_jobs") or 3), limits)
+        allowed = jobs.may_start(waiting, limits)
+        starting = allowed[:room]
+        for tab in starting:
             tab.update(status="running", note=None)
             self.live[tab["id"]] = {"activity": [], "tokens": None}
             acct = (tab.get("agent") or "")[5:] if (tab.get("agent") or "").startswith("acct:") else None
@@ -269,8 +270,11 @@ class ClaudeJobs(Home):
         note = {"plan": "Waiting for your Claude plan" + back, "memory": "Waiting for memory", "busy": "In line"}.get(
             why or ""
         )
-        for tab in waiting[room:]:
-            tab["note"] = note
+        for tab in waiting:
+            if tab in starting:
+                continue
+            # Near the plan's limit a job not put first waits for the plan, whatever the room.
+            tab["note"] = note if tab in allowed else "Waiting for your Claude plan" + back + " · put it first to start"
         self.tabs.save()
         self.push_tabs()
         return True

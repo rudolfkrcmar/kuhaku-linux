@@ -51,6 +51,13 @@ class Slots(unittest.TestCase):
         closed = {"week": {"percent": 100, "resets": "w"}}
         self.assertEqual(self.slots(0, 4, closed), (0, "plan", "w"))
 
+    def test_near_the_limit_only_first_jobs_start(self):
+        a, b = {"id": "a", "priority": jobs.NORMAL}, {"id": "b", "priority": jobs.FIRST}
+        self.assertEqual(jobs.may_start([a, b], None), [a, b])
+        self.assertEqual(jobs.may_start([a, b], {"session": {"percent": 50}}), [a, b])
+        self.assertEqual(jobs.may_start([a, b], {"session": {"percent": 95}}), [b])
+        self.assertEqual(jobs.may_start([a], {"week": {"percent": 92}}), [])
+
     def test_mem_available_reads_proc(self):
         self.assertIsInstance(jobs.mem_available_mb(), int)
         with mock.patch.object(jobs.Path, "read_text", side_effect=OSError):

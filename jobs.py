@@ -59,6 +59,13 @@ def slots(running: int, max_jobs: int, limits: dict | None) -> tuple[int, str | 
     return room, why, resets
 
 
+def may_start(waiting: list, limits: dict | None) -> list:
+    """The jobs in the line that may start: near the plan's limit, only those put first."""
+    if plan_room(limits)[0] != "tight":
+        return waiting
+    return [t for t in waiting if t.get("priority", NORMAL) == FIRST]
+
+
 WHEN = re.compile(r"^(?:at|@)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?[,:]?\s+", re.I)
 
 
