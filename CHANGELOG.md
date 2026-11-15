@@ -12,12 +12,17 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 - **Copilot.** GitHub's Copilot CLI joins them too: one subscription, several models, often already there through work or school.
 - **First steps.** People who add Kūhaku to Debian or Mint without its installer get one quiet page at the first start: sign in to Claude, and to OpenAI (Codex) or Gemini if they like, how freely Claude works, and video formats. OpenAI's and Google's tools are fetched from npm the first time they are chosen (also from Settings → AI, where signing in to them used to fail when they were missing). Other programs: just ask. It shows once, and stays in Settings → Updates → First steps.
 
+- **A way out if the home screen freezes.** It restarts itself after about 20 seconds without answering, and **Ctrl+Alt+Backspace** restarts it at once. Open apps are not touched.
+
 ### Changed
 - Kūhaku no longer ships media formats covered by patents in some countries (H.264, H.265, AAC and others: the GStreamer bad, ugly and libav plugins). You add them yourself if you choose, with **More video formats** in the installer or **Settings → Updates → Video formats**. Computers that already have them keep them. Without them, screen recordings are saved as WebM (VP8) instead of MP4.
 - Mado runs on a newer engine: Qt WebEngine 6.10 from Debian's backports (Chromium 134 with security fixes to Chromium 144), up from 6.8 (Chromium 122). The package pins only this engine to backports, and unattended upgrades now include backports so its fixes arrive by themselves.
 - Claude is told the real system it runs on (read from the system), not "Linux Mint".
 
 ### Fixed
+- Opening the calendar with a large Google Calendar connected (a busy work calendar) froze the whole screen for many seconds, long enough for the window manager to offer to force-quit Kūhaku. Feeds are now read once per download, in a separate low-priority process, and the panel opens at once.
+- The calendar panel shows calendars connected while it was closed, and no longer reopens on a half-filled "paste the address" form.
+- A calendar's name is read from the feed's header, so connecting one is quick too.
 - Mado and the other apps stay quiet in the log about settings and saved tabs that do not exist yet.
 
 ## 0.4.0 — 2026-11-14

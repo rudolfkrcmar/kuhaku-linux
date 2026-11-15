@@ -21,6 +21,8 @@ flowchart TB
         S --> P[kuhaku-polkit.py<br/>password window]
         S --> D[kumo.py daemon<br/>cloud sync]
         S -->|installs| G[kuhaku-guard.py<br/>Claude's safety net]
+        S --> W[kuhaku-watchdog<br/>restarts a frozen home screen]
+        W -.->|"heartbeat file"| K
     end
 
     subgraph home["The home screen"]
@@ -77,7 +79,7 @@ class is assembled from mixins kept by subject:
 | `home_ai.py` | The other AIs on the home screen: their command lines, and their events turned into Claude Code's stream-json shape (Grok Build already speaks it; Codex `exec --json`, Gemini CLI `stream-json` and Copilot CLI's `--output-format json` session events are translated), so the rest of Kūhaku reads one shape. |
 | `kuhaku_voice.py` | Dictation (Whisper, offline, `transcribe.py`) and spoken conversations (Piper, `speak.py`). |
 | `kuhaku_settings.py` | Reading and writing every preference on the Settings page. |
-| `kuhaku_panels.py` | The panels' actions, one small handler each. |
+| `kuhaku_panels.py` | The panels' actions, one small handler each. The calendar's feeds are kept by `calendars.py`. |
 | `kuhaku_system.py` | Plain functions that read and change the computer through its own tools (`nmcli`, `bluetoothctl`, `xrandr`, `wmctrl`) and `desktop.json`. No window code. |
 | `kuhaku_config.py` | Where things live, the defaults, and the instructions Claude is given. |
 | `kuhaku_base.py` | `Home`, the base of every mixin: the state and methods they share, declared once so the type checker and the reader both know them. |
@@ -104,14 +106,21 @@ deleting whole folders outright (Claude is sent to the Trash instead), force-pus
 sending secrets over the network, adding login keys. It runs for every Claude session on the
 computer, not only the home screen's.
 
+## Never stuck
+
+Kūhaku covers the whole screen, so a frozen home screen leaves nothing to click. Two rules keep that from happening:
+
+- **Slow work never runs in `kuhaku.py`'s process.** Panel actions run on threads, but Python runs one thread at a time: ten seconds of parsing on a thread starves the GTK main loop just as surely, and xfwm4 then offers to force-quit the window. Anything that may take more than a moment in pure Python goes to its own process. The calendar is the example: a big Google Calendar feed (megabytes, ten seconds to parse) is read once per download by `calendars.py index`, run under `nice`, into a small `.json` of the events from a year back to two years ahead; the panel only reads the `.json`. Waiting on a subprocess or the network releases the interpreter, so that is fine on a thread.
+- **The way out, if it happens anyway.** `kuhaku.py` touches `~/.local/state/kuhaku/alive` every 2 seconds from its main loop. `kuhaku-watchdog`, started by `kuhaku-session`, stops `kuhaku.py` when that has not changed for about 20 seconds, and the session starts it again at once (open apps are not touched; a wake from sleep never counts). **Ctrl+Alt+Backspace** (`kuhaku-keys.py`, from any app) does the same immediately. Ctrl+Alt+R only reloads the page, which does not help when Python is stuck.
+
 ## Files and state
 
 | Where | What |
 |---|---|
 | `~/Projects/kuhaku-linux` | This project: the only place Kūhaku is changed. |
 | `~/.local/share/kuhaku` | The running copy, written only by `dev/install` (which refuses to overwrite changes made there). Also holds what is never in git: the dictation venv, models, Mado's profile. |
-| `~/.config/kuhaku/` | Choices: `config.json`, cloud folders, accounts, `rclone.conf` (mode 600). |
-| `~/.local/state/kuhaku/` | What changes as it runs: tabs, answers, `claude.log`, `jobs.jsonl` (for Kiroku), cloud sync status, `logs/`. |
+| `~/.config/kuhaku/` | Choices: `config.json`, cloud folders, accounts, `rclone.conf` and `calendars.json` (the calendars' secret addresses; both mode 600). |
+| `~/.local/state/kuhaku/` | What changes as it runs: tabs, answers, `claude.log`, `jobs.jsonl` (for Kiroku), cloud sync status, `logs/`, `calendars/` (each feed's `.ics` and its events as `.json`), `alive` (the heartbeat). |
 | `system/` | Copies of the system settings Kūhaku changes (`kuhaku-backup` refreshes them, with the home folder written as `$HOME`). |
 | `os/` | Kūhaku as its own system: the Debian package and the install image. |
 
