@@ -245,8 +245,10 @@ class ClaudeJobs(Home):
         waiting = self.tabs.waiting()
         if waiting:
             threading.Thread(target=plan_limits, daemon=True).start()  # fresh numbers for the next look
+        # Claude's plan limits only hold back jobs when the home screen asks Claude.
+        claude_home = accounts.kind(accounts.pick(purpose="home")) == "claude"
         room, why, resets = jobs.slots(
-            len(self.tabs.running()), int(self.config.get("max_jobs") or 3), _limits_cache[1]
+            len(self.tabs.running()), int(self.config.get("max_jobs") or 3), _limits_cache[1] if claude_home else None
         )
         for tab in waiting[:room]:
             tab.update(status="running", note=None)
