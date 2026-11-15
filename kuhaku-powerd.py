@@ -8,7 +8,11 @@
   The lid     Sleep (the system does it), Lock, or Screen off, as chosen. While Claude works the
               lid only turns the screen off; if it is still closed when the work ends, it sleeps.
   Power key   left to Kūhaku's menu (kuhaku-keys.py), never the system's instant power off.
-  Battery     a quiet card when it runs low, and sleep before it runs out.
+  Battery     a gentle card at 20% (a good moment to plug in), a firmer one at 10%, and sleep
+              before it runs out.
+  Charging    held at 80% to keep the battery young (the firmware keeps the limit). Kūhaku learns
+              when you usually unplug and fills to 100% shortly before; "Full once" fills until the
+              next time you head off, "Always full" turns the care off.
 
 The choices live under "power" in ~/.config/kuhaku/desktop.json; Settings writes them.
 """
@@ -27,8 +31,15 @@ from kuhaku_x11 import X, Xss, open_display
 
 CONFIG = Path.home() / ".config" / "kuhaku" / "desktop.json"
 LID_SAVED = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "kuhaku" / "lid" / "saved"
-DEFAULTS = {"screen_off": 10, "sleep_after": 0, "lid": 1}  # minutes, minutes (0 never), 1 sleep / 3 lock / 0 screen off
-LOW, CRITICAL = 10, 4  # battery percent: a card, then sleep
+DEFAULTS = {"screen_off": 10, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0}
+# minutes, minutes (0 never), 1 sleep / 3 lock / 0 screen off, 80 care / 100 always full, fill once
+NUDGE, LOW, CRITICAL = 20, 10, 4  # battery percent: a gentle card, a firm one, then sleep
+CARE = (75, 80)  # charge from, charge to: kept between them while plugged in
+FULL = (0, 100)  # the firmware's own: always fill
+SUPPLY = Path("/sys/class/power_supply")
+UNPLUGS = LID_SAVED.parent.parent / "battery" / "unplugs.json"  # when you headed off, to learn the habit
+AWAY = 20 * 60  # on battery this long counts as heading off (not a cable moved)
+AHEAD = 150 * 60  # fill this long before the usual time: 80 to 100% takes about an hour
 LOGIN1 = "org.freedesktop.login1"
 UPOWER = "org.freedesktop.UPower"
 
@@ -67,9 +78,9 @@ def xset(*args):
         report()
 
 
-def notify(title, body):
+def notify(title, body, urgency="critical"):
     try:
-        subprocess.Popen(["notify-send", "-a", "Power", "-u", "critical", title, body])
+        subprocess.Popen(["notify-send", "-a", "Power", "-u", urgency, title, body])
     except OSError:
         report()
 
@@ -122,6 +133,72 @@ def migrate():
     return out
 
 
+# --- charging: a limit the firmware keeps, raised before you usually head off ------------
+def batteries():
+    """Batteries whose firmware takes a charge limit (ThinkPads, many others; Macs do not)."""
+    return [b for b in sorted(SUPPLY.glob("BAT*")) if (b / "charge_control_end_threshold").exists()]
+
+
+def set_limit(bat, start, end):
+    """Charge between start and end percent. The firmware wants start below end at every step,
+    so the order depends on the way it moves. False when not allowed (the udev rule not yet in)."""
+    files = {"start": bat / "charge_control_start_threshold", "end": bat / "charge_control_end_threshold"}
+    try:
+        now = int(files["end"].read_text())
+        has_start = files["start"].exists()
+        if now == end and (not has_start or int(files["start"].read_text()) == start):
+            return True
+        steps = [("end", end), ("start", start)] if end > now else [("start", start), ("end", end)]
+        for key, value in steps:
+            if key == "end" or has_start:
+                files[key].write_text(str(value))
+        return True
+    except PermissionError:
+        return False
+
+
+def likely_away(now, unplugs):
+    """True when you have often headed off within the next while at this time of day: on four of
+    the last fourteen days, or on two of the last three same weekdays."""
+
+    def seen(days_back):
+        lo = now - days_back * 86400
+        return any(lo <= t <= lo + AHEAD for t in unplugs)
+
+    daily = sum(seen(d) for d in range(1, 15))
+    weekly = sum(seen(7 * w) for w in range(1, 4))
+    return daily >= 4 or weekly >= 2
+
+
+def load_unplugs():
+    try:
+        return [float(t) for t in json.loads(UNPLUGS.read_text())]
+    except FileNotFoundError:
+        return []
+    except Exception:
+        report()
+        return []
+
+
+def save_unplugs(unplugs):
+    try:
+        UNPLUGS.parent.mkdir(parents=True, exist_ok=True)
+        UNPLUGS.write_text(json.dumps([round(t) for t in unplugs]))
+    except OSError:
+        report()
+
+
+def write_power(key, value):
+    try:
+        cfg = json.loads(CONFIG.read_text())
+        cfg.setdefault("power", {})[key] = value
+        tmp = CONFIG.with_suffix(".tmp")
+        tmp.write_text(json.dumps(cfg, indent=2) + "\n")
+        tmp.replace(CONFIG)
+    except Exception:
+        report()
+
+
 class Power:
     def __init__(self):
         self.idle = Idle()
@@ -132,7 +209,10 @@ class Power:
         self.lid_fd = None
         self.key_fd = None
         self.slept_at = -1e9
-        self.warned = False
+        self.warned = self.nudged = False
+        self.unplugged_at = None  # when the charger came out, while it stays out
+        self.unplugs = load_unplugs()
+        self.denied = False  # the charge limit may not be written here (said once)
         self.system = Gio.bus_get_sync(Gio.BusType.SYSTEM)
         self.session = Gio.bus_get_sync(Gio.BusType.SESSION)
         self.key_fd = self.inhibit("handle-power-key", "Kūhaku's power menu")
@@ -308,6 +388,7 @@ class Power:
             if after and not self.held() and self.idle.seconds() >= after and now - self.slept_at > after:
                 self.sleep()
             self.battery()
+            self.charging()
         except Exception:
             report()
         return True
@@ -318,7 +399,15 @@ class Power:
             return
         pct = self.upower(dev, "Percentage", 100.0)
         discharging = self.upower(dev, "State", 0) == 2
-        if not discharging or pct > LOW:
+        if not discharging:
+            self.warned = self.nudged = False
+            return
+        if LOW < pct <= NUDGE and not self.nudged:
+            self.nudged = True
+            notify(
+                "Battery at 20%", "A good moment to plug in. The battery likes it best between 20 and 80%.", "normal"
+            )
+        if pct > LOW:
             self.warned = False
             return
         if pct <= CRITICAL and time.monotonic() - self.slept_at > 120:
@@ -331,6 +420,35 @@ class Power:
         elif not self.warned:
             self.warned = True
             notify("Battery low", f"{round(pct)}% left. Plug in soon.")
+
+    def charging(self, now=None):
+        """Learn when you head off, and keep the limit the firmware holds to what you need."""
+        bats = batteries()
+        if not bats:
+            return
+        now = now or time.time()
+        away = bool(self.upower("/org/freedesktop/UPower", "OnBattery", False))
+        if not away:
+            self.unplugged_at = None
+        elif self.unplugged_at is None:
+            self.unplugged_at = now
+        elif self.unplugged_at > 0 and now - self.unplugged_at >= AWAY:
+            # Really headed off: remember when, and a "Full once" has done its work.
+            self.unplugs = [t for t in self.unplugs if t > now - 30 * 86400] + [self.unplugged_at]
+            save_unplugs(self.unplugs)
+            self.unplugged_at = -1  # counted; wait for the next plug in
+            if self.cfg.get("full_once"):
+                self.cfg["full_once"] = 0
+                write_power("full_once", 0)
+                self.mtime = self.config_mtime()
+        full = int(self.cfg.get("charge") or 80) >= 100 or self.cfg.get("full_once") or likely_away(now, self.unplugs)
+        start, end = FULL if full else CARE
+        for bat in bats:
+            if not set_limit(bat, start, end) and not self.denied:
+                self.denied = True
+                print(
+                    "kuhaku-powerd: the charge limit is not writable here (dev/system adds the rule)", file=sys.stderr
+                )
 
 
 def main():

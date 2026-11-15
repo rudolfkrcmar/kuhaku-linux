@@ -27,6 +27,8 @@ if [ "$1" = configure ]; then
   # Convertibles: the laptop/tablet switch is readable by the person at the screen (touch keyboard).
   udevadm control --reload-rules >/dev/null 2>&1 || true
   udevadm trigger --subsystem-match=input --action=change >/dev/null 2>&1 || true
+  # The battery's charge limit may be set by the people who look after the computer (80% care).
+  udevadm trigger --subsystem-match=power_supply --action=add >/dev/null 2>&1 || true
   # The Claude desktop app comes from Anthropic on this computer, never inside Kūhaku's image.
   deb-systemd-helper enable kuhaku-claude-desktop.service >/dev/null 2>&1 || true
   # Formats covered by patents in some countries are no longer pulled in by Kūhaku; a computer

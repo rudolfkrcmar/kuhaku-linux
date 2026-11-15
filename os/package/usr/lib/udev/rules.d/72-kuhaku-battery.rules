@@ -1,0 +1,3 @@
+# Kūhaku keeps the battery young: the people who look after this computer (the sudo group) may
+# set its charge limit, so kuhaku-powerd.py can hold it at 80% and fill it before you head off.
+ACTION=="add", SUBSYSTEM=="power_supply", KERNEL=="BAT*", RUN+="/bin/sh -c 'cd /sys%p && for f in charge_control_start_threshold charge_control_end_threshold; do [ -e $f ] && chgrp sudo $f && chmod g+w $f; done; exit 0'"

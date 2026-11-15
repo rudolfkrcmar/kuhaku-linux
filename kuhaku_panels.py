@@ -36,6 +36,7 @@ from kuhaku_system import (
     spawn,
     wifi_connect,
     wifi_networks,
+    write_power,
 )
 
 Reply = namedtuple("Reply", "action data")
@@ -120,6 +121,13 @@ class Panels(Home):
 
     def _power_profile(self, msg):
         run(["powerprofilesctl", "set", msg.get("profile", "balanced")])
+        return battery_details()
+
+    def _charge(self, msg):
+        """Charging: care (80%, full before you usually head off), full once, or always full."""
+        care = msg.get("care")
+        write_power("charge", 100 if care == "full" else 80)
+        write_power("full_once", 1 if care == "once" else 0)
         return battery_details()
 
     def _calendar(self, _msg):
@@ -262,6 +270,7 @@ PANEL = {
     "bt-forget": Panels._bt_forget,
     "battery": Panels._battery,
     "power-profile": Panels._power_profile,
+    "charge": Panels._charge,
     "calendar": Panels._calendar,
     "cal-events": Panels._cal_events,
     "cal-add": Panels._cal_add,

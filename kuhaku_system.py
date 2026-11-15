@@ -328,6 +328,8 @@ def battery_details():
         "now": int(time.time()),
         "profiles": [l.strip(" *:") for l in profiles.splitlines() if l.rstrip().endswith(":")],
         "profile": next((l.strip(" *:") for l in profiles.splitlines() if l.startswith("*")), None),
+        "limit": charge_limit(),  # what the firmware holds now; kuhaku-powerd.py sets it
+        "care": "full" if read_power()["charge"] >= 100 else "once" if read_power()["full_once"] else "care",
     }
 
 
@@ -426,7 +428,7 @@ def note_limits(info):
 # --- Screens -------------------------------------------------------------------
 # Power: screen off, sleep when idle, the lid. Kept in desktop.json; kuhaku-powerd.py applies
 # them. One choice applies on battery and plugged in alike.
-POWER_KEYS = {"screen_off": 10, "sleep_after": 0, "lid": 1}
+POWER_KEYS = {"screen_off": 10, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0}
 
 
 def read_power():
@@ -440,6 +442,16 @@ def read_power():
     if out["sleep_after"] <= 14:
         out["sleep_after"] = 0
     return out
+
+
+def charge_limit():
+    """The charge limit the battery's firmware holds now (None when it takes none)."""
+    for bat in sorted(Path("/sys/class/power_supply").glob("BAT*")):
+        try:
+            return int((bat / "charge_control_end_threshold").read_text())
+        except (OSError, ValueError):
+            pass
+    return None
 
 
 def write_power(key, value):

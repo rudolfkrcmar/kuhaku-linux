@@ -94,6 +94,7 @@ $('panel').addEventListener('click', (e) => {
   if (a === 'wifi-disconnect') native({ type: 'panel', action: 'wifi-disconnect', ssid: v });
   if (a === 'wifi-pass') { wifi.open = wifi.open === v ? null : v; wifi.note[v] = ''; renderWifi(); }
   if (a === 'wifi-forget') { if (wifi.open === v) wifi.open = null; native({ type: 'panel', action: 'wifi-forget', ssid: v }); }
+  if (a === 'care') { battery.care = v; renderBattery(); native({ type: 'panel', action: 'charge', care: v }); }
   if (a === 'profile') { battery.profile = v; renderBattery(); native({ type: 'panel', action: 'power-profile', profile: v }); }
   if (a === 'settings') { if (v === 'power') onlySection = 'power'; closePanel(); return openPage('settings', v); }
 });
@@ -353,6 +354,17 @@ function renderBattery() {
     <div class="meter"><i style="width:${lvl}%"></i></div>`;
   const c = chart(b.history, b.now);
   if (c) h += `<div class="p-label"><span>Last hours</span></div>${c}`;
+  if (b.limit != null) {
+    // The firmware holds the limit; kuhaku-powerd.py raises it before you usually head off.
+    const why = b.care === 'full' ? 'Always fills to 100%.'
+      : b.care === 'once' ? 'Filling to 100% this once, then back to 80% after you head off.'
+      : b.limit >= 100 ? 'Filling to 100%: you usually head off around now. Otherwise it stays at 80%.'
+      : 'Stops at 80% to keep the battery young, and fills up before you usually head off.';
+    h += `<div class="p-label"><span>Charging</span></div><div class="opts">` +
+      [['care', 'Care'], ['once', 'Full once'], ['full', 'Always full']]
+        .map(([k, l]) => `<span class="opt${k === b.care ? ' sel' : ''}" data-act="care" data-v="${k}">${l}</span>`).join('') +
+      `</div><p class="p-sub" style="margin-top:8px">${why}</p>`;
+  }
   if (b.profiles?.length) h += `<div class="p-label"><span>Power mode</span></div><div class="opts">` +
     b.profiles.slice().sort((x, y) => Object.keys(PROFILES).indexOf(x) - Object.keys(PROFILES).indexOf(y))
       .map((p) => `<span class="opt${p === b.profile ? ' sel' : ''}" data-act="profile" data-v="${p}">${PROFILES[p] || p}</span>`).join('') + '</div>';
