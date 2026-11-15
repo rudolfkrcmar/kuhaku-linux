@@ -21,7 +21,7 @@ from gi.repository import GLib
 
 import claude_accounts as accounts
 from kuhaku_base import Home
-from kuhaku_config import HERE, HOME, MENU
+from kuhaku_config import HERE, HOME
 from kuhaku_log import note
 from kuhaku_system import (
     FINGER_ORDER,
@@ -154,10 +154,6 @@ class Panels(Home):
         return {"ok": True}
 
     # --- apps, windows, notifications --------------------------------------------------
-    def _settings(self, msg):
-        spawn(MENU.get(msg.get("which"), ["xfce4-settings-manager"]))
-        return QUIET
-
     def _apps(self, _msg):
         return list_apps()
 
@@ -261,7 +257,6 @@ PANEL = {
     "cal-events": Panels._cal_events,
     "cal-add": Panels._cal_add,
     "cal-remove": Panels._cal_remove,
-    "settings": Panels._settings,
     "apps": Panels._apps,
     "launch": Panels._launch,
     "focus": Panels._focus,

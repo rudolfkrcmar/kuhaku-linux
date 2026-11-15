@@ -94,8 +94,7 @@ $('panel').addEventListener('click', (e) => {
   if (a === 'wifi-pass') { wifi.open = wifi.open === v ? null : v; wifi.note[v] = ''; renderWifi(); }
   if (a === 'wifi-forget') { if (wifi.open === v) wifi.open = null; native({ type: 'panel', action: 'wifi-forget', ssid: v }); }
   if (a === 'profile') { battery.profile = v; renderBattery(); native({ type: 'panel', action: 'power-profile', profile: v }); }
-  if (a === 'settings' && v === 'power') { onlySection = 'power'; return openPage('settings', 'power'); }
-  if (a === 'settings') { closePanel(); native({ type: 'panel', action: 'settings', which: v }); }
+  if (a === 'settings') { if (v === 'power') onlySection = 'power'; closePanel(); return openPage('settings', v); }
 });
 $('panel').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches('.pw input') && e.target.value) connect(wifi.open, e.target.value);

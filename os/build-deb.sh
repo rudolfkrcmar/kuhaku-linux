@@ -23,7 +23,7 @@ cp -a "$SRC/system/home/." "$STAGE/usr/share/kuhaku/home/"
 rm -rf "$STAGE/usr/share/kuhaku/home/.claude" "$STAGE/usr/share/kuhaku/home/src" "$STAGE/usr/share/kuhaku/home/.config/autostart" \
        "$STAGE/usr/share/kuhaku/home/.config/kuhaku/mail.json" "$STAGE/usr/share/kuhaku/home/.config/kuhaku/mado-certificates.json" \
        "$STAGE/usr/share/kuhaku/home/.config/systemd" "$STAGE/usr/share/kuhaku/home/.config/pipewire" "$STAGE/usr/share/kuhaku/home/.config/wireplumber"
-# The hidden-app entries stay: they keep XFCE's own tools out of the Apps list.
+# The hidden-app entries stay: they keep the settings tools of the borrowed parts out of the Apps list.
 # Entries that belong to this machine's own apps (the Claude app installs its own).
 rm -f "$STAGE/usr/share/kuhaku/home/.local/share/applications/com.anthropic.Claude.desktop" \
       "$STAGE/usr/share/kuhaku/home/.local/share/applications/claude-code-url-handler.desktop" \
@@ -33,7 +33,7 @@ chmod -R u+rwX,go+rX,go-w "$STAGE/usr" "$STAGE/etc"
 # Nothing from Mint: the login look must not lean on Mint's theme or icons.
 sed -i '/Mint-Y/d' "$STAGE/usr/share/kuhaku/app/login/Kuhaku/gtk-3.0/gtk.css"
 sed -i 's/^icon-theme-name=.*/icon-theme-name=Adwaita/' "$STAGE/usr/share/kuhaku/app/login/lightdm-gtk-greeter.conf" "$STAGE/usr/share/kuhaku/app/system/root/etc/lightdm/lightdm-gtk-greeter.conf"
-if grep -rIl "Mint-Y\|linuxmint" "$STAGE/usr" --exclude-dir=lib --exclude-dir=vendor | grep -v "browser.py\|browser_webkit.py\|kuhaku-revert"; then
+if grep -rIl "Mint-Y\|linuxmint" "$STAGE/usr" --exclude-dir=lib --exclude-dir=vendor | grep -v "browser.py\|browser_webkit.py"; then
   echo "Mint leftovers above"; exit 1
 fi
 mkdir -p out

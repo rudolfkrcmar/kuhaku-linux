@@ -1,18 +1,7 @@
 #!/bin/bash
-# Started at login. Clears the XFCE desktop away and keeps Kūhaku running.
+# Started at login by kuhaku-start. Sets up the keys, lock and look, and keeps Kūhaku running.
 export PATH="$HOME/.local/bin:$PATH"
 DIR="$(dirname "$(readlink -f "$0")")"
-
-# No panel, no desktop icons, no wallpaper. They no longer start with the
-# session; if one appears anyway, close it quietly (never ask a panel that is
-# not running to quit: that shows a "Failed to quit panel" error).
-(
-  for _ in $(seq 1 20); do
-    pgrep -x xfce4-panel >/dev/null && xfce4-panel --quit >/dev/null 2>&1
-    pgrep -x xfdesktop >/dev/null && pkill -x xfdesktop
-    sleep 1
-  done
-) &
 
 # When something needs your password: Kūhaku's own window (kuhaku-polkit.py). If it cannot
 # run (its polkit library missing), the system's dialog, restyled in Kūhaku's look.
@@ -30,7 +19,7 @@ DIR="$(dirname "$(readlink -f "$0")")"
   done
 ) >/dev/null 2>&1 &
 
-# The lock screen: Kūhaku's own, inside the session. light-locker (started by kuhaku-start)
+# The lock screen: Kūhaku's own, inside the session. light-locker (older kuhaku-start versions started it)
 # handed the screen to the login screen and could leave a padlock there with no way out.
 if [ ! -d /run/live/medium ]; then
   (
@@ -133,5 +122,5 @@ while [ $fails -lt 5 ]; do
   [ $(( $(date +%s) - start )) -lt 10 ] && fails=$((fails + 1)) || fails=0
   sleep 1
 done
-# Kūhaku keeps failing: bring the normal desktop back.
-xfdesktop & xfce4-panel &
+# Kūhaku keeps failing: a terminal, so the computer can still be put right.
+exec "$HOME/.local/bin/kuhaku-terminal"

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Kūhaku: installs the Claude desktop app from Anthropic's apt repository and keeps
-# it current with a daily update. Run as root (kuhaku-on asks via pkexec).
+# it current with a daily update. Run as root (asked for via pkexec).
 set -e
 KEY=/usr/share/keyrings/claude-desktop-archive-keyring.asc
 LIST=/etc/apt/sources.list.d/claude-desktop.list

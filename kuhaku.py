@@ -53,7 +53,6 @@ from kuhaku_system import (
     load_json,
     on_mains,
     open_windows,
-    pgrep_x,
     read_battery,
     read_wifi,
     spawn,
@@ -516,14 +515,13 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             self.state["theme"] = None
             self.save_state()
             self.push_theme()
-        # Inside XFCE's session ask it (it saves and closes apps); in Kūhaku's own session use systemd.
         elif item == "restart":
-            spawn(["xfce4-session-logout", "--reboot"] if pgrep_x("xfce4-session") else ["systemctl", "reboot"])
+            spawn(["systemctl", "reboot"])
         elif item == "shutdown":
-            spawn(["xfce4-session-logout", "--halt"] if pgrep_x("xfce4-session") else ["systemctl", "poweroff"])
-        elif item == "logout" and not pgrep_x("xfce4-session"):
+            spawn(["systemctl", "poweroff"])
+        elif item == "logout":
             spawn(["loginctl", "terminate-session", os.environ.get("XDG_SESSION_ID", "")])
-        elif item == "lock" and not shutil.which("xflock4"):
+        elif item == "lock":
             spawn(["python3", os.path.join(HERE, "kuhaku-lock.py"), "lock"])
         elif item in MENU:
             argv = MENU[item]
@@ -623,19 +621,8 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             term = "kuhaku-terminal"
         if term == "kuhaku-terminal" and kuhaku_term.exists():
             spawn([str(kuhaku_term), "-e", cmd])
-        elif shutil.which(term) and "xfce4-terminal" in term:
-            spawn(
-                [
-                    term,
-                    "--maximize",
-                    "--title=Claude",
-                    f"--working-directory={HOME}",
-                    "-x",
-                    "bash",
-                    "-lc",
-                    f"{cmd}; exec bash",
-                ]
-            )
+        elif term != "kuhaku-terminal":
+            spawn([term, "-e", "bash", "-lc", f"{cmd}; exec bash"])
         else:
             spawn(["x-terminal-emulator", "-e", "bash", "-lc", f"{cmd}; exec bash"])
 
