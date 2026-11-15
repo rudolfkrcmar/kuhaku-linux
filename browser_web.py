@@ -163,6 +163,8 @@ def to_url(text):
 def load_json(p):
     try:
         return json.loads(p.read_text())
+    except FileNotFoundError:
+        return {}  # nothing saved yet
     except Exception:
         report()
         return {}
