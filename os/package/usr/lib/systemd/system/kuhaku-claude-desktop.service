@@ -1,5 +1,6 @@
 [Unit]
 Description=Kūhaku: install the Claude desktop app from Anthropic, once online
+Documentation=https://github.com/rudolfkrcmar/kuhaku-linux/blob/main/ARCHITECTURE.md
 # On the installed computer only, and only while it is missing.
 ConditionPathExists=!/run/live/medium
 ConditionPathExists=/etc/apt/sources.list.d/claude-desktop.list

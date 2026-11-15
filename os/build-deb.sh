@@ -52,6 +52,8 @@ WHEN="$(date -R -d "@$(git -C "$SRC" log -1 --format=%ct 2>/dev/null || date +%s
 printf 'kuhaku (%s) stable; urgency=medium\n\n  * Kūhaku %s. What changed: /usr/share/doc/kuhaku/CHANGELOG.md.gz\n\n -- %s  %s\n' \
   "$VERSION" "$VERSION" "$MAINT" "$WHEN" | gzip -9n > "$DOC/changelog.gz"
 chmod 644 "$DOC/changelog.gz" "$DOC/CHANGELOG.md.gz"
+# Checksums of every file (but the conffiles, which dpkg tracks itself), so debsums and dpkg --verify can tell if one was changed.
+(cd "$STAGE" && find . \( -path ./DEBIAN -o -path ./etc \) -prune -o -type f -print | sed 's|^\./||' | sort | xargs -d '\n' md5sum) > "$STAGE/DEBIAN/md5sums"
 mkdir -p out
 dpkg-deb --root-owner-group -Zxz --build "$STAGE" "out/kuhaku_${VERSION}_all.deb" >/dev/null
 echo "out/kuhaku_${VERSION}_all.deb"

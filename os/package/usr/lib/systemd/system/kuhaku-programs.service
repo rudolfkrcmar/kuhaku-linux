@@ -1,5 +1,6 @@
 [Unit]
 Description=Kūhaku: install the programs by others chosen in the installer, once online
+Documentation=https://github.com/rudolfkrcmar/kuhaku-linux/blob/main/ARCHITECTURE.md
 # On the installed computer only, and only until they are in (the list is then set aside).
 ConditionPathExists=!/run/live/medium
 ConditionFileNotEmpty=/etc/kuhaku/programs

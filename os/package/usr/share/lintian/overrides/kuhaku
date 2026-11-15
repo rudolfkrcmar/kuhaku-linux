@@ -1,6 +1,14 @@
 # Kūhaku is a whole system on top of Debian, so a few of Debian's rules for single programs
 # are knowingly bent. Each line says why.
 
+# Kūhaku updates itself from its own signed repository (os/apt-repo.sh); the source and its
+# key are what make that possible.
+kuhaku: package-installs-apt-sources [etc/apt/sources.list.d/kuhaku.sources]
+
+# The tablet rule lets the person at the screen read the laptop/tablet switch; it is not
+# hardware support that should be advertised.
+kuhaku: appstream-metadata-missing-modalias-provide [usr/lib/udev/rules.d/70-kuhaku-tablet.rules]
+
 # Mado needs Qt WebEngine from Debian's backports (a newer Chromium); the pin is that choice.
 kuhaku: package-installs-apt-preferences [etc/apt/preferences.d/kuhaku-mado]
 
@@ -11,9 +19,6 @@ kuhaku: no-manual-page [usr/sbin/*]
 
 # Tsukuru's editor ships the exact CodeMirror build it is tested with.
 kuhaku: embedded-javascript-library *[usr/share/kuhaku/app/ide/vendor/codemirror/*]
-
-# Vendored python-dateutil keeps its own time-zone archive as published.
-kuhaku: package-contains-timestamped-gzip *[usr/share/kuhaku/app/lib/dateutil/zoneinfo/dateutil-zoneinfo.tar.gz]
 
 # The login screen's fonts go to /usr/local/share/fonts (outside the fontconfig trigger);
 # the greeter's own settings folder belongs to the lightdm user.

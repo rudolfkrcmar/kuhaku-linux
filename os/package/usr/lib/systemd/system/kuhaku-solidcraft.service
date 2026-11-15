@@ -1,5 +1,6 @@
 [Unit]
 Description=Kūhaku: install SolidCraft (chosen in the installer) from its maker, once online
+Documentation=https://github.com/rudolfkrcmar/kuhaku-linux/blob/main/ARCHITECTURE.md
 # Separate from kuhaku-programs.service, so one failing never holds back the other.
 ConditionPathExists=!/run/live/medium
 ConditionPathExists=/etc/kuhaku/solidcraft

@@ -1,5 +1,6 @@
 [Unit]
 Description=Kūhaku power savings
+Documentation=https://github.com/rudolfkrcmar/kuhaku-linux/blob/main/ARCHITECTURE.md
 After=systemd-udev-settle.service
 
 [Service]
