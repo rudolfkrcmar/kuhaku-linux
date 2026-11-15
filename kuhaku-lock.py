@@ -52,6 +52,47 @@ def password_ok(password):
         return False
 
 
+SECRETS, SECRETS_ROOT = "org.freedesktop.secrets", "/org/freedesktop/secrets"
+LOGIN_KEYRING = SECRETS_ROOT + "/collection/login"
+
+
+def open_keyring(password):
+    """Your password also opens your saved passwords (the login keyring). Kūhaku logs in by
+    itself, so nothing opened them at login: without this, the first app that needs a saved
+    password (git, a browser, mail) brings up a window asking for it. Same-user session bus
+    only; a keyring with another password simply stays as it is (kuhaku-keyring.py asks then)."""
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        props = bus.call_sync(
+            SECRETS, LOGIN_KEYRING, "org.freedesktop.DBus.Properties", "Get",
+            GLib.Variant("(ss)", ("org.freedesktop.Secret.Collection", "Locked")),
+            GLib.VariantType("(v)"), Gio.DBusCallFlags.NO_AUTO_START, 5000, None,
+        )  # fmt: skip
+        if not props.unpack()[0]:
+            return
+        session = bus.call_sync(
+            SECRETS, SECRETS_ROOT, "org.freedesktop.Secret.Service", "OpenSession",
+            GLib.Variant("(sv)", ("plain", GLib.Variant("s", ""))), GLib.VariantType("(vo)"),
+            Gio.DBusCallFlags.NONE, 5000, None,
+        ).unpack()[1]  # fmt: skip
+        try:
+            bus.call_sync(
+                SECRETS, SECRETS_ROOT, "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
+                "UnlockWithMasterPassword",
+                GLib.Variant("(o(oayays))", (LOGIN_KEYRING, (session, b"", password.encode(), "text/plain"))),
+                None, Gio.DBusCallFlags.NONE, 10000, None,
+            )  # fmt: skip
+        finally:
+            bus.call_sync(SECRETS, session, "org.freedesktop.Secret.Session", "Close", None, None, 0, 5000, None)
+    except GLib.Error as e:
+        # No keyring service, no login keyring yet, or one with another password: not a fault.
+        from kuhaku_log import note
+
+        note(f"keyring not opened with the lock password: {e.message}")
+    except Exception:
+        report()
+
+
 def finger_enrolled():
     """A fingerprint reader with at least one of this person's fingers on it (fprintd)."""
     if not shutil.which("fprintd-verify") or not shutil.which("fprintd-list"):
@@ -241,6 +282,8 @@ class Lock:
         def check():
             ok = password_ok(text)
             GLib.idle_add(self.checked, ok)
+            if ok:
+                open_keyring(text)
 
         threading.Thread(target=check, daemon=True).start()
 

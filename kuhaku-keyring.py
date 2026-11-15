@@ -45,7 +45,10 @@ XML = f"""<node><interface name="{PROMPTER}">
 FRIENDLY = (
     ("did not get unlocked when you logged in", "Your saved passwords are locked. Your password opens them."),
     ("wants access to the keyring", "An app wants your saved passwords. Your password opens them."),
-    ("create a new keyring", "Choose a password to keep these saved passwords safe."),
+    (
+        "create a new keyring",
+        "Choose a password to keep these saved passwords safe. Use your login password, and they open by themselves when you unlock the screen.",
+    ),
     ("change the password", "Choose a new password for your saved passwords."),
 )
 
