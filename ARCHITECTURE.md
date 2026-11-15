@@ -19,6 +19,7 @@ flowchart TB
         S --> T[kuhaku-tablet.py<br/>touch keyboard]
         S --> L[kuhaku-lock.py<br/>lock screen]
         S --> P[kuhaku-polkit.py<br/>password window]
+        S --> KR[kuhaku-keyring.py<br/>keyring password window]
         S --> D[kumo.py daemon<br/>cloud sync]
         S -->|installs| G[kuhaku-guard.py<br/>Claude's safety net]
         S --> W[kuhaku-watchdog<br/>restarts a frozen home screen]

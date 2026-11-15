@@ -19,6 +19,17 @@ DIR="$(dirname "$(readlink -f "$0")")"
   done
 ) >/dev/null 2>&1 &
 
+# When the keyring (saved passwords) needs your password: Kūhaku's window (kuhaku-keyring.py),
+# not GNOME's grey dialog. If it is not running, D-Bus opens GNOME's prompter instead.
+(
+  while :; do
+    start=$(date +%s)
+    python3 "$DIR/kuhaku-keyring.py"
+    [ $(( $(date +%s) - start )) -lt 10 ] && break
+    sleep 1
+  done
+) >/dev/null 2>&1 &
+
 # The lock screen: Kūhaku's own, inside the session. light-locker (older kuhaku-start versions started it)
 # handed the screen to the login screen and could leave a padlock there with no way out.
 if [ ! -d /run/live/medium ]; then
