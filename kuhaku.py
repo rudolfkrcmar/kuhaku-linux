@@ -348,6 +348,8 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             GLib.idle_add(self.open_panel, "notices")
         elif parts == ["display"]:  # F7
             GLib.idle_add(self.key_js, "openPage('settings', 'display')")
+        elif parts == ["apps"]:  # Super+Space: find an app, like Spotlight; again to close
+            GLib.idle_add(self.key_js, "if (page === 'apps') closePage(); else openPage('apps')")
         elif parts == ["talk"]:  # F10
             GLib.idle_add(self.key_js, "if (page) closePage(); if (panel) closePanel(); talk()")
         elif len(parts) >= 2 and parts[0] == "continue":  # from Kiroku: a past job in a new tab

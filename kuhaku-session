@@ -79,9 +79,9 @@ done
 xfconf-query -c xfce4-notifyd -p /theme -n -t string -s Kuhaku 2>/dev/null || xfconf-query -c xfce4-notifyd -p /theme -s Kuhaku
 
 # The ThinkPad Fn row, the Kūhaku way: F7 display, F8 airplane mode, F9 notifications,
-# F10 talk with Claude, F11 lock, F12 (star) the browser. F9 to F11 arrive as Launch1-3
+# F10 talk with Claude, F11 lock, F12 (star) the browser. Super+Space finds an app, as Cmd+Space does. F9 to F11 arrive as Launch1-3
 # (remapped in /etc/udev/hwdb.d/61-kuhaku-thinkpad.hwdb; X cannot see their own codes).
-for kv in "<Super>p|$DIR/kuhaku-key display" "XF86Display|$DIR/kuhaku-key display" \
+for kv in "<Super>space|$DIR/kuhaku-key apps" "<Super>p|$DIR/kuhaku-key display" "XF86Display|$DIR/kuhaku-key display" \
           "XF86RFKill|$DIR/kuhaku-airplane" "XF86WLAN|$DIR/kuhaku-airplane" \
           "XF86Launch1|$DIR/kuhaku-key notices" "XF86Launch2|$DIR/kuhaku-key talk" \
           "XF86Launch3|python3 $DIR/kuhaku-lock.py lock" "XF86Favorites|$HOME/.local/bin/mado"; do
