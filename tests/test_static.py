@@ -2,6 +2,7 @@
 report() call has its import, and the pages moved out of Python are where their apps look."""
 
 import ast
+import os
 import re
 import unittest
 from pathlib import Path
@@ -133,6 +134,12 @@ class Static(unittest.TestCase):
         for f in SOURCES + sorted((ROOT / "tests").glob("*.py")):
             with self.subTest(file=f.name):
                 self.assertIsNone(re.search(r"/home/[a-z][a-z0-9_-]+/", f.read_text(encoding="utf-8")))
+
+    def test_no_absolute_links(self):
+        """Links in the repository point within it, never into someone's home folder."""
+        for link in (p for p in ROOT.rglob("*") if p.is_symlink() and ".git" not in p.parts):
+            with self.subTest(link=str(link.relative_to(ROOT))):
+                self.assertFalse(os.readlink(link).startswith("/home/"))
 
 
 if __name__ == "__main__":
