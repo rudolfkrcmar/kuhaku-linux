@@ -48,7 +48,7 @@ xfconf-query -c xfwm4 -p /general/show_dock_shadow -s false 2>/dev/null
 
 # The screen, sleep, the lid and the battery: Kūhaku's own (kuhaku-powerd.py), in place of
 # xfce4-power-manager.
-( while :; do pkill -x xfce4-power-manager; python3 "$DIR/kuhaku-powerd.py"; sleep 2; done ) >/dev/null 2>&1 &
+( while :; do pkill -f "^xfce4-power-manager"; python3 "$DIR/kuhaku-powerd.py"; sleep 2; done ) >/dev/null 2>&1 &
 
 # Claude's safety net: never wipe disks, delete whole folders outright, or send secrets away.
 python3 "$DIR/kuhaku-guard.py" install 2>/dev/null

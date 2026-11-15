@@ -148,20 +148,12 @@ class Card:
         visual = self.win.get_screen().get_rgba_visual()
         if visual:
             self.win.set_visual(visual)
-        self.win.connect("draw", self.clear)
         self.box = Gtk.EventBox()
         self.box.connect("button-release-event", self.clicked)
         self.box.connect("enter-notify-event", lambda *_: self.hold())
         self.box.connect("leave-notify-event", lambda *_: self.later())
         self.win.add(self.box)
         self.inner = None
-
-    @staticmethod
-    def clear(widget, cr):
-        cr.set_source_rgba(0, 0, 0, 0)
-        cr.set_operator(0)  # CLEAR: the corners outside the card stay see-through
-        cr.paint()
-        return False
 
     def fill(self, app, title, body, actions, urgent, value, timeout):
         if self.inner:
