@@ -42,6 +42,10 @@ Under that freedom sits a safety net, `kuhaku-guard.py`, a Claude Code hook that
 
 This repository holds code and shared settings only. Mail accounts, Claude notes, browser profiles and package lists stay on your computer; they are listed in `.gitignore`, and `kuhaku-backup` writes your home folder and user name as `$HOME` and `USER`.
 
+## Patents and media formats
+
+Kūhaku does not ship media formats that are covered by patents in some countries (for example H.264, H.265 and AAC). It plays free formats from the start. People who decide those formats are lawful where they live can add them from Debian with one choice in the installer or in Settings. See [INSTALL.md](INSTALL.md#after-installing). Mado's web engine (Qt WebEngine from Debian) and programs such as VLC come under their makers' and Debian's own terms.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). Bundled components keep their own licenses, listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

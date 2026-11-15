@@ -36,6 +36,18 @@ from kuhaku_system import (
     write_trackpad,
 )
 
+# Formats covered by patents in some countries: never shipped, added only when the person chooses.
+CODECS = ("gstreamer1.0-plugins-bad", "gstreamer1.0-plugins-ugly", "gstreamer1.0-libav")
+KEEP_CODECS = (
+    "{ for p in " + " ".join(CODECS) + "; do dpkg-query -W -f='${Status}' $p 2>/dev/null | grep -q 'ok installed'"
+    " && apt-mark manual $p >/dev/null || true; done; } && "
+)
+
+
+def codecs_added():
+    _, out, _ = run(["dpkg-query", "-W", "-f=${Status}\\n", *CODECS])
+    return out.count("ok installed") == len(CODECS)
+
 
 def output_name(sink, plain=False):
     """A sound output in plain words: "Laptop speakers", "Screen 2 (HDMI)", not the sound chip's long name."""
@@ -114,6 +126,7 @@ class Settings(Home):
                 "checked": updated,
                 "running": bool(getattr(self, "updating", None)),
             },
+            "codecs": {"added": codecs_added(), "running": bool(getattr(self, "adding_codecs", None))},
             "theme": self.state.get("theme") or "auto",
             "volume": percent(["pactl", "get-sink-volume", "@DEFAULT_SINK@"]),
             "mic": percent(["pactl", "get-source-volume", "@DEFAULT_SOURCE@"]),
@@ -181,6 +194,8 @@ class Settings(Home):
             GLib.idle_add(self.push_theme)
         elif key == "update-now":
             self.update_now()
+        elif key == "add-codecs":
+            self.add_codecs()
         elif key in ("permission_mode", "model", "dictation_model", "mic_button"):
             self.config[key] = None if value == "default" else value
             CONFIG_FILE.write_text(json.dumps(self.config, indent=2) + "\n")
@@ -202,7 +217,9 @@ class Settings(Home):
                     "sh",
                     "-c",
                     "DEBIAN_FRONTEND=noninteractive apt-get update -q && "
-                    "DEBIAN_FRONTEND=noninteractive apt-get -y -q full-upgrade && apt-get -y -q autoremove",
+                    "DEBIAN_FRONTEND=noninteractive apt-get -y -q full-upgrade && "
+                    + KEEP_CODECS  # added by the person: autoremove must not take them
+                    + "apt-get -y -q autoremove",
                 ],
                 capture_output=True,
                 text=True,
@@ -218,3 +235,28 @@ class Settings(Home):
         self.updating = threading.Thread(target=work, daemon=True)
         self.updating.start()
         self.note("Updates", "Updating…")
+
+    def add_codecs(self):
+        """More video formats (H.264, AAC…) from Debian, only when the person asks (asks for the password once)."""
+        if getattr(self, "adding_codecs", None):
+            return
+
+        def work():
+            r = subprocess.run(
+                [
+                    "pkexec",
+                    "sh",
+                    "-c",
+                    "DEBIAN_FRONTEND=noninteractive apt-get update -q && "
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y -q " + " ".join(CODECS),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            self.adding_codecs = None
+            msg = "Added" if r.returncode == 0 else ("Cancelled" if r.returncode in (126, 127) else "Could not finish")
+            GLib.idle_add(self.note, "Video formats", msg)
+
+        self.adding_codecs = threading.Thread(target=work, daemon=True)
+        self.adding_codecs.start()
+        self.note("Video formats", "Adding…")

@@ -187,7 +187,9 @@ function renderSettings() {
   const u = p.updates || {};
   h += `<div class="p-label" id="sec-updates"><span>Updates</span></div><div class="p-rows">
     <div class="srow"><span class="k">Updates</span><span class="grow">${u.auto ? 'Security fixes install by themselves' : 'Not automatic'}${u.checked ? ' · last ' + when(u.checked) : ''}</span>
-      <button class="p-link" data-pref-btn="update-now">${u.running ? 'Updating…' : 'Update now'}</button></div></div>`;
+      <button class="p-link" data-pref-btn="update-now">${u.running ? 'Updating…' : 'Update now'}</button></div>
+    <div class="srow"><span class="k">Video formats</span><span class="grow">${(p.codecs || {}).added ? 'All, including H.264 and AAC' : 'Free formats only. H.264, AAC and others are covered by patents in some countries; adding them is your choice.'}</span>
+      ${(p.codecs || {}).added ? '' : `<button class="p-link" data-pref-btn="add-codecs">${(p.codecs || {}).running ? 'Adding…' : 'Add'}</button>`}</div></div>`;
   const a = p.about;
   h += `<div class="p-label" id="sec-about"><span>This computer</span></div><div class="p-rows">` +
     [['Computer', a.computer], ['System', a.system + ' · Kūhaku'], ['Processor', a.processor], ['Memory', a.memory && a.memory + ' GB'],

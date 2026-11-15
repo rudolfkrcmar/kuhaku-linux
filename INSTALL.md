@@ -42,6 +42,12 @@ There are two ways in:
 
 To go back, choose your old session on the login screen. To remove it: `sudo apt remove kuhaku`, and delete `~/.local/share/kuhaku` if you like.
 
+## After installing
+
+1. **Sign in to Claude.** Kūhaku opens the sign-in at the first start. After that, say what you want on the home screen.
+2. **More video formats, if you want them.** Kūhaku plays free formats from the start (WebM, VP8/VP9, Opus, Vorbis, FLAC, MP3). Some common ones, such as H.264, H.265 and AAC, are covered by patents in some countries, so Kūhaku does not ship them. Whether you may use them depends on where you live, and the choice is yours. To add them, choose **More video formats** in the installer's Programs screen, or later go to **Settings → Updates → Video formats → Add** (or run `sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav`). They come from Debian. Until you add them, screen recordings are saved as WebM instead of MP4.
+3. **Other programs.** Ask Claude, or pick them in the installer. Programs by others come from their makers, under their own licenses.
+
 ## Updates
 
 The system (Debian) updates itself quietly. Kūhaku updates come as new releases; install the new `.deb` the same way, or ask Claude in Kūhaku to do it.

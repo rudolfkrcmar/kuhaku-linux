@@ -62,6 +62,14 @@ from kuhaku_system import (
 from kuhaku_voice import Voice
 
 
+def has_gst(element):
+    """Whether this computer has a GStreamer element (some come only with formats the person adds)."""
+    try:
+        return subprocess.run(["gst-inspect-1.0", "--exists", element], timeout=5).returncode == 0
+    except (OSError, subprocess.SubprocessError):  # no gst-inspect at all: nothing to record with
+        return False
+
+
 class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
     def __init__(self):
         STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -419,12 +427,21 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             return
         folder = HOME / "Videos" / "Screen Recordings"
         folder.mkdir(parents=True, exist_ok=True)
-        path = folder / f"Screen Recording {stamp}.mp4"
-        pipeline = (
-            "ximagesrc use-damage=false show-pointer=true ! video/x-raw,framerate=24/1 ! queue ! videoconvert ! "
-            "video/x-raw,format=I420 ! x264enc speed-preset=ultrafast tune=zerolatency bitrate=8000 key-int-max=48 ! "
-            "h264parse ! queue ! mp4mux ! filesink"
-        )
+        grab = "ximagesrc use-damage=false show-pointer=true ! video/x-raw,framerate=24/1 ! queue ! videoconvert ! "
+        # MP4 (H.264) only when the person added those formats themselves (patents cover them in some
+        # countries, so Kūhaku does not ship them); otherwise WebM (VP8), which is free everywhere.
+        if has_gst("x264enc") and has_gst("h264parse"):
+            path = folder / f"Screen Recording {stamp}.mp4"
+            pipeline = grab + (
+                "video/x-raw,format=I420 ! x264enc speed-preset=ultrafast tune=zerolatency bitrate=8000 key-int-max=48 ! "
+                "h264parse ! queue ! mp4mux ! filesink"
+            )
+        else:
+            path = folder / f"Screen Recording {stamp}.webm"
+            pipeline = grab + (
+                "video/x-raw,format=I420 ! vp8enc deadline=1 cpu-used=16 threads=4 target-bitrate=6000000 "
+                "keyframe-max-dist=48 ! queue ! webmmux ! filesink"
+            )
         try:
             proc = subprocess.Popen(
                 ["gst-launch-1.0", "-e", "-q", *pipeline.split(), f"location=\"{path}\""],

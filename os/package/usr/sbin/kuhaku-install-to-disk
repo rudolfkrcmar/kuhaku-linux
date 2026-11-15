@@ -41,7 +41,7 @@ case "$MODE" in bypassPermissions|acceptEdits) ;; *) fail "unknown mode $MODE" ;
 [[ "$FULLNAME" != *[:$'\n']* ]] || fail "the name cannot contain a colon"
 # Only names from the installer's lists.
 OURS="tsukuru tegami miru notes kansei"
-THEIRS="claude-desktop firefox-esr thunderbird libreoffice gimp inkscape krita vlc audacity blender freecad solidcraft"
+THEIRS="claude-desktop firefox-esr thunderbird libreoffice gimp inkscape krita vlc audacity blender freecad solidcraft codecs"
 pick() { local out="" x; for x in ${1//,/ }; do [[ " $2 " == *" $x "* ]] && out="$out $x"; done; echo "${out# }"; }
 HIDE=$(pick "$HIDE" "$OURS"); ADD=$(pick "$ADD" "$THEIRS")
 case "$DISK" in *nvme*|*mmcblk*) P=p ;; *) P= ;; esac
@@ -168,6 +168,9 @@ printf '%s\n' $HIDE > "$T/etc/kuhaku/hidden-apps"
 [[ " $ADD " == *" claude-desktop "* ]] || rm -f "$T/etc/apt/sources.list.d/claude-desktop.list"
 # shellcheck disable=SC2086
 printf '%s\n' $ADD | grep -vx -e claude-desktop -e solidcraft -e '' > "$T/etc/kuhaku/programs" || true
+# More video formats (chosen by the person; not on the stick, as patents cover them in some countries).
+[[ " $ADD " == *" codecs "* ]] && { sed -i '/^codecs$/d' "$T/etc/kuhaku/programs"
+  printf '%s\n' gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav >> "$T/etc/kuhaku/programs"; }
 # SolidCraft is not in Debian: fetched from its maker's releases and checked (kuhaku-solidcraft.service).
 [[ " $ADD " == *" solidcraft "* ]] && { touch "$T/etc/kuhaku/solidcraft"; chroot "$T" systemctl enable kuhaku-solidcraft.service >/dev/null 2>&1 || true; }
 [ -s "$T/etc/kuhaku/programs" ] && chroot "$T" systemctl enable kuhaku-programs.service >/dev/null 2>&1 || true
