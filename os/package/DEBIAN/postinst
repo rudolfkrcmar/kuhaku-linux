@@ -2,6 +2,12 @@
 set -e
 A=/usr/share/kuhaku/app
 if [ "$1" = configure ]; then
+  # Before 0.4 this file was not a conffile, so updating set the new one aside (.dpkg-dist).
+  # Kūhaku's own updates need its "origin=Kuhaku" line: take the new file if that is missing.
+  U=/etc/apt/apt.conf.d/52kuhaku-unattended
+  if [ -f "$U.dpkg-dist" ] && ! grep -q 'origin=Kuhaku' "$U" 2>/dev/null; then
+    mv "$U" "$U.dpkg-old" && mv "$U.dpkg-dist" "$U"
+  fi
   # Boot screen
   mkdir -p /usr/share/plymouth/themes/kuhaku
   cp "$A"/boot/* /usr/share/plymouth/themes/kuhaku/
