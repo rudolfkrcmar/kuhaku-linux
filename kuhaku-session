@@ -64,8 +64,14 @@ done
 for prop in handle-brightness-keys general-notification; do
   xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -n -t bool -s false 2>/dev/null || xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$prop" -s false
 done
-# Notices that still come (low battery, apps) wear Kūhaku's look, not the default bubble.
-xfconf-query -c xfce4-notifyd -p /theme -n -t string -s Kuhaku 2>/dev/null || xfconf-query -c xfce4-notifyd -p /theme -s Kuhaku
+# Notifications: Kūhaku's own cards (kuhaku-notify.py). D-Bus starts it whenever an app sends one
+# (this file, read before the system's, points there); the loop keeps it running.
+mkdir -p "$HOME/.local/share/dbus-1/services"
+printf '[D-BUS Service]\nName=org.freedesktop.Notifications\nExec=/usr/bin/python3 %s/kuhaku-notify.py\n' "$DIR" \
+  > "$HOME/.local/share/dbus-1/services/org.freedesktop.Notifications.service"
+dbus-send --session --type=method_call --dest=org.freedesktop.DBus / org.freedesktop.DBus.ReloadConfig 2>/dev/null
+pkill -x xfce4-notifyd
+( while :; do pkill -x xfce4-notifyd; python3 "$DIR/kuhaku-notify.py"; sleep 2; done ) >/dev/null 2>&1 &
 
 # The ThinkPad Fn row, the Kūhaku way: F7 display, F8 airplane mode, F9 notifications,
 # F10 talk with Claude, F11 lock, F12 (star) the browser. Super+Space finds an app, as Cmd+Space does. F9 to F11 arrive as Launch1-3

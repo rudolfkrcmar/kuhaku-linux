@@ -23,7 +23,6 @@ copy "$HOME/.config/touchegg/touchegg.conf" home/.config/touchegg/touchegg.conf
 copy "$HOME/.config/fontconfig/fonts.conf" home/.config/fontconfig/fonts.conf
 copy "$HOME/.config/systemd/user/" home/.config/systemd/user/
 copy "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml" home/.config/xfce4/xfce4-keyboard-shortcuts.xml
-copy "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-notifyd.xml" home/.config/xfce4/xfce4-notifyd.xml
 copy "$HOME/.local/share/themes/Kuhaku/" home/.local/share/themes/Kuhaku/
 copy "$HOME/.config/mimeapps.list" home/.config/mimeapps.list
 for f in mado miru tsukuru tegami kansei kuhaku-terminal; do

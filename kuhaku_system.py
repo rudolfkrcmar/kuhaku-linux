@@ -783,11 +783,11 @@ def describe(ev):
 
 
 # --- Notifications -------------------------------------------------------------
-NOTIFY_LOG = HOME / ".cache" / "xfce4" / "notifyd" / "log.sqlite"
+NOTIFY_LOG = HOME / ".local" / "state" / "kuhaku" / "notices.sqlite"  # kept by kuhaku-notify.py
 
 
 def notices(clear=False):
-    """The notifications that came in (xfce4-notifyd keeps them), newest first; seen once shown."""
+    """The notifications that came in (kuhaku-notify.py keeps them), newest first; seen once shown."""
     import sqlite3
 
     if not NOTIFY_LOG.exists():
@@ -805,7 +805,7 @@ def notices(clear=False):
     except Exception:
         report()
         return []
-    # notifyd stores microseconds since the epoch
+    # seconds since the epoch (older notices kept microseconds)
     return [
         {
             "t": (t or 0) // 1_000_000 if (t or 0) > 10**12 else (t or 0),

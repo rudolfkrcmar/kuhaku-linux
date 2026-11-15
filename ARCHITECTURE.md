@@ -2,7 +2,7 @@
 
 Kūhaku is a set of small Python programs on Debian 13 (or Linux Mint), X11. It is its own session, not an XFCE desktop, but borrows a few
 XFCE parts that do their one job well: xfwm4 (windows), xfsettingsd and xfconf (keys and settings),
-xfce4-power-manager (lid, sleep, battery) and xfce4-notifyd (notices).
+and xfce4-power-manager (lid, sleep, battery).
 Each visible app is a GTK window holding a web page (WebKitGTK): the page draws, Python does the
 work. Claude Code does what people ask, in the background, through its command line.
 
