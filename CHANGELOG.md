@@ -6,6 +6,7 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 ## Unreleased
 
 ### New
+- **Kūhaku updates itself.** Its own signed package source (`https://www.kuhaku.space/apt/`): new versions of Kūhaku now arrive with the system's other updates, checked against Kūhaku's key, instead of being downloaded by hand.
 - **Any AI on the home screen.** The home screen can ask OpenAI (Codex), Gemini, Grok or a model on this computer instead of Claude: Settings → AI → Home uses, or First steps, or one tab at a time. Their steps show the same way Claude's do.
 - **Grok.** xAI's Grok Build joins Claude, OpenAI and Gemini in Settings → AI, for the home screen, Mail and Tsukuru.
 - **Copilot.** GitHub's Copilot CLI joins them too: one subscription, several models, often already there through work or school.

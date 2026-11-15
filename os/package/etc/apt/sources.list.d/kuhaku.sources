@@ -1,0 +1,7 @@
+# Kūhaku's own updates, signed with Kūhaku's key (os/apt-repo.sh). They install by themselves
+# with the system's other updates (apt.conf.d/52kuhaku-unattended).
+Types: deb
+URIs: https://www.kuhaku.space/apt
+Suites: stable
+Components: main
+Signed-By: /usr/share/keyrings/kuhaku-archive-keyring.gpg

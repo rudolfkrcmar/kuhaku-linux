@@ -9,6 +9,8 @@ Unattended-Upgrade::Origins-Pattern {
         "origin=Debian,codename=${distro_codename},label=Debian";
         // Mado's engine (see preferences.d/kuhaku-mado) and anything else taken from backports
         "origin=Debian Backports,codename=${distro_codename}-backports,label=Debian Backports";
+        // Kūhaku itself (sources.list.d/kuhaku.sources)
+        "origin=Kuhaku,label=Kuhaku";
 };
 Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
 Unattended-Upgrade::Automatic-Reboot "false";

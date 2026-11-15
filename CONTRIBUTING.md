@@ -44,4 +44,9 @@ test fails until all three are true. Widening the allowed list is a decision, no
 
 ## Releases
 
-Bump `VERSION`, add a section to `CHANGELOG.md`, commit, then tag: `git tag -a v0.3.0 -m "Kūhaku 0.3.0"` and push the tag. `os/release.sh` builds the package and image.
+Raise `VERSION`, move the `Unreleased` notes in `CHANGELOG.md` under `## <version> — <date>`, commit, then run
+`os/release.sh` (`--dry-run` first). It checks the tree for secrets and personal words, builds the package, tags
+`v<version>`, makes the GitHub release, and adds the package to Kūhaku's signed apt repository at
+`https://www.kuhaku.space/apt/` (`os/apt-repo.sh`), from which every Kūhaku computer updates itself with its other
+updates. The signing key lives in the maintainer's GnuPG keyring; its public part ships in the package
+(`/usr/share/keyrings/kuhaku-archive-keyring.gpg`).
