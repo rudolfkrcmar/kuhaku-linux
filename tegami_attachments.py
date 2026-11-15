@@ -2,6 +2,7 @@
 
 import hashlib
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -47,7 +48,7 @@ class Attachments(MailParts):
         try:
             if ctype == "application/pdf" or low.endswith(".pdf"):
                 pages = sorted(folder.glob("page-*.png"))
-                if not pages:
+                if not pages and shutil.which("pdftoppm"):  # a Mac has none: its window draws the pages itself
                     subprocess.run(
                         ["pdftoppm", "-png", "-r", "110", "-l", "40", str(target), str(folder / "page")],
                         capture_output=True,
@@ -56,7 +57,11 @@ class Attachments(MailParts):
                     pages = sorted(folder.glob("page-*.png"))
                 n = 0
                 try:
-                    info = subprocess.run(["pdfinfo", str(target)], capture_output=True, text=True, timeout=10).stdout
+                    info = (
+                        ""
+                        if not shutil.which("pdfinfo")
+                        else subprocess.run(["pdfinfo", str(target)], capture_output=True, text=True, timeout=10).stdout
+                    )
                     n = int((re.search(r"^Pages:\s+(\d+)", info, re.M) or [0, 0])[1])
                 except Exception:
                     report()

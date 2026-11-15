@@ -5,7 +5,8 @@ Reads one JSON message per line on stdin, the same messages tegami.html posts
 ({"type": "list", ...}), and writes one JSON line per answer on stdout:
 {"fn": "listed", "data": {...}}, where fn is the page function Kūhaku's window
 would call. {"fn": "_ready"} comes first; {"fn": "_minimize"} asks the front to
-hide. Everything else the core prints goes to stderr.
+hide. A front that loaded its page again sends {"type": "_hello"}. Everything else
+the core prints goes to stderr.
 
     python3 tegami_engine.py
 """
@@ -59,7 +60,10 @@ class Engine:
             except ValueError:
                 print("not JSON:", line[:200], file=sys.stderr)
                 continue
-            self.later(self.mail.handle, msg)
+            if msg.get("type") == "_hello":  # the page loaded again: it needs the accounts
+                self.later(self.mail.push_accounts)
+            else:
+                self.later(self.mail.handle, msg)
         self.jobs.put(None)  # the front went away
 
     def run(self):

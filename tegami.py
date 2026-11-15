@@ -54,8 +54,7 @@ class Tegami:
         st = self.view.get_settings()
         st.set_allow_file_access_from_file_urls(True)
         st.set_enable_write_console_messages_to_stdout(bool(os.environ.get("TEGAMI_DEBUG")))
-        bg = (0.071, 0.071, 0.071) if self.night else (0.969, 0.957, 0.945)
-        self.view.set_background_color(Gdk.RGBA(*bg, 1))
+        self.paint()
         # Spelling: red lines under typos in Czech and English while writing (dictionaries via enchant;
         # Czech lives in ~/.config/enchant/hunspell). Right-click on a word offers the fixes; elsewhere no menu.
         ctx = self.view.get_context()
@@ -63,11 +62,39 @@ class Tegami:
         ctx.set_spell_checking_languages(["cs_CZ", "en_US"])
         self.view.connect("context-menu", lambda _v, _m, _e, hit: not hit.context_is_editable())
         self.view.connect("decide-policy", self.on_policy)
+        self.view.connect("web-process-terminated", lambda *_: self.load())  # WebKit's page process can end on its own
         self.win.add(self.view)
         self.mail = Mail(self)
-        self.view.load_uri((HERE / "mail" / "tegami.html").as_uri() + f"?theme={'night' if self.night else 'day'}")
+        self.load()
         self.view.connect("load-changed", lambda v, e: e == WebKit2.LoadEvent.FINISHED and self.ready())
+        GLib.timeout_add_seconds(30, self.follow_theme)
         self.win.show_all()
+
+    def load(self):
+        self.view.load_uri((HERE / "mail" / "tegami.html").as_uri() + f"?theme={'night' if self.night else 'day'}")
+
+    def paint(self):
+        bg = (0.071, 0.071, 0.071) if self.night else (0.969, 0.957, 0.945)
+        self.view.set_background_color(Gdk.RGBA(*bg, 1))
+
+    def follow_theme(self):
+        """Day and night follow Kūhaku while Tegami is open, not only when it was opened."""
+        night = theme() == "night"
+        if night != self.night:
+            self.night = night
+            Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", night)
+            style_menus(night)
+            self.paint()
+            self.view.evaluate_javascript(
+                f"document.body.classList.toggle('night', {'true' if night else 'false'})",
+                -1,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+        return True
 
     def ready(self):
         self.mail.ready()

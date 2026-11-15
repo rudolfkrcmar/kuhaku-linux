@@ -497,6 +497,7 @@
 <script>
   const $ = (id) => document.getElementById(id);
   const send = (m) => window.webkit.messageHandlers.mail.postMessage(JSON.stringify(m));
+  const VIEWER = window.tegamiHost === 'mac' ? 'Preview' : 'Miru';   // the app that shows files on this computer
   const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const store = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
                   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)) };
@@ -1101,7 +1102,7 @@
     startComp(mode, '', '', x); redrawComp(true);
     toComp();
   }
-  // Attachments open right here: PDF pages, pictures, text. Miru and Save are a click away.
+  // Attachments open right here: PDF pages, pictures, text. Miru (Preview on a Mac) and Save are a click away.
   let viewer = null;
   window.previewed = (d) => { if (!viewer || viewer.key !== d.key || viewer.index !== d.index) return; viewer = { ...viewer, ...d }; drawViewer(); };
   function drawViewer() {
@@ -1111,12 +1112,12 @@
     const v = viewer;
     const body = v.kind === 'wait' ? '<div class="vmsg">Opening…</div>'
       : v.kind === 'pdf' ? (v.pages.length ? v.pages.map((u, i) => `<img src="${u}" alt="Page ${i + 1}">`).join('') +
-          (v.total > v.pages.length ? `<div class="vmsg">The first ${v.pages.length} of ${v.total} pages. Open in Miru for all of it.</div>` : '') : '<div class="vmsg">This PDF could not be shown here. Try Miru.</div>')
+          (v.total > v.pages.length ? `<div class="vmsg">The first ${v.pages.length} of ${v.total} pages. Open in ${VIEWER} for all of it.</div>` : '') : `<div class="vmsg">This PDF could not be shown here. Try ${VIEWER}.</div>`)
       : v.kind === 'image' ? `<img src="${v.src}" alt="">`
       : v.kind === 'text' ? `<pre>${esc(v.text)}</pre>`
       : `<div class="vmsg">Tegami cannot show this kind of file (${esc(v.type || '')}). Open it in its app, or save it.</div>`;
     el.innerHTML = `<div class="vbar"><b>${esc(v.name)}</b>${v.kind === 'pdf' && v.total ? `<span class="mono" style="font-size:10.5px">${v.total} page${v.total > 1 ? 's' : ''}</span>` : ''}
-        <span class="grow"></span><button class="btn2" data-vopen="1">${v.kind === 'other' ? 'Open in its app' : 'Open in Miru'}</button><button class="btn2" data-vsave="1">Save</button>
+        <span class="grow"></span><button class="btn2" data-vopen="1">${v.kind === 'other' ? 'Open in its app' : 'Open in ' + VIEWER}</button><button class="btn2" data-vsave="1">Save</button>
         <button class="ib" data-vclose="1" title="Close (Esc)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
       <div class="vbody${v.kind === 'pdf' ? ' pages' : ''}">${body}</div>`;
     el.onclick = (e) => {
