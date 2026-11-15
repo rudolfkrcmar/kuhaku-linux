@@ -7,7 +7,7 @@ simply work. Running it again opens the URL as a tab in the window that is
 already there. The WebKit Mado lives on as browser_webkit.py (the fallback).
 
 Keys: Ctrl+L address, Ctrl+T new tab, Ctrl+W close tab, Ctrl+Tab next tab,
-Ctrl+F find, Ctrl+R reload, Alt+Left/Right back/forward, Ctrl+plus/minus zoom,
+Ctrl+Shift+W close every tab, Ctrl+F find, Ctrl+R reload, Alt+Left/Right back/forward, Ctrl+plus/minus zoom,
 Ctrl+U the page's source.
 
 Three modes in the one window, switched on the bar:
@@ -72,6 +72,7 @@ from PyQt6.QtWebEngineCore import (
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QSplitter, QStackedWidget, QVBoxLayout, QWidget
 
+import browser_menu
 from browser_web import (
     BRIDGE_SCRIPT,
     DEVICES,
@@ -255,6 +256,7 @@ class Browser:
             "Ctrl+L": lambda: (self.chrome.setFocus(), self.js("editAddress()")),
             "Ctrl+T": self.new_tab,
             "Ctrl+W": self.close_tab,
+            "Ctrl+Shift+W": self.close_all,
             "Ctrl+Q": self.quit,
             "Ctrl+Tab": lambda: self.step(1),
             "Ctrl+PgDown": lambda: self.step(1),
@@ -465,6 +467,9 @@ class Browser:
         page = Page(self, self.profile(key))
         page.setBackgroundColor(self.bg())
         view.setPage(page)
+        # Right click: Kūhaku's own menu, not Chromium's.
+        view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        view.customContextMenuRequested.connect(lambda pos: self.context_menu(view, pos))
         view.loading = False
         view.progress = 0.0
 
@@ -583,6 +588,25 @@ class Browser:
         if view is self.current:
             self.switch(self.tabs[min(i, len(self.tabs) - 1)])
         self.push()
+
+    def close_all(self):
+        """Ctrl+Shift+W: every tab in this mode closes. Everyday tabs start again from one
+        empty tab (Mado stays open); private ones close, and are forgotten, as the last one does."""
+        if self.key() == "private":
+            for v in list(self.tabs):
+                self.close_tab(v)
+            return
+        old = list(self.tabs)
+        self.new_tab()
+        for v in old:
+            self.close_tab(v)
+        self.save()
+
+    def context_menu(self, view, pos):
+        try:
+            browser_menu.show(self, view, pos)
+        except Exception:
+            report()
 
     def zoom(self, d):
         v = self.current
