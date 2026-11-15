@@ -131,13 +131,16 @@ class Panels(Home):
         y, m = int(msg.get("year", 0)), int(msg.get("month", 0))
         GLib.idle_add(self.send, "panelData", {"action": "cal-events", "data": calendars.month_view(y, m)})
         calendars.refresh()  # the copy on disk came first; now fresh, if online
+        calendars.index()  # new downloads are read in a separate process, never in this one
         return calendars.month_view(y, m)
 
     def _cal_add(self, msg):
         import calendars
 
         try:
-            return {"ok": True, "name": calendars.add(msg.get("url", ""))}
+            name = calendars.add(msg.get("url", ""))
+            calendars.index()
+            return {"ok": True, "name": name}
         except Exception as e:
             bad_address = "calendar feed" in str(e) or "HTTP" in str(e) or "unknown url" in str(e).lower()
             return {

@@ -1,0 +1,40 @@
+#!/bin/bash
+# Kūhaku's watchdog: the home screen never stays frozen.
+#
+# Kūhaku covers the whole screen, so if its window hangs (stuck work in its own process),
+# nothing else can be reached. kuhaku.py touches a heartbeat file every 2 seconds from its
+# main loop. If that stops for about 20 seconds, Kūhaku is stopped here, and kuhaku-session
+# starts it again at once; open apps are not touched.
+#
+#   kuhaku-watchdog          watch (kuhaku-session runs it)
+#   kuhaku-watchdog restart  restart Kūhaku now (Ctrl+Alt+Backspace, from kuhaku-keys)
+#
+# A check that finds the heartbeat unchanged counts once; after sleep the first check may
+# be stale, the next one is fresh, so waking up never restarts anything.
+
+BEAT="$HOME/.local/state/kuhaku/alive"
+LIMIT=4   # checks of 5 s without a beat
+
+restart() { pkill -9 -f '^python3 .*/kuhaku\.py$'; }
+
+if [ "${1:-}" = restart ]; then
+  restart
+  exit 0
+fi
+
+last="" missed=0
+while :; do
+  sleep 5
+  now=$(stat -c %Y "$BEAT" 2>/dev/null) || { missed=0; continue; }
+  if pgrep -f '^python3 .*/kuhaku\.py$' >/dev/null && [ "$now" = "$last" ]; then
+    missed=$((missed + 1))
+    if [ $missed -ge $LIMIT ]; then
+      logger -t kuhaku "Kūhaku stopped answering; restarting it"
+      restart
+      missed=0
+    fi
+  else
+    missed=0
+  fi
+  last=$now
+done

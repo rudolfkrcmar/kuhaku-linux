@@ -83,6 +83,25 @@ class Store(CalCase):
         self.assertEqual(calendars.name_of(ICS), "Family")
         self.assertEqual(calendars.name_of(b"BEGIN:VCALENDAR\nEND:VCALENDAR\n"), "Calendar")
         self.assertEqual(calendars.name_of(b"garbage"), "Calendar")
+        folded = b"BEGIN:VCALENDAR\r\nX-WR-CALNAME:Work\\, Pr\r\n ague\r\nEND:VCALENDAR\r\n"
+        self.assertEqual(calendars.name_of(folded), "Work, Prague")
+
+    def test_index_runs_in_its_own_process(self):
+        calendars.save([{"url": "x", "name": "Family"}])
+        calendars.CACHE.mkdir(parents=True)
+        (calendars.CACHE / "0.ics").write_bytes(ICS)
+        with mock.patch.object(calendars.subprocess, "Popen") as po:
+            calendars.index()
+        cmd = po.call_args.args[0]
+        self.assertEqual(cmd[:3], ["nice", "-n", "15"])
+        self.assertEqual(cmd[-1], "index")
+        po.return_value.wait.assert_called_once()
+        with (
+            mock.patch.object(calendars, "stale", return_value=[]),
+            mock.patch.object(calendars.subprocess, "Popen") as po,
+        ):
+            calendars.index()  # nothing new: no process at all
+        po.assert_not_called()
 
     def test_refresh_offline_keeps_copy(self):
         calendars.save([{"url": "https://x", "name": "A"}])
@@ -119,6 +138,9 @@ class Events(CalCase):
         calendars.save([{"url": "x", "name": "Family"}, {"url": "y", "name": "Missing"}])
         calendars.CACHE.mkdir(parents=True)
         (calendars.CACHE / "0.ics").write_bytes(ICS)
+        self.assertEqual(calendars.stale(), [0])
+        calendars.build(0, around=date(2026, 11, 15))
+        self.assertEqual(calendars.stale(), [])
 
     def test_events_in_range(self):
         evs = calendars.events(date(2026, 11, 1), date(2026, 12, 1))
@@ -140,6 +162,7 @@ class Events(CalCase):
 
     def test_broken_cache_is_skipped(self):
         (calendars.CACHE / "0.ics").write_bytes(b"garbage")
+        calendars.build(0)
         self.assertEqual(calendars.events(date(2026, 11, 1), date(2026, 12, 1)), [])
 
     def test_month_view_is_zero_based(self):

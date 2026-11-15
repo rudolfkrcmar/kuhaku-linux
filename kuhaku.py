@@ -60,6 +60,8 @@ from kuhaku_system import (
 )
 from kuhaku_voice import Voice
 
+BEAT = Path.home() / ".local/state/kuhaku/alive"  # touched every 2 s; see kuhaku-watchdog
+
 
 def has_gst(element):
     """Whether this computer has a GStreamer element (some come only with formats the person adds)."""
@@ -119,6 +121,8 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         self.window.present()
 
         GLib.timeout_add_seconds(30, self.push_status)
+        self.heartbeat()
+        GLib.timeout_add_seconds(2, self.heartbeat)  # kuhaku-watchdog restarts us if this stops
         GLib.timeout_add(1000, self.push_tablet)
         GLib.timeout_add_seconds(15, self.schedule)
         GLib.timeout_add(1500, lambda: (self.schedule(), False)[1])
@@ -147,6 +151,14 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             )
         except Exception as e:
             print("Kūhaku: no bar over apps:", e)
+
+    def heartbeat(self):
+        try:
+            BEAT.parent.mkdir(parents=True, exist_ok=True)
+            BEAT.touch()
+        except Exception:
+            report()
+        return True
 
     # --- window -----------------------------------------------------------
     def fit_to_screen(self):

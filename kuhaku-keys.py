@@ -34,6 +34,7 @@ D = str(HERE)
 
 # The keys Kūhaku answers, as xfsettingsd once spelled them. Commands run detached.
 KEYS = {
+    "<Primary><Alt>BackSpace": f"{D}/kuhaku-watchdog restart",  # the way out if Kūhaku freezes
     "XF86AudioRaiseVolume": f"{D}/kuhaku-volume up",
     "XF86AudioLowerVolume": f"{D}/kuhaku-volume down",
     "XF86AudioMute": f"{D}/kuhaku-volume mute",
