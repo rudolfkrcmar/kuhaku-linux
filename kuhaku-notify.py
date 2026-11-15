@@ -226,7 +226,7 @@ class Card:
 
 
 class Server:
-    def __init__(self):
+    def __init__(self, name="org.freedesktop.Notifications"):  # tests use another name
         self.cards: dict[int, Card] = {}
         # Numbers carry on across restarts, so an app replacing an old notice never hits a new one.
         self.next_id = int(time.time()) % 1_000_000 * 1000 + 1
@@ -237,10 +237,11 @@ class Server:
         self.look = None
         self.restyle()
         GLib.timeout_add_seconds(60, lambda: (self.restyle(), True)[1])
+        self.registration = None
         node = Gio.DBusNodeInfo.new_for_xml(IFACE)
-        Gio.bus_own_name(
+        self.owner = Gio.bus_own_name(
             Gio.BusType.SESSION,
-            "org.freedesktop.Notifications",
+            name,
             Gio.BusNameOwnerFlags.REPLACE | Gio.BusNameOwnerFlags.ALLOW_REPLACEMENT,
             lambda conn, _name: self.register(conn, node.interfaces[0]),
             None,
@@ -258,7 +259,16 @@ class Server:
 
     def register(self, conn, iface):
         self.conn = conn
-        conn.register_object("/org/freedesktop/Notifications", iface, self.call, None, None)
+        self.registration = conn.register_object("/org/freedesktop/Notifications", iface, self.call, None, None)
+
+    def stop(self):
+        """Lets go of the bus name and the object (the next server, or a test's, can take them)."""
+        for card in list(self.cards):
+            self.close(card, CLOSED)
+        if self.conn and self.registration:
+            self.conn.unregister_object(self.registration)
+        Gio.bus_unown_name(self.owner)
+        self.conn = self.registration = None
 
     def signal(self, name, params):
         if self.conn:

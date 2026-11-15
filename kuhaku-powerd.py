@@ -13,7 +13,6 @@
 The choices live under "power" in ~/.config/kuhaku/desktop.json; Settings writes them.
 """
 
-import ctypes
 import json
 import os
 import subprocess
@@ -24,6 +23,7 @@ from pathlib import Path
 from gi.repository import Gio, GLib
 
 from kuhaku_log import report  # faults go to the log instead of vanishing
+from kuhaku_x11 import X, Xss, open_display
 
 CONFIG = Path.home() / ".config" / "kuhaku" / "desktop.json"
 LID_SAVED = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "kuhaku" / "lid" / "saved"
@@ -47,35 +47,16 @@ SS_XML = """<node><interface name="org.freedesktop.ScreenSaver">
 
 
 # --- how long since the last touch (the X screensaver extension) -----------------------
-class XssInfo(ctypes.Structure):
-    _fields_ = [
-        ("window", ctypes.c_ulong),
-        ("state", ctypes.c_int),
-        ("kind", ctypes.c_int),
-        ("til_or_since", ctypes.c_ulong),
-        ("idle", ctypes.c_ulong),
-        ("eventMask", ctypes.c_ulong),
-    ]
-
-
 class Idle:
     def __init__(self):
-        self.x = ctypes.CDLL("libX11.so.6")
-        self.xss = ctypes.CDLL("libXss.so.1")
-        self.x.XOpenDisplay.restype = ctypes.c_void_p
-        self.x.XOpenDisplay.argtypes = [ctypes.c_char_p]
-        self.x.XDefaultRootWindow.restype = ctypes.c_ulong
-        self.x.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
-        self.xss.XScreenSaverAllocInfo.restype = ctypes.POINTER(XssInfo)
-        self.xss.XScreenSaverQueryInfo.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.POINTER(XssInfo)]
-        self.dpy = self.x.XOpenDisplay(None)
+        self.dpy = open_display()
         if not self.dpy:
             sys.exit("kuhaku-powerd: no display")
-        self.root = self.x.XDefaultRootWindow(self.dpy)
-        self.info = self.xss.XScreenSaverAllocInfo()
+        self.root = X.XDefaultRootWindow(self.dpy)
+        self.info = Xss.XScreenSaverAllocInfo()
 
     def seconds(self):
-        self.xss.XScreenSaverQueryInfo(self.dpy, self.root, self.info)
+        Xss.XScreenSaverQueryInfo(self.dpy, self.root, self.info)
         return self.info.contents.idle / 1000
 
 

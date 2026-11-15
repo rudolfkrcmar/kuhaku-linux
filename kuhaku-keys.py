@@ -108,109 +108,18 @@ MODS = {"Shift": 1, "Control": 4, "Primary": 4, "Ctrl": 4, "Alt": 8, "Mod1": 8, 
 LOCKS = (0, 2, 16, 18)  # Caps Lock and Num Lock must not stop a key
 
 
-# --- Xlib through ctypes (no extra package) --------------------------------------------
-X = ctypes.CDLL("libX11.so.6")
-Xi = ctypes.CDLL("libXi.so.6")
-vp, ul = ctypes.c_void_p, ctypes.c_ulong
-X.XOpenDisplay.restype = vp
-X.XOpenDisplay.argtypes = [ctypes.c_char_p]
-X.XDefaultRootWindow.restype = ul
-X.XDefaultRootWindow.argtypes = [vp]
-X.XInternAtom.restype = ul
-X.XInternAtom.argtypes = [vp, ctypes.c_char_p, ctypes.c_int]
-X.XStringToKeysym.restype = ul
-X.XStringToKeysym.argtypes = [ctypes.c_char_p]
-X.XKeysymToKeycode.restype = ctypes.c_ubyte
-X.XKeysymToKeycode.argtypes = [vp, ul]
-X.XGrabKey.argtypes = [vp, ctypes.c_int, ctypes.c_uint, ul, ctypes.c_int, ctypes.c_int, ctypes.c_int]
-X.XUngrabKey.argtypes = [vp, ctypes.c_int, ctypes.c_uint, ul]
-X.XCreateSimpleWindow.restype = ul
-X.XCreateSimpleWindow.argtypes = [
+from kuhaku_x11 import (
+    CLIENT_MESSAGE,
+    ERROR_HANDLER,
+    KEY_PRESS,
+    MAPPING_NOTIFY,
+    SELECTION_CLEAR,
+    Event,
+    X,
+    Xi,
+    ul,
     vp,
-    ul,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_uint,
-    ctypes.c_uint,
-    ctypes.c_uint,
-    ul,
-    ul,
-]
-X.XSetSelectionOwner.argtypes = [vp, ul, ul, ul]
-X.XGetSelectionOwner.restype = ul
-X.XGetSelectionOwner.argtypes = [vp, ul]
-X.XChangeProperty.argtypes = [vp, ul, ul, ul, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
-X.XSendEvent.argtypes = [vp, ul, ctypes.c_int, ctypes.c_long, vp]
-X.XSelectInput.argtypes = [vp, ul, ctypes.c_long]
-X.XConnectionNumber.argtypes = [vp]
-X.XPending.argtypes = [vp]
-X.XNextEvent.argtypes = [vp, vp]
-X.XFlush.argtypes = [vp]
-X.XSync.argtypes = [vp, ctypes.c_int]
-X.XFree.argtypes = [vp]
-X.XRefreshKeyboardMapping.argtypes = [vp]
-ERROR_HANDLER = ctypes.CFUNCTYPE(ctypes.c_int, vp, vp)
-
-
-class XIDeviceInfo(ctypes.Structure):
-    _fields_ = [
-        ("deviceid", ctypes.c_int),
-        ("name", ctypes.c_char_p),
-        ("use", ctypes.c_int),
-        ("attachment", ctypes.c_int),
-        ("enabled", ctypes.c_int),
-        ("num_classes", ctypes.c_int),
-        ("classes", vp),
-    ]
-
-
-Xi.XIQueryDevice.restype = ctypes.POINTER(XIDeviceInfo)
-Xi.XIQueryDevice.argtypes = [vp, ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
-Xi.XIFreeDeviceInfo.argtypes = [vp]
-Xi.XIChangeProperty.argtypes = [vp, ctypes.c_int, ul, ul, ctypes.c_int, ctypes.c_int, vp, ctypes.c_int]
-Xi.XIGetProperty.argtypes = [
-    vp, ctypes.c_int, ul, ctypes.c_long, ctypes.c_long, ctypes.c_int, ul,
-    ctypes.POINTER(ul), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ul), ctypes.POINTER(ul), ctypes.POINTER(vp),
-]  # fmt: skip
-
-KEY_PRESS, CLIENT_MESSAGE, SELECTION_CLEAR, MAPPING_NOTIFY = 2, 33, 29, 34
-
-
-class KeyEvent(ctypes.Structure):
-    _fields_ = [
-        ("type", ctypes.c_int),
-        ("serial", ul),
-        ("send_event", ctypes.c_int),
-        ("display", vp),
-        ("window", ul),
-        ("root", ul),
-        ("subwindow", ul),
-        ("time", ul),
-        ("x", ctypes.c_int),
-        ("y", ctypes.c_int),
-        ("x_root", ctypes.c_int),
-        ("y_root", ctypes.c_int),
-        ("state", ctypes.c_uint),
-        ("keycode", ctypes.c_uint),
-        ("same_screen", ctypes.c_int),
-    ]
-
-
-class ClientMessage(ctypes.Structure):
-    _fields_ = [
-        ("type", ctypes.c_int),
-        ("serial", ul),
-        ("send_event", ctypes.c_int),
-        ("display", vp),
-        ("window", ul),
-        ("message_type", ul),
-        ("format", ctypes.c_int),
-        ("data", ctypes.c_long * 5),
-    ]
-
-
-class Event(ctypes.Union):
-    _fields_ = [("type", ctypes.c_int), ("key", KeyEvent), ("client", ClientMessage), ("pad", ctypes.c_long * 24)]
+)
 
 
 def parse(spec):
@@ -286,7 +195,9 @@ def migrate():
 
 
 class Keys:
-    def __init__(self):
+    def __init__(self, selection="_XSETTINGS_S0"):
+        # The XSETTINGS selection: screen 0's in use; tests pass another so they never take over.
+        self.selection = selection
         self.dpy = X.XOpenDisplay(None)
         if not self.dpy:
             sys.exit("kuhaku-keys: no display")
@@ -300,9 +211,7 @@ class Keys:
         self.serial = 0
         self.devices: set = set()
         self.win = X.XCreateSimpleWindow(self.dpy, self.root, -1, -1, 1, 1, 0, 0, 0)
-        self.atom = {
-            n: X.XInternAtom(self.dpy, n.encode(), 0) for n in ("_XSETTINGS_S0", "_XSETTINGS_SETTINGS", "MANAGER")
-        }
+        self.atom = {n: X.XInternAtom(self.dpy, n.encode(), 0) for n in (selection, "_XSETTINGS_SETTINGS", "MANAGER")}
         self.reload()
 
     # --- desktop.json ---
@@ -360,14 +269,14 @@ class Keys:
         data = encode_xsettings(values, self.serial)
         a = self.atom
         X.XChangeProperty(self.dpy, self.win, a["_XSETTINGS_SETTINGS"], a["_XSETTINGS_SETTINGS"], 8, 0, data, len(data))
-        if X.XGetSelectionOwner(self.dpy, a["_XSETTINGS_S0"]) != self.win:
-            X.XSetSelectionOwner(self.dpy, a["_XSETTINGS_S0"], self.win, 0)
+        if X.XGetSelectionOwner(self.dpy, a[self.selection]) != self.win:
+            X.XSetSelectionOwner(self.dpy, a[self.selection], self.win, 0)
             ev = Event()
             ev.client.type = CLIENT_MESSAGE
             ev.client.window = self.root
             ev.client.message_type = a["MANAGER"]
             ev.client.format = 32
-            ev.client.data[:] = [0, a["_XSETTINGS_S0"], self.win, 0, 0]
+            ev.client.data[:] = [0, a[self.selection], self.win, 0, 0]
             X.XSendEvent(self.dpy, self.root, 0, 1 << 17, ctypes.byref(ev))  # StructureNotifyMask
         X.XFlush(self.dpy)
 
