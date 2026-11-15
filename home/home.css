@@ -14,7 +14,7 @@ body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inte
 /* The Claude account in use: shown only when there is more than one; a click switches. */
 .stat.acct { display:flex; align-items:center; gap:8px; }
 .stat.acct.flip #acctName { animation:rise .35s cubic-bezier(.2,.7,.2,1) both; }
-.aigrid { display:grid; grid-template-columns:160px repeat(4, 1fr) auto; column-gap:28px; align-items:center; row-gap:18px; padding:14px 0; font-size:15px; font-weight:300; }
+.aigrid { display:grid; grid-template-columns:140px repeat(5, 1fr) auto; column-gap:20px; align-items:center; row-gap:18px; padding:14px 0; font-size:15px; font-weight:300; }
 .aigrid .k { color:var(--muted); }
 .aigrid .aihead { font-size:13px; opacity:.5; }
 .aigrid .aiok { display:inline-flex; align-items:center; gap:8px; }

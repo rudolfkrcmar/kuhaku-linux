@@ -269,3 +269,19 @@ class Ask(AccountsCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CopilotSignIn(unittest.TestCase):
+    def test_config_names_who_signed_in(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as d:
+            home = Path(d)
+            self.assertFalse(acc.copilot_signed_in(home))
+            (home / "config.json").write_text('// managed\n{\n  "firstLaunchAt": "x"\n}\n')
+            self.assertFalse(acc.copilot_signed_in(home))
+            (home / "config.json").write_text(
+                '// managed\n{"last_logged_in_user": {"host": "https://github.com", "login": "a"}}'
+            )
+            self.assertTrue(acc.copilot_signed_in(home))

@@ -18,7 +18,7 @@ It runs as an X11 session on Debian 13 (or Linux Mint) with xfwm4 as its window 
 
 ## Other AIs
 
-Claude is the default, but the home screen, Mail and Tsukuru can each use another AI you sign in to: OpenAI's Codex, Google's Gemini CLI, xAI's Grok Build, or a model on your own computer through Ollama. Each tool is fetched from its maker the first time you choose it, and you sign in with your own account (Settings → AI). On the home screen they work the way Claude does, with their steps shown as they go. Careful mode keeps them as close to "no commands" as each tool allows.
+Claude is the default, but the home screen, Mail and Tsukuru can each use another AI you sign in to: OpenAI's Codex, Google's Gemini CLI, xAI's Grok Build, GitHub's Copilot CLI, or a model on your own computer through Ollama. Each tool is fetched from its maker the first time you choose it, and you sign in with your own account (Settings → AI). On the home screen they work the way Claude does, with their steps shown as they go. Careful mode keeps them as close to "no commands" as each tool allows.
 
 ## Status
 

@@ -384,10 +384,19 @@ class ClaudeJobs(Home):
                     env=env,
                     text=True,
                     stdout=subprocess.PIPE,
-                    stderr=log,
+                    stderr=log if kind == "claude" else subprocess.PIPE,
                     stdin=subprocess.DEVNULL,
                     start_new_session=True,
                 )
+                if proc.stderr:  # the others say why they stopped there (Copilot: "Error: …")
+
+                    def errors(stream=proc.stderr):
+                        for text in stream:
+                            log.write(text)
+                            translate.plain(text)
+
+                    drain = threading.Thread(target=errors, daemon=True)
+                    drain.start()
                 for line in proc.stdout or []:
                     log.write(line)
                     cpu = jobs.cpu_seconds(proc.pid) or cpu
@@ -400,6 +409,7 @@ class ClaudeJobs(Home):
                     try:
                         raw = json.loads(line)
                     except ValueError:
+                        translate.plain(line)
                         continue
                     if not isinstance(raw, dict):
                         continue
@@ -407,6 +417,12 @@ class ClaudeJobs(Home):
                         session_id, result, error, lost = self.take_event(
                             ev, run, tab_id, live, tokens, argv, session_id, result, error, lost
                         )
+                if proc.stderr:
+                    drain.join(timeout=5)  # its last words, before the answer is put together
+                for ev in translate.finish():
+                    session_id, result, error, lost = self.take_event(
+                        ev, run, tab_id, live, tokens, argv, session_id, result, error, lost
+                    )
                 code = proc.wait()
                 # First start: Claude Code is there but not signed in yet. Open its sign-in once.
                 said = (result or "") + " " + (error or "")
@@ -415,7 +431,7 @@ class ClaudeJobs(Home):
                 ):
                     result, error = None, "Sign in to Claude in the window that just opened, then ask again."
                     GLib.idle_add(self.first_sign_in)
-                elif kind in ("codex", "gemini", "grok") and not result and not accounts.signed_in(who):
+                elif kind in ("codex", "gemini", "grok", "copilot") and not result and not accounts.signed_in(who):
                     result, error = None, f"Sign in to {name} in the window that just opened, then ask again."
                     GLib.idle_add(lambda: self.sign_in(who["id"]) and False)
                 if self.procs.get(tab_id) is not proc:

@@ -47,7 +47,12 @@ KEEP_CODECS = (
 )
 
 # Other AIs Kūhaku can work with, fetched from their makers (npm) the first time they are chosen.
-AI_TOOLS = {"codex": "@openai/codex", "gemini": "@google/gemini-cli", "grok": "@xai-official/grok"}
+AI_TOOLS = {
+    "codex": "@openai/codex",
+    "gemini": "@google/gemini-cli",
+    "grok": "@xai-official/grok",
+    "copilot": "@github/copilot",
+}
 
 
 def welcome_due(state):

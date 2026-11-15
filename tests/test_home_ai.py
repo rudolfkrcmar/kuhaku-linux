@@ -87,6 +87,34 @@ class Grok(unittest.TestCase):
         self.assertEqual(run("grok", [done]), [done])
 
 
+class Copilot(unittest.TestCase):
+    def test_a_job_ends_without_a_result_event(self):
+        t = home_ai.Translate("copilot")
+        events = [
+            {"type": "session.start", "data": {"sessionId": "c1"}},
+            {"type": "assistant.message", "data": {"content": "Checking.", "toolRequests": [{"name": "bash"}]}},
+            {"type": "tool.execution_start", "data": {"toolName": "bash", "arguments": {"command": "uptime"}}},
+            {"type": "tool.execution_start", "agentId": "helper", "data": {"toolName": "view", "arguments": {}}},
+            {"type": "assistant.usage", "data": {"inputTokens": 9, "outputTokens": 2, "cacheReadTokens": 1}},
+            {"type": "assistant.message", "data": {"content": "Up for 3 days."}},
+            {"type": "session.idle", "ephemeral": True, "data": {}},
+        ]
+        out = [o for ev in events for o in t(ev)] + list(t.finish())
+        self.assertEqual(out[0]["session_id"], "c1")
+        self.assertEqual([b.get("name") or b.get("text") for b in steps(out)], ["Checking.", "Bash"])
+        self.assertEqual(out[-1]["result"], "Up for 3 days.")
+        self.assertEqual(out[-1]["usage"]["input_tokens"], 9)
+        self.assertEqual(list(t.finish()), [])  # given once
+
+    def test_its_own_error_line(self):
+        t = home_ai.Translate("copilot")
+        list(t({"type": "session.start", "data": {"sessionId": "c2"}}))
+        t.plain("Error: Access denied by policy settings")
+        end = list(t.finish())[-1]
+        self.assertTrue(end["is_error"])
+        self.assertEqual(end["errors"], ["Access denied by policy settings"])
+
+
 class CommandLines(unittest.TestCase):
     def test_new_and_resumed(self):
         a = home_ai.argv("codex", "codex", "Q", "SYS", None, False, [])
@@ -102,6 +130,13 @@ class CommandLines(unittest.TestCase):
         self.assertEqual(k[k.index("--rules") + 1], "SYS")
         self.assertIn("bypassPermissions", k)
         self.assertIn("run_terminal_cmd", home_ai.argv("grok", "grok", "Q", "SYS", None, True, []))
+        c = home_ai.argv("copilot", "copilot", "Q", "SYS", None, True, [])
+        self.assertEqual(c[c.index("--deny-tool") + 1], "shell")
+        self.assertEqual(len(c[c.index("--session-id") + 1]), 36)  # a new conversation's own id
+        c = home_ai.argv("copilot", "copilot", "Q", "SYS", "c1", False, [])
+        self.assertNotIn("--deny-tool", c)
+        self.assertEqual(c[-2:], ["--session-id", "c1"])
+        self.assertEqual(c[2], "Q")
 
 
 if __name__ == "__main__":

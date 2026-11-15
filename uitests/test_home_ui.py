@@ -90,7 +90,7 @@ class Night(PageCase):
 
 
 WELCOME = {
-    "ai": {"claude": "ready", "codex": "get", "gemini": "ready", "grok": "get"},
+    "ai": {"claude": "ready", "codex": "get", "gemini": "ready", "grok": "get", "copilot": "signin"},
     "home": "",
     "ready": [
         {"id": "private", "label": "Personal Claude", "kind": "claude"},
@@ -125,6 +125,7 @@ class FirstStart(PageCase):
             "Gemini",
             "Get and sign in",
             "Grok",
+            "Copilot",
             "Home uses",
             "Signed in",
             "Anything, without asking",

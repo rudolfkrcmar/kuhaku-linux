@@ -27,11 +27,12 @@ KINDS = {
     "codex": {"label": "OpenAI", "bin": "codex", "var": "CODEX_HOME"},
     "gemini": {"label": "Gemini", "bin": "gemini", "var": "GEMINI_CLI_HOME"},
     "grok": {"label": "Grok", "bin": "grok", "var": "GROK_HOME"},
+    "copilot": {"label": "Copilot", "bin": "copilot", "var": "COPILOT_HOME"},
     # A model on this computer (Ollama), driven by Codex in its open-source mode. Not part of the
     # sets: there is one per computer, "signed in" whenever Ollama runs with a model.
     "local": {"label": "Local", "bin": "codex", "var": "CODEX_HOME"},
 }
-CLOUD = ("claude", "codex", "gemini", "grok")
+CLOUD = ("claude", "codex", "gemini", "grok", "copilot")
 LOCAL_ID = "local"
 OLLAMA = (os.environ.get("OLLAMA_HOST") or "http://127.0.0.1:11434").rstrip("/")
 if "://" not in OLLAMA:
@@ -145,7 +146,7 @@ def shell_prefix(purpose=None):
 
 
 def command(purpose=None):
-    """The command line tool of the account used for a purpose: claude, codex, gemini or grok."""
+    """The command line tool of the account used for a purpose: claude, codex, gemini, grok or copilot."""
     return exe(kind(pick(purpose=purpose)))
 
 
@@ -206,12 +207,28 @@ def signed_in(acct):
     d = config_dir(acct)
     if kind(acct) == "grok":
         d = Path(acct["dir"]) if acct.get("dir") else HOME / ".grok"
+    if kind(acct) == "copilot":
+        return copilot_signed_in(Path(acct["dir"]) if acct.get("dir") else HOME / ".copilot")
     return {
         "claude": d / ".credentials.json",
         "codex": d / "auth.json",
         "gemini": d / ".gemini" / "oauth_creds.json",
         "grok": d / "auth.json",
     }[kind(acct)].exists()
+
+
+def copilot_signed_in(home):
+    """Copilot keeps its token in the system's keyring; config.json names who signed in."""
+    try:
+        text = (home / "config.json").read_text()
+    except OSError:
+        return False
+    try:  # JSON with // comment lines
+        c = json.loads("\n".join(x for x in text.splitlines() if not x.lstrip().startswith("//")))
+    except ValueError:
+        return False
+    keys = ("last_logged_in_user", "lastLoggedInUser", "logged_in_users", "loggedInUsers", "copilot_tokens")
+    return isinstance(c, dict) and any(c.get(k) for k in keys)
 
 
 def ready(k=None):
@@ -252,7 +269,7 @@ def login_command(acct):
 
 
 def ask(prompt, system, purpose=None, cwd=None, timeout=300, schema=None):
-    """One answer from an OpenAI, Gemini or Grok account, read-only (no edits, no commands that change
+    """One answer from an OpenAI, Gemini, Grok or Copilot account, read-only (no edits, no commands that change
     anything). With a schema the answer is parsed JSON. Claude callers keep their own richer call."""
     import subprocess
     import tempfile
@@ -326,8 +343,30 @@ def ask(prompt, system, purpose=None, cwd=None, timeout=300, schema=None):
                 answer = (json.loads(r.stdout or "{}").get("text") or "").strip()
             except ValueError:
                 answer = ""
+        elif k == "copilot":
+            r = subprocess.run(
+                [
+                    exe(k),
+                    "-p",
+                    text,
+                    "-s",
+                    "--no-auto-update",
+                    "--no-ask-user",
+                    "--deny-tool",
+                    "shell",
+                    "--deny-tool",
+                    "write",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=cwd or str(HOME),
+                env=env(purpose=purpose),
+                stdin=subprocess.DEVNULL,
+            )
+            answer = r.stdout.strip() if r.returncode == 0 else ""
         else:
-            raise RuntimeError("ask() is for OpenAI, Gemini, Grok and local accounts")
+            raise RuntimeError("ask() is for OpenAI, Gemini, Grok, Copilot and local accounts")
     if not answer:
         raise RuntimeError((r.stderr or "no answer").strip()[-200:])
     if schema:
@@ -429,6 +468,7 @@ def add(name, k="claude"):
         "codex": d / "AGENTS.md",
         "gemini": d / ".gemini" / "GEMINI.md",
         "grok": d / "rules" / "this-computer.md",  # every .md in $GROK_HOME/rules is a rule everywhere
+        "copilot": d / "copilot-instructions.md",  # personal custom instructions
     }[k]
     if notes.exists() and not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)

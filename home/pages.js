@@ -91,6 +91,7 @@ const WELCOME_AI = [
   ['codex', 'OpenAI', 'Codex, by OpenAI.'],
   ['gemini', 'Gemini', 'Gemini CLI, by Google.'],
   ['grok', 'Grok', 'Grok Build, by xAI.'],
+  ['copilot', 'Copilot', 'Copilot CLI, by GitHub. One subscription, several models.'],
 ];
 function renderWelcome() {
   clearTimeout(wTimer);
@@ -216,10 +217,10 @@ function renderSettings() {
     <div class="srow"><span class="k">Closing the lid</span>${OPT('lid', [[1, 'Sleep'], [3, 'Lock'], [0, 'Screen off']], p.power.lid)}</div>` : ''}
     ${p.about.battery != null ? `<div class="srow"><span class="k">Battery</span><span class="grow"><button class="p-link" data-act2="battery">${p.about.battery}% · details</button></span></div>` : ''}
     <div class="srow"><span class="k">Network</span><span class="grow"><button class="p-link" data-act2="wifi">Wi‑Fi networks</button></span></div></div>`;
-  // AI: sets (Personal, Work, …) of a Claude, an OpenAI, a Gemini and a Grok account; then what uses which.
+  // AI: sets (Personal, Work, …) of a Claude, an OpenAI, a Gemini, a Grok and a Copilot account; then what uses which.
   const sets = p.ai_sets || [], signing = p.ai_signing || [], accts = p.accounts || [],
     ready = accts.filter((a) => a.signedIn), home = accts.find((a) => a.active) || {},
-    KIND = [['claude', 'Claude'], ['codex', 'OpenAI'], ['gemini', 'Gemini'], ['grok', 'Grok']];
+    KIND = [['claude', 'Claude'], ['codex', 'OpenAI'], ['gemini', 'Gemini'], ['grok', 'Grok'], ['copilot', 'Copilot']];
   const slot = (set, k) => { const a = set.slots[k];
     if (a && a.signedIn) return '<span class="aiok">Signed in</span>';
     if (a && signing.includes(a.id)) return '<span class="aiwait">Signing in…</span>';

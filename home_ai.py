@@ -7,6 +7,7 @@ Kūhaku does not need to know which AI is working. Grok Build already speaks tha
 (`exec --json`) and Gemini CLI (`--output-format stream-json`) are translated here.
 """
 
+import uuid
 from collections.abc import Iterator
 from typing import Any
 
@@ -30,6 +31,12 @@ TOOL_NAMES = {
     "google_web_search": "WebSearch",
     "web_fetch": "WebFetch",
     "todo_write": "TodoWrite",
+    "bash": "Bash",
+    "view": "Read",
+    "create": "Write",
+    "edit": "Edit",
+    "str_replace": "Edit",
+    "fetch": "WebFetch",
     "write_todos": "TodoWrite",
 }
 
@@ -66,6 +73,11 @@ def argv(
         a += ["--disallowed-tools", "run_terminal_cmd"] if careful else ["--permission-mode", "bypassPermissions"]
         return a + (["--resume", session_id] if session_id else [])
     text = question if session_id else first_prompt(system, question)
+    if k == "copilot":
+        a = [exe, "-p", text, "--output-format", "json", "--no-auto-update", "--no-ask-user", "--allow-all"]
+        a += ["--deny-tool", "shell"] if careful else []  # a deny wins over --allow-all
+        # A new conversation gets its id here, so it can be continued even if the job stops early.
+        return a + ["--session-id", session_id or str(uuid.uuid4())]
     if k == "gemini":
         a = [exe, "-p", text, "--output-format", "stream-json", "--approval-mode", "auto_edit" if careful else "yolo"]
         return a + (["--resume", session_id] if session_id else [])
@@ -91,6 +103,8 @@ class Translate:
         self.session_id: str | None = None
         self.reply = ""  # what the AI said since its last step: the answer, once it stops
         self.error = ""
+        self.done = False  # the result was given
+        self.usage = {"input_tokens": 0, "output_tokens": 0, "cached": 0}
 
     def __call__(self, ev: dict) -> Iterator[dict]:
         if self.k == "claude":
@@ -99,6 +113,8 @@ class Translate:
             yield from self.grok(ev)
         elif self.k == "gemini":
             yield from self.gemini(ev)
+        elif self.k == "copilot":
+            yield from self.copilot(ev)
         else:
             yield from self.codex(ev)
 
@@ -174,7 +190,39 @@ class Translate:
                 },
             )
 
+    def plain(self, line: str) -> None:
+        """A line that is not an event: a tool's own error, kept for when nothing better is said."""
+        line = line.strip()
+        if line.startswith("Error:") and not self.error:
+            self.error = line[6:].strip()
+
+    def finish(self) -> Iterator[dict]:
+        """The stream ended: the answer, if the tool did not say it was done (Copilot never does)."""
+        if not self.done and self.k not in ("claude", "grok"):
+            yield self.result(not self.reply.strip(), None, self.usage)
+
+    # --- Copilot CLI: session.start, assistant.message, tool.execution_start, assistant.usage --
+    def copilot(self, ev: dict) -> Iterator[dict]:
+        t, d = ev.get("type"), ev.get("data") or {}
+        if t == "session.start":
+            self.session_id = d.get("sessionId")
+            yield {"type": "system", "subtype": "init", "session_id": self.session_id, "model": None}
+        elif t == "assistant.message" and not ev.get("agentId"):  # not a helper's message
+            yield from self.said_before_step()
+            self.reply = d.get("content") or ""
+        elif t == "tool.execution_start" and not ev.get("agentId"):
+            yield from self.said_before_step()
+            name = d.get("toolName") or ""
+            yield tool_use(TOOL_NAMES.get(name, name), d.get("arguments") or {})
+        elif t == "assistant.usage":
+            self.usage["input_tokens"] += d.get("inputTokens") or 0
+            self.usage["output_tokens"] += d.get("outputTokens") or 0
+            self.usage["cached"] += d.get("cacheReadTokens") or 0
+        elif t == "session.error":
+            self.error = d.get("message") or self.error
+
     def result(self, failed: bool, why: str | None, stats: dict) -> dict:
+        self.done = True
         why = why or self.error
         answer = self.reply.strip()
         out: dict[str, Any] = {
