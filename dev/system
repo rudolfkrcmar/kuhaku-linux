@@ -22,7 +22,9 @@ if [ "$1" = --as-root ]; then
     dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' && remove="$remove $p-"
   done
   # shellcheck disable=SC2086  # one word per package
-  apt-get install -y --autoremove "$deb" $remove
+  # No questions about Kūhaku's own settings files (there is no one to answer them here):
+  # its newer copy goes in, and any changed copy is kept beside it as .dpkg-old.
+  apt-get install -y --autoremove -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confnew "$deb" $remove
   exit 0
 fi
 
