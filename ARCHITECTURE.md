@@ -55,7 +55,7 @@ flowchart TB
 
 ## The pattern every app follows
 
-1. **A GTK window with one WebKit view.** Tegami's comes from `kuhaku_webapp.py`, which uses GTK 4 and
+1. **A GTK window with one WebKit view.** Tegami's and Miru's come from `kuhaku_webapp.py`, which uses GTK 4 and
    WebKitGTK 6 where installed (GTK 3 otherwise) and also runs outside Kūhaku: see `flatpak/README.md`.
    The page lives beside the app (`index.html` + `home/`,
    `miru/`, `kansei/`, `kiroku/`, `mail/`, `ide/`) as plain HTML, CSS and classic scripts. No bundler.

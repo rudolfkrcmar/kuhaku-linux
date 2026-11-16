@@ -126,12 +126,33 @@ def open_url(uri):
 class WebApp:
     """One window with one page. on_message(dict) gets what the page posts to its handler."""
 
-    def __init__(self, app_id, title, handler, on_message, zoom=1.0, spelling=None, menus=False, on_ready=None):
+    def __init__(
+        self,
+        app_id,
+        title,
+        handler,
+        on_message,
+        zoom=1.0,
+        spelling=None,
+        menus=False,
+        on_ready=None,
+        right_click=True,
+        media=False,
+        schemes=None,
+    ):
+        """right_click: the spelling menu where text is written (False: never a menu, the page has its own).
+        media: video and sound play. schemes: {name: handler(request)} for the app's own addresses."""
         self.app_id, self.title, self.handler = app_id, title, handler
         self.on_message, self.on_ready = on_message, on_ready
         self.zoom, self.spelling, self.menus = zoom, spelling, menus
+        self.right_click, self.media = right_click, media
         self.night = theme() == "night"
         self.uri = None
+        self.html: tuple[str, str] | None = None
+        ctx = WebKit.WebContext.get_default()
+        for name, fn in (schemes or {}).items():
+            ctx.register_uri_scheme(name, fn)
+            ctx.get_security_manager().register_uri_scheme_as_local(name)
         self.win: Any = None
         self.view: Any = None
         self.on_theme = []  # callbacks(night) when day turns to night or back
@@ -165,18 +186,24 @@ class WebApp:
         st = self.view.get_settings()
         st.set_allow_file_access_from_file_urls(True)
         st.set_enable_write_console_messages_to_stdout(bool(os.environ.get("KUHAKU_DEBUG")))
+        if self.media:
+            st.set_enable_media(True)
+            st.set_enable_mediasource(True)
+            st.set_media_playback_requires_user_gesture(False)
+        st.set_enable_smooth_scrolling(True)
         self._paint()
         if self.spelling:
             ctx = self.view.get_context()
             ctx.set_spell_checking_enabled(True)
             ctx.set_spell_checking_languages(self.spelling)
+
         # Right-click: only where text is written (the spelling fixes); the page has its own menus.
-        if GTK == 4:
-            self.view.connect("context-menu", lambda _v, _m, hit: not hit.context_is_editable())
-        else:
-            self.view.connect("context-menu", lambda _v, _m, _e, hit: not hit.context_is_editable())
+        def menu(*a):
+            return not (self.right_click and a[-1].context_is_editable())
+
+        self.view.connect("context-menu", menu)
         self.view.connect("decide-policy", self._policy)
-        self.view.connect("web-process-terminated", lambda *_: self.uri and self.load(self.uri))
+        self.view.connect("web-process-terminated", lambda *_: self._reload())
         self.view.connect("load-changed", self._loaded)
         if self.menus:
             import kuhaku_menus
@@ -190,8 +217,7 @@ class WebApp:
             self.win.add(self.view)
             self.win.show_all()
         GLib.timeout_add_seconds(30, self._follow_theme)
-        if self.uri:
-            self.load(self.uri)
+        self._reload()
 
     def _dark(self, night):
         s = Gtk.Settings.get_default()
@@ -219,10 +245,23 @@ class WebApp:
     # --- the page ---------------------------------------------------------------------------
     def load(self, uri):
         """uri: the page; ?theme=day|night is added so it opens in the right light."""
-        self.uri = uri
+        self.uri, self.html = uri, None
         if self.view is not None:
             sep = "&" if "?" in uri else "?"
             self.view.load_uri(f"{uri}{sep}theme={'night' if self.night else 'day'}")
+
+    def load_html(self, html, base_uri):
+        """A page given as text, with base_uri where its CSS and scripts sit."""
+        self.html, self.uri = (html, base_uri), None
+        if self.view is not None:
+            self.view.load_html(html, base_uri)
+
+    def _reload(self):
+        """After the window is built, or when WebKit's page process ended on its own."""
+        if self.html:
+            self.load_html(*self.html)
+        elif self.uri:
+            self.load(self.uri)
 
     def _loaded(self, _v, event):
         if event == WebKit.LoadEvent.FINISHED and self.on_ready:
@@ -262,6 +301,19 @@ class WebApp:
     # --- the window -------------------------------------------------------------------------
     def later(self, f, *args):
         GLib.idle_add(lambda: f(*args) and False)
+
+    def set_title(self, title):
+        self.win.set_title(title)
+
+    def present(self):
+        self.win.present()
+
+    def copy_text(self, text):
+        """Puts text on the clipboard (Cmd+V pastes it in any app)."""
+        if GTK == 4:
+            self.win.get_clipboard().set(text)
+        else:
+            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(text, -1)
 
     def minimize(self):
         if GTK == 4:

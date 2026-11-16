@@ -16,8 +16,6 @@ Space or Esc goes back (or closes), Cmd+plus/minus/0 zoom pictures.
     miru [FOLDER | FILE]
 """
 
-import json
-import os
 import re
 import shutil
 import signal
@@ -30,15 +28,13 @@ from pathlib import Path
 
 import gi
 
-gi.require_version("Gtk", "3.0")
-gi.require_version("Gdk", "3.0")
-gi.require_version("GdkPixbuf", "2.0")
-gi.require_version("WebKit2", "4.1")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, WebKit2
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from kuhaku_webapp import Gio, GLib, WebApp  # GTK 4 where it is installed, GTK 3 otherwise
+
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import GdkPixbuf
+
 import kumo  # Dropbox and Google Drive, only the folders you choose
-from kuhaku_log import report  # faults go to the log instead of vanishing
 from miru_files import (
     MESH_LIMIT,
     MESH_TYPES,
@@ -49,7 +45,6 @@ from miru_files import (
     mime_of,
     natural,
     pdf_pages,
-    theme,
     usb_drives,
 )
 
@@ -61,34 +56,18 @@ class Miru:
     held: tuple[str, list[str]] | None = None  # copied or cut paths waiting to be pasted
 
     def __init__(self, path):
-        self.night = theme() == "night"
-        Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", self.night)
-        self.win = Gtk.Window(title="Miru")
-        self.win.set_decorated(False)
-        self.win.set_icon_name("miru")
-        self.win.maximize()
-        self.win.connect("destroy", Gtk.main_quit)
-
-        ctx = WebKit2.WebContext.get_default()
-        ctx.register_uri_scheme("miru", self.on_scheme)
-        ctx.get_security_manager().register_uri_scheme_as_local("miru")
-        ucm = WebKit2.UserContentManager()
-        ucm.register_script_message_handler("miru")
-        ucm.connect("script-message-received::miru", self.on_message)
-        self.view = WebKit2.WebView.new_with_user_content_manager(ucm)
-        self.view.set_zoom_level(1.12)  # app type a little larger than the page's own, for reading
-        s = self.view.get_settings()
-        s.set_allow_file_access_from_file_urls(True)
-        s.set_enable_media(True)
-        s.set_enable_mediasource(True)
-        s.set_media_playback_requires_user_gesture(False)
-        s.set_enable_smooth_scrolling(True)
-        s.set_enable_write_console_messages_to_stdout(bool(os.environ.get("MIRU_DEBUG")))
-        bg = (0.071, 0.071, 0.071) if self.night else (0.969, 0.957, 0.945)
-        self.view.set_background_color(Gdk.RGBA(*bg, 1))
-        self.view.connect("context-menu", lambda *a: True)
-        self.view.connect("decide-policy", self.on_policy)
-        self.win.add(self.view)
+        self.app = WebApp(
+            "space.kuhaku.Miru",
+            "Miru",
+            "miru",
+            on_message=self.on_message,
+            zoom=1.12,  # app type a little larger than the page's own, for reading
+            on_ready=self.start,
+            right_click=False,  # the page has its own menu
+            media=True,
+            schemes={"miru": self.on_scheme},
+        )
+        self.night = self.app.night
 
         self.path = Path(path).expanduser().resolve()
         self.files = []
@@ -101,9 +80,7 @@ class Miru:
         self.watch()
         if any(kumo.folders(k) for k in kumo.accounts()):
             kumo.ensure_daemon()
-        self.view.load_html(PAGE.replace("{THEME}", "night" if self.night else "day"), PAGE_URI)
-        self.view.connect("load-changed", lambda v, e: e == WebKit2.LoadEvent.FINISHED and self.start())
-        self.win.show_all()
+        self.app.load_html(PAGE.replace("{THEME}", "night" if self.night else "day"), PAGE_URI)
 
     def start(self):
         if self.path.is_dir():
@@ -112,7 +89,7 @@ class Miru:
             self.show(self.path)
 
     def js(self, fn, payload):
-        self.view.evaluate_javascript(f"{fn}({json.dumps(payload)})", -1, None, None, None, None, None)
+        self.app.js(fn, payload)
 
     # --- folders -------------------------------------------------------------
     def places(self):
@@ -275,7 +252,7 @@ class Miru:
             if p == HOME or p.parent == p:
                 break
             p = p.parent
-        self.win.set_title(f"{folder.name or folder} — Miru")
+        self.app.set_title(f"{folder.name or folder} — Miru")
         key, _ = kumo.which_cloud(folder)
         cloud = (
             {"key": key, "name": (kumo.account(key) or {}).get("name", key), "status": kumo.describe(key)}
@@ -381,7 +358,7 @@ class Miru:
                 return self.browse(self.folder, select=made)
             if kind in ("copy", "cut"):
                 self.held = (kind, [str(p) for p in paths])
-                Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text("\n".join(map(str, paths)), -1)
+                self.app.copy_text("\n".join(map(str, paths)))
                 return self.js(
                     "toast",
                     f"{'Copied' if kind == 'copy' else 'Ready to move'} {what}. "
@@ -396,7 +373,7 @@ class Miru:
                     self.held = None
                 return self.browse(self.folder, select=made)
             if kind == "copypath":
-                Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text("\n".join(map(str, paths)), -1)
+                self.app.copy_text("\n".join(map(str, paths)))
                 return self.js("toast", "Path copied" if len(paths) == 1 else f"{len(paths)} paths copied")
             if kind == "restore":
                 for path in paths:
@@ -491,8 +468,8 @@ class Miru:
                 item["kind"], item["error"] = "other", str(e)
         app = Gio.AppInfo.get_default_for_type(Gio.content_type_from_mime_type(mime) or mime, False)
         item["app"] = app.get_name() if app and app.get_id() != "miru.desktop" else ""
-        self.win.set_title(f"{path.name} — Miru")
-        self.view.evaluate_javascript(f"show({json.dumps(item)})", -1, None, None, None, None, None)
+        self.app.set_title(f"{path.name} — Miru")
+        self.app.js("show", item)
 
     def step(self, d):
         if len(self.files) > 1:
@@ -510,12 +487,7 @@ class Miru:
         Gio.AppInfo.launch_default_for_uri(self.path.as_uri(), None)
 
     # --- the page ------------------------------------------------------------
-    def on_message(self, _m, result):
-        try:
-            msg = json.loads(result.get_js_value().to_string())
-        except Exception:
-            report()
-            return
+    def on_message(self, msg):
         kind = msg.get("type") or ""
         handler = MESSAGES.get(kind)
         if handler:
@@ -550,7 +522,7 @@ class Miru:
         self.cloud_mode = key
         self.folder = HOME
         phase = phase or ("choose" if kumo.connected(key) else "connect")
-        self.win.set_title(f"{p['name']} — Miru")
+        self.app.set_title(f"{p['name']} — Miru")
         kind = kumo.KINDS[p["kind"]]["name"]
         self.js(
             "cloud",
@@ -589,7 +561,7 @@ class Miru:
 
             def done(err):
                 def back():
-                    self.win.present()
+                    self.app.present()
                     if self.cloud_mode == key:
                         self.cloud_page(key, None if not err else "connect", err)
                     return False
@@ -639,15 +611,6 @@ class Miru:
             else:
                 self.cloud_mode = None
                 self.browse(HOME)
-
-    def on_policy(self, _v, decision, kind):
-        if kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
-            uri = decision.get_navigation_action().get_request().get_uri()
-            if uri.startswith(("http://", "https://")):
-                subprocess.Popen(["xdg-open", uri], start_new_session=True)
-                decision.ignore()
-                return True
-        return False
 
     def load_model(self, path):
         """Reads the mesh off the main thread, then hands it to the page's viewer."""
@@ -742,7 +705,7 @@ PAGE = (Path(__file__).resolve().parent / "miru/miru.html").read_text(encoding="
 
 # What Miru's page may say, and who listens (cloud-* messages go to cloud_msg).
 MESSAGES = {
-    "close": lambda m, msg: m.win.destroy(),
+    "close": lambda m, msg: m.app.quit(),
     "next": lambda m, msg: m.step(1),
     "prev": lambda m, msg: m.step(-1),
     "open": lambda m, msg: m.open_in_app(msg.get("path")),
@@ -759,7 +722,7 @@ MESSAGES = {
     "mkdir": lambda m, msg: m.mkdir(msg.get("name", "")),
     "hidden": lambda m, msg: m.toggle_hidden(),
     "terminal": lambda m, msg: m.open_terminal(),
-    "minimize": lambda m, msg: m.win.iconify(),
+    "minimize": lambda m, msg: m.app.minimize(),
 }
 
 
@@ -768,5 +731,4 @@ if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else str(HOME)
     if arg.startswith("file://"):
         arg = urllib.parse.unquote(urllib.parse.urlparse(arg).path)
-    Miru(arg)
-    Gtk.main()
+    Miru(arg).app.run()

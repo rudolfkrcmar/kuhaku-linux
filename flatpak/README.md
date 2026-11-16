@@ -9,4 +9,9 @@ opens links in the default browser.
     flatpak-builder --user --install --force-clean build flatpak/tegami/space.kuhaku.Tegami.yml
     flatpak run space.kuhaku.Tegami
 
-Ready: Tegami. Next, in this order: Miru, Kiroku, Kansei, Tsukuru (needs VTE for GTK 4), Mado.
+Ready: Tegami and Miru (build them as above, with flatpak/miru/space.kuhaku.Miru.yml).
+Next, in this order: Kiroku, Kansei, Tsukuru (needs VTE for GTK 4), Mado.
+
+Tools that belong to the computer, not the sandbox, run on the host through flatpak-spawn:
+Claude Code for Tegami (tegami/claude.sh), udisksctl for Miru (common/host.sh). Cloud folders
+(Kumo, rclone) are not in the Flatpak yet.

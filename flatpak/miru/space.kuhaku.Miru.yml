@@ -1,0 +1,76 @@
+# Miru as a Flatpak: Kūhaku's files and previewer on any Linux desktop.
+#   flatpak-builder --user --install --force-clean build flatpak/miru/space.kuhaku.Miru.yml
+# Run from the project root. GTK 4, WebKitGTK 6 and Python come with the GNOME runtime; poppler's
+# pdftoppm and pdfinfo (PDF pages) are built here.
+id: space.kuhaku.Miru
+runtime: org.gnome.Platform
+runtime-version: "49"
+sdk: org.gnome.Sdk
+command: miru
+build-options:
+  no-debuginfo: true   # no eu-strip needed to build
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio           # video and sound play in place
+  - --device=dri
+  - --filesystem=host             # a files app: every folder, and drives under /media and /run/media
+  - --talk-name=org.freedesktop.Flatpak   # udisksctl on the computer mounts and ejects USB sticks
+  - --talk-name=org.gtk.vfs.*
+  - --filesystem=xdg-run/gvfsd
+  - --persist=.config/kuhaku
+  - --persist=.local/state/kuhaku
+modules:
+  - name: fonts
+    buildsystem: simple
+    build-commands:
+      - python3 -c "import zipfile; [zipfile.ZipFile(z).extractall() for z in ('Inter-4.1.zip', 'JetBrainsMono-2.304.zip')]"
+      - install -Dm644 InterVariable.ttf /app/share/fonts/inter/InterVariable.ttf
+      - install -Dm644 "fonts/variable/JetBrainsMono[wght].ttf" /app/share/fonts/jetbrains-mono/JetBrainsMono.ttf
+    sources:
+      - type: file
+        url: https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
+        sha256: 9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e
+      - type: file
+        url: https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip
+        sha256: 6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf
+  - name: poppler
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DENABLE_UTILS=ON
+      - -DENABLE_CPP=OFF
+      - -DENABLE_GLIB=OFF
+      - -DENABLE_GOBJECT_INTROSPECTION=OFF
+      - -DENABLE_QT5=OFF
+      - -DENABLE_QT6=OFF
+      - -DENABLE_BOOST=OFF
+      - -DENABLE_NSS3=OFF
+      - -DENABLE_GPGME=OFF
+      - -DENABLE_LIBOPENJPEG=none
+      - -DENABLE_LIBCURL=OFF
+      - -DBUILD_GTK_TESTS=OFF
+      - -DBUILD_MANUAL_TESTS=OFF
+      - -DBUILD_CPP_TESTS=OFF
+      - -DTESTDATADIR=/nonexistent
+    cleanup: [/include, /lib/pkgconfig, /share/man]
+    sources:
+      - type: archive
+        url: https://poppler.freedesktop.org/poppler-26.11.0.tar.xz
+        sha256: 41c32680160addf5a8dd7a830e4869c01e9f6bee1abb91e44fabd1ba9d7828fb
+  - name: miru
+    buildsystem: simple
+    build-commands:
+      - install -d /app/share/miru/miru
+      - install -m644 miru.py miru_files.py kumo.py kuhaku_webapp.py kuhaku_menus.py kuhaku_log.py kuhaku_sun.py /app/share/miru/
+      - install -m644 miru/miru.html miru/miru.css miru/miru.js /app/share/miru/miru/
+      - install -Dm755 flatpak/miru/miru.sh /app/bin/miru
+      - install -Dm755 flatpak/common/host.sh /app/bin/udisksctl
+      - install -Dm644 flatpak/miru/space.kuhaku.Miru.desktop /app/share/applications/space.kuhaku.Miru.desktop
+      - install -Dm644 flatpak/miru/space.kuhaku.Miru.metainfo.xml /app/share/metainfo/space.kuhaku.Miru.metainfo.xml
+      - install -Dm644 icons/apps-night/miru.png /app/share/icons/hicolor/128x128/apps/space.kuhaku.Miru.png
+    sources:
+      - type: dir
+        path: ../..
+        skip: [build, .flatpak-builder, .git, os, uitests, tests, ide, home, mail, kansei, kiroku, browser]

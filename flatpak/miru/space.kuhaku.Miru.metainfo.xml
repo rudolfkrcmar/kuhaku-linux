@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>space.kuhaku.Miru</id>
+  <name>Miru</name>
+  <summary>Your files as a calm list; everything opens in place</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="space.kuhaku"><name>Kūhaku</name></developer>
+  <url type="homepage">https://www.kuhaku.space/miru/</url>
+  <url type="vcs-browser">https://github.com/rudolfkrcmar/kuhaku-linux</url>
+  <launchable type="desktop-id">space.kuhaku.Miru.desktop</launchable>
+  <description>
+    <p>Miru shows a folder as a quiet list, with your places on the left, and opens everything right there.</p>
+    <ul>
+      <li>Pictures, PDFs, video, sound and code open in place. Arrow keys step through the folder.</li>
+      <li>3D models (STL, 3MF, OBJ) turn under your hand, with their size in millimetres.</li>
+      <li>A USB stick shows up as you plug it in, with how full it is. One click ejects it.</li>
+      <li>Rename, duplicate, copy, move or put in the Trash from a right-click.</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default"><image>https://www.kuhaku.space/img/miru-files-day.png</image><caption>A folder as a calm list</caption></screenshot>
+    <screenshot><image>https://www.kuhaku.space/img/miru-vase-night.png</image><caption>A 3D model, ready to turn</caption></screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases><release version="0.4.0" date="2026-11-16"/></releases>
+</component>
