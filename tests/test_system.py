@@ -137,6 +137,27 @@ class Wifi(unittest.TestCase):
             ):
                 self.assertEqual(ks.read_vpn(net), {"name": "hq", "app": "defguard-client.desktop"})
 
+    def test_vpn_list_and_switch(self):
+        nm = "Home WG:0b6a2b1e-1111-2222-3333-444455556666:wireguard:yes\nNord\\: Prague:0b6a2b1e-1111-2222-3333-444455556667:vpn:no\nOffice:0b6a2b1e-1111-2222-3333-444455556668:802-11-wireless:yes\n"
+        with (
+            mock.patch.object(ks, "run", return_value=(0, nm, "")),
+            mock.patch.object(ks.shutil, "which", return_value=None),
+            mock.patch.object(ks, "DEFGUARD_DB", Path("/nonexistent/defguard.db")),
+        ):
+            got = ks.vpn_list()
+        self.assertEqual([(v["name"], v["on"]) for v in got], [("Home WG", True), ("Nord: Prague", False)])
+        with mock.patch.object(ks, "run", return_value=(0, "", "")) as r:
+            self.assertEqual(ks.vpn_switch("nm:0b6a2b1e-1111-2222-3333-444455556667", True), {"ok": True})
+        self.assertEqual(r.call_args[0][0][:3], ["nmcli", "connection", "up"])
+        with mock.patch.object(ks, "run", return_value=(4, "", "Secrets were required")):
+            self.assertEqual(
+                ks.vpn_switch("nm:0b6a2b1e-1111-2222-3333-444455556667", True)["error"], "It needs a password first."
+            )
+        self.assertFalse(ks.vpn_switch("nm:; rm -rf /", True)["ok"])
+        with mock.patch.object(ks, "launch_app") as launch:
+            self.assertTrue(ks.vpn_switch("defguard:2", True)["opened"])
+        launch.assert_called_once_with("defguard-client.desktop")
+
     def test_read_wifi_and_signal(self):
         for out, want in [
             ("wifi:connected\nethernet:unavailable\n", "on"),

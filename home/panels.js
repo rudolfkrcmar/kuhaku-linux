@@ -18,7 +18,7 @@ function openPanel(name) {
   if (name === 'calendar') { calAdding = false; calNote = ''; calAsked = ''; native({ type: 'panel', action: 'calendar' }); cal.y = today().getFullYear(); cal.m = today().getMonth(); cal.mode = 'month'; cal.sel = today(); renderCal(); askEvents(); }
   if (name === 'light') renderLight();
   if (name === 'notices') { notices = null; renderNotices(); native({ type: 'panel', action: 'notices' }); }
-  if (name === 'wifi') { bt.note = ''; native({ type: 'panel', action: 'bt' }); wifi.open = null; renderWifi(); native({ type: 'panel', action: 'wifi' }); native({ type: 'panel', action: 'wifi', rescan: true }); }
+  if (name === 'wifi') { native({ type: 'panel', action: 'vpn' }); bt.note = ''; native({ type: 'panel', action: 'bt' }); wifi.open = null; renderWifi(); native({ type: 'panel', action: 'wifi' }); native({ type: 'panel', action: 'wifi', rescan: true }); }
   if (name === 'battery') {
     renderBattery(); native({ type: 'panel', action: 'battery' });
     panelTimer = setInterval(() => native({ type: 'panel', action: 'battery' }), 10000);
@@ -58,6 +58,11 @@ window.panelData = ({ action, data }) => {
     if (panel === 'calendar') { renderCal(); if (calAdding) $('calUrl')?.focus(); }
   }
   if (action === 'cal-remove') { calAsked = ''; askEvents(); }
+  if (action === 'vpn' || action === 'vpn-switch') {
+    vpn.data = data.vpns; vpn.busy = null;
+    if (action === 'vpn-switch') vpn.note = data.ok ? {} : { [data.id]: data.error };
+  }
+  if (panel === 'wifi' && action.startsWith('vpn')) renderWifi();
   if (action.startsWith('bt') && data) { bt.data = data; bt.busy = null; bt.scanning = false; bt.toggling = false; if (data.note !== undefined) bt.note = data.note; }
   if (panel === 'wifi' && action.startsWith('bt')) renderWifi();
   if (panel === 'wifi' && action.startsWith('wifi')) renderWifi();
@@ -88,6 +93,12 @@ $('panel').addEventListener('click', (e) => {
     const n = wifi.data.networks[+v]; if (n.active || wifi.busy) return;
     if (n.secure && !n.known) { wifi.open = wifi.open === n.ssid ? null : n.ssid; renderWifi(); }
     else connect(n.ssid);
+  }
+  if (a === 'vpn') {
+    const x = (vpn.data || []).find((y) => y.id === v); if (!x || vpn.busy) return;
+    if (x.kind !== 'defguard') { vpn.busy = v; vpn.note = {}; renderWifi(); }
+    native({ type: 'panel', action: 'vpn-switch', id: v, on: !x.on });
+    if (x.kind === 'defguard') closePanel();
   }
   if (a === 'wifi-off') { wifi.toggling = true; native({ type: 'panel', action: 'wifi-radio', on: !wifi.data?.enabled }); renderWifi(); }
   if (a === 'wifi-rescan') { wifi.scanning = true; renderWifi(); native({ type: 'panel', action: 'wifi', rescan: true }); }
@@ -238,6 +249,17 @@ function connect(ssid, password) {
 }
 // Bluetooth: the same quiet list as Wi-Fi.
 const bt = { data: null, busy: null, note: '', scanning: false, toggling: false };
+const vpn = { data: null, busy: null, note: {} };
+// VPNs: shown only when the computer has some. A click switches one on or off; Defguard's open its own card.
+function vpnSection() {
+  if (!vpn.data || !vpn.data.length) return '';
+  const row = (x) => `<li class="net" data-act="vpn" data-v="${esc(x.id)}"><div class="top"><span class="n">${esc(x.name)}</span>` +
+    (x.on ? '<span class="cdot"></span>' : '') + '</div>' +
+    (vpn.busy === x.id ? `<div class="p-wait" style="padding:6px 0 0;font-size:12px"><span class="dot"></span>${x.on ? 'Disconnecting…' : 'Connecting…'}</div>`
+      : vpn.note[x.id] ? `<div class="note err">${esc(vpn.note[x.id])}</div>`
+      : `<div class="note">${[x.note, x.kind === 'defguard' ? (x.on ? 'Connected · click to open' : 'Click to open') : (x.on ? 'Connected · click to disconnect' : 'Click to connect')].filter(Boolean).map(esc).join(' · ')}</div>`) + '</li>';
+  return `<div class="p-head" style="margin-top:38px"><h2 class="p-title">VPN</h2></div><ul class="nets">${vpn.data.map(row).join('')}</ul>`;
+}
 function btSection() {
   const d = bt.data, on = d && d.present ? d.on : false;
   let h = `<div class="p-head" style="margin-top:38px"><h2 class="p-title">Bluetooth</h2>${d && d.present ? `<button class="switch${on !== bt.toggling ? ' on' : ''}" data-act="bt-power" title="Turn Bluetooth ${on ? 'off' : 'on'}"></button>` : ''}</div>`;
@@ -296,6 +318,7 @@ function renderWifi() {
     });
     h += '</ul>';
   }
+  h += vpnSection();
   h += btSection();
   const focused = document.activeElement?.matches?.('.pw input') ? document.activeElement.value : null;
   $('panel').innerHTML = h;

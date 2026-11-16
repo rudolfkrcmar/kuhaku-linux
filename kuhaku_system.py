@@ -210,6 +210,75 @@ def run(argv, timeout=15):
         return 1, "", str(e)
 
 
+# --- VPNs, for the Wi-Fi panel ----------------------------------------------
+DEFGUARD_APP = "defguard-client.desktop"
+
+
+def vpn_list():
+    """Every VPN this computer knows: NetworkManager's (WireGuard, OpenVPN, a provider's imported
+    files), the NordVPN app's, and Defguard's locations. Each {"id", "name", "on", "kind", "note"}."""
+    vpns = []
+    code, out, _ = run(["nmcli", "-t", "-f", "NAME,UUID,TYPE,ACTIVE", "connection", "show"], timeout=5)
+    for line in out.splitlines() if code == 0 else []:
+        parts = line.rsplit(":", 3)
+        if len(parts) == 4 and parts[2] in ("vpn", "wireguard"):
+            name = parts[0].replace("\\:", ":")
+            vpns.append({"id": "nm:" + parts[1], "name": name, "on": parts[3] == "yes", "kind": "nm", "note": ""})
+    if shutil.which("nordvpn"):
+        _, out, _ = run(["nordvpn", "status"], timeout=5)
+        on = bool(re.search(r"Status:\s*Connected", out))
+        where = re.search(r"Country:\s*(.+)", out)
+        vpns.append(
+            {
+                "id": "nordvpn",
+                "name": "NordVPN",
+                "on": on,
+                "kind": "nordvpn",
+                "note": where[1].strip() if on and where else "",
+            }
+        )
+    if DEFGUARD_DB.exists():
+        import sqlite3
+
+        try:
+            with sqlite3.connect(f"file:{DEFGUARD_DB}?mode=ro", uri=True, timeout=1) as db:
+                rows = db.execute("SELECT id, name, location_mfa_mode FROM location ORDER BY name").fetchall()
+                live = {r[0] for r in db.execute("SELECT location_id FROM connection WHERE end IS NULL")}
+        except Exception:
+            report()
+            rows, live = [], set()
+        up = any(n.startswith("wg") for n in os.listdir("/sys/class/net"))
+        for lid, name, mfa in rows:
+            vpns.append(
+                {
+                    "id": f"defguard:{lid}",
+                    "name": name,
+                    "on": up and lid in live,
+                    "kind": "defguard",
+                    "note": "Defguard · asks for a code" if (mfa or 0) > 1 else "Defguard",
+                }
+            )
+    return vpns
+
+
+def vpn_switch(vid, on):
+    """Turn one VPN on or off. Defguard is switched in its own app (it keeps the keys and asks for
+    the code), so its card opens instead. Returns {"ok", "error"?, "opened"?}."""
+    if vid.startswith("defguard:"):
+        launch_app(DEFGUARD_APP)
+        return {"ok": True, "opened": True}
+    if vid.startswith("nm:") and re.fullmatch(r"[0-9a-fA-F-]{36}", vid[3:]):
+        code, _, err = run(["nmcli", "connection", "up" if on else "down", "uuid", vid[3:]], timeout=60)
+    elif vid == "nordvpn" and shutil.which("nordvpn"):
+        code, _, err = run(["nordvpn", "connect" if on else "disconnect"], timeout=60)
+    else:
+        return {"ok": False, "error": "Not found."}
+    if code == 0:
+        return {"ok": True}
+    secrets = "secrets" in err.lower() or "password" in err.lower()
+    return {"ok": False, "error": "It needs a password first." if secrets else "Could not connect."}
+
+
 # --- Wi-Fi panel ------------------------------------------------------------
 def bluetooth_state(scan=False):
     """Bluetooth through bluetoothctl: is there a controller, is it on, and the devices it knows."""

@@ -34,6 +34,8 @@ from kuhaku_system import (
     plan_limits,
     run,
     spawn,
+    vpn_list,
+    vpn_switch,
     wifi_connect,
     wifi_networks,
     write_power,
@@ -85,6 +87,14 @@ class Panels(Home):
         run(["nmcli", "radio", "wifi", "on" if on else "off"])
         time.sleep(2 if on else 0)
         return wifi_networks(on)
+
+    # --- VPNs --------------------------------------------------------------------------
+    def _vpn(self, _msg):
+        return {"vpns": vpn_list()}
+
+    def _vpn_switch(self, msg):
+        res = vpn_switch(str(msg.get("id", "")), bool(msg.get("on")))
+        return {**res, "id": msg.get("id"), "vpns": vpn_list()}
 
     # --- Bluetooth ---------------------------------------------------------------------
     def _bt(self, msg):
@@ -263,6 +273,8 @@ PANEL = {
     "wifi-forget": Panels._wifi_forget,
     "wifi-disconnect": Panels._wifi_disconnect,
     "wifi-radio": Panels._wifi_radio,
+    "vpn": Panels._vpn,
+    "vpn-switch": Panels._vpn_switch,
     "bt": Panels._bt,
     "bt-power": Panels._bt_power,
     "bt-connect": Panels._bt_connect,
