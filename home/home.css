@@ -146,6 +146,9 @@ body.dim .stage { opacity:.08; filter:blur(3px); pointer-events:none; }
 .net .top svg { color:var(--muted); flex-shrink:0; }
 .net .note { font-size:12px; color:var(--muted); margin-top:4px; font-weight:300; }
 .net .note.err { color:var(--accent); }
+/* Connected (a VPN, a Bluetooth device): the red dot at the end of its row. */
+.net .top .cdot { width:6px; height:6px; border-radius:6px; background:var(--accent); flex-shrink:0; }
+.ntabs + .p-head + .nets { margin-top:18px; }
 .pw { display:flex; align-items:stretch; gap:12px; margin:12px 0 4px; }
 .pw .line { height:auto; margin:2px 0; }
 .netacts { display:flex; gap:18px; margin:8px 0 4px 22px; }

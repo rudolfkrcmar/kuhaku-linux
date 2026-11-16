@@ -259,7 +259,7 @@ function vpnSection() {
     (x.on ? '<span class="cdot"></span>' : '') + '</div>' +
     (vpn.busy === x.id ? `<div class="p-wait" style="padding:6px 0 0;font-size:12px"><span class="dot"></span>${x.on ? 'Disconnecting…' : 'Connecting…'}</div>`
       : vpn.note[x.id] ? `<div class="note err">${esc(vpn.note[x.id])}</div>`
-      : `<div class="note">${[x.note, x.kind === 'defguard' ? (x.on ? 'Connected · click to open' : 'Click to open') : (x.on ? 'Connected · click to disconnect' : 'Click to connect')].filter(Boolean).map(esc).join(' · ')}</div>`) + '</li>';
+      : `<div class="note">${[x.note, x.kind === 'defguard' ? (x.on ? 'connected · click to open' : 'click to open') : (x.on ? 'connected · click to disconnect' : 'click to connect')].filter(Boolean).join(' · ').replace(/^./, (c) => c.toUpperCase()).replace(/[&<>"]/g, (c) => esc(c))}</div>`) + '</li>';
   return `<div class="p-head"><h2 class="p-title">VPN</h2></div><ul class="nets">${vpn.data.map(row).join('')}</ul>`;
 }
 function btSection() {

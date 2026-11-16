@@ -243,3 +243,58 @@ class Pictures(PageCase):
         self.assertEqual(self.page.js("return document.getElementById('peek').hidden;"), False)
         self.key("Enter")
         self.assertIn({"type": "picture", "action": "add", "paths": ["/tmp/p0.png"]}, self.page.messages)
+
+
+class NetworkCard(PageCase):
+    """The Wi‑Fi mark's card: Wi‑Fi, VPN and Bluetooth as tabs, one at a time."""
+
+    def setUp(self):
+        self.page = home()
+        self.page.js("openPanel('wifi'); return true;")
+        for action, data in [
+            (
+                "wifi",
+                {
+                    "enabled": True,
+                    "networks": [
+                        {"ssid": "Office", "active": True, "signal": 80, "band": "5 GHz", "secure": True, "known": True}
+                    ],
+                },
+            ),
+            ("vpn", {"vpns": [{"id": "nm:x", "name": "Work", "on": True, "kind": "nm", "note": ""}]}),
+            (
+                "bt",
+                {
+                    "present": True,
+                    "on": True,
+                    "devices": [{"mac": "AA", "name": "Headphones", "paired": True, "connected": False}],
+                },
+            ),
+        ]:
+            self.page.js(f"panelData({json.dumps({'action': action, 'data': data})}); return true;")
+        self.page.wait(150)
+
+    def shown(self):
+        return self.page.js("return document.getElementById('panel').innerText;")
+
+    def test_one_tab_at_a_time(self):
+        self.assertEqual(
+            self.page.js("return [...document.querySelectorAll('.ntab')].map(t => t.textContent);"),
+            ["Wi‑Fi", "VPN", "Bluetooth"],
+        )
+        self.assertIn("Office", self.shown())
+        self.assertNotIn("Headphones", self.shown())
+        self.page.click('.ntab[data-v="bt"]')
+        self.assertIn("Headphones", self.shown())
+        self.assertNotIn("Office", self.shown())
+        self.page.click('.ntab[data-v="vpn"]')
+        self.assertIn("Work", self.shown())
+
+    def test_the_vpn_mark_opens_the_vpn_tab(self):
+        self.page.js("closePanel(); setStatus({wifi: 'on', signal: 80, vpn: {name: 'Work', app: ''}}); return true;")
+        self.page.click("#vpnBtn")
+        self.page.js(
+            f"panelData({json.dumps({'action': 'vpn', 'data': {'vpns': [{'id': 'nm:x', 'name': 'Work', 'on': True, 'kind': 'nm', 'note': ''}]}})}); return true;"
+        )
+        self.page.wait(150)
+        self.assertEqual(self.page.js("return document.querySelector('.ntab.on').dataset.v;"), "vpn")
