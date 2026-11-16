@@ -478,36 +478,59 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
 
     # --- pictures for Claude: copied into ~/Pictures/ForClaude ------------
     # The page shows its own calm picker (home/pictures.js): recent pictures from a few folders,
-    # Space for a closer look. "Other…" falls back to the system's file dialog.
+    # Space for a closer look; "Other" walks the home folder in the same picker.
     def pictures(self, m):
         action = m.get("action")
         if action == "list":
             folder = m.get("folder") or "Screenshots"
-            threading.Thread(target=self.list_pictures, args=(folder,), daemon=True).start()
+            args = (folder, m.get("path") or "")
+            threading.Thread(target=self.list_pictures, args=args, daemon=True).start()
         elif action == "add":
             self.send("picturesAdded", {"files": self.copy_for_claude(m.get("paths") or [])})
-        elif action == "other":
-            self.pick_pictures()
 
-    def list_pictures(self, name):
+    def list_pictures(self, name, path=""):
+        """One folder's pictures, newest first. "Other" walks the home folder: its folders come first."""
+        home = Path.home()
         folders = {k: v for k, v in PICTURE_FOLDERS.items() if v.is_dir()}
-        items: list[dict] = []
         folder = folders.get(name)
+        if name == "Other":
+            folder = Path(path).resolve() if path else home
+            if not (folder == home or home in folder.parents) or not folder.is_dir():
+                folder = home
+        items: list[dict] = []
+        dirs: list[dict] = []
         if folder:
             try:
                 for p in folder.iterdir():
-                    if p.suffix.lower() not in PICTURE_TYPES or p.name.startswith("."):
+                    if p.name.startswith("."):
                         continue
                     try:
                         st = p.stat()
                     except OSError:
                         continue
-                    if stat.S_ISREG(st.st_mode) and st.st_size < 40_000_000:
+                    if name == "Other" and stat.S_ISDIR(st.st_mode):
+                        dirs.append({"path": str(p), "name": p.name, "dir": True})
+                    elif p.suffix.lower() in PICTURE_TYPES and stat.S_ISREG(st.st_mode) and st.st_size < 40_000_000:
                         items.append({"path": str(p), "uri": p.as_uri(), "name": p.name, "t": st.st_mtime})
             except OSError:
                 report()
         items.sort(key=lambda e: -e["t"])
-        payload = {"folder": name, "folders": list(folders), "items": items[:240]}
+        dirs.sort(key=lambda e: e["name"].lower())
+        crumbs = []
+        if name == "Other" and folder:
+            q = folder
+            while True:
+                crumbs.append({"name": "Home" if q == home else q.name, "path": str(q)})
+                if q == home:
+                    break
+                q = q.parent
+        payload = {
+            "folder": name,
+            "path": str(folder) if name == "Other" and folder else "",
+            "crumbs": crumbs[::-1],
+            "folders": [*folders, "Other"],
+            "items": dirs + items[:400],
+        }
         GLib.idle_add(lambda: (self.send("setPictures", payload), False)[1])
 
     def copy_for_claude(self, paths):
@@ -530,19 +553,6 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             except OSError:
                 report()
         return files
-
-    def pick_pictures(self):
-        dialog = Gtk.FileChooserNative.new(
-            "Add a picture for Claude", self.window, Gtk.FileChooserAction.OPEN, "Add", "Cancel"
-        )
-        dialog.set_select_multiple(True)
-        images = Gtk.FileFilter()
-        images.set_name("Pictures")
-        images.add_mime_type("image/*")
-        dialog.add_filter(images)
-        names = dialog.get_filenames() if dialog.run() == Gtk.ResponseType.ACCEPT else []
-        dialog.destroy()
-        self.send("picturesAdded", {"files": self.copy_for_claude(names)})
 
     def menu(self, item):
         if item == "terminal":

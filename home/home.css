@@ -93,6 +93,13 @@ body.dim .stage { opacity:.08; filter:blur(3px); pointer-events:none; }
 .panel::-webkit-scrollbar { display:none; }
 .p-head { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
 .p-title { margin:0; font-size:30px; font-weight:200; letter-spacing:-.02em; }
+/* The network card's tabs: Wi‑Fi, VPN, Bluetooth. The open one is in full colour with a short red line. */
+.ntabs { display:flex; gap:26px; margin:0 0 26px; font-size:13.5px; font-weight:300; color:var(--muted); }
+.ntab { position:relative; display:flex; align-items:center; gap:8px; background:none; border:0; padding:4px 0; font:inherit;
+        color:inherit; cursor:pointer; transition:color .15s; }
+.ntab:hover, .ntab.on { color:var(--fg); }
+.ntab.on::after { content:''; position:absolute; left:0; bottom:-3px; width:14px; height:1.5px; background:var(--accent); }
+.ntab .cdot { width:5px; height:5px; border-radius:5px; background:var(--accent); }
 .p-sub { margin:6px 0 0; font-size:13px; font-weight:300; color:var(--muted); letter-spacing:.01em; }
 .p-label { display:flex; justify-content:space-between; align-items:baseline; margin:34px 0 10px;
            font-size:11px; font-weight:400; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
@@ -504,3 +511,14 @@ body.picking .stage, body.picking .hint, body.picking .menu, body.picking #quick
 .pkcap { display:flex; flex-direction:column; align-items:center; gap:4px; font-size:13px; font-weight:300; color:var(--muted); }
 .pkcap b { font-weight:400; color:var(--fg); }
 @keyframes peek { from { opacity:0; transform:scale(.97) } to { opacity:1; transform:none } }
+.pkcrumbs { display:flex; align-items:baseline; gap:10px; width:100%; max-width:1240px; margin:-8px auto 22px; font-size:13px; font-weight:300; color:var(--muted); }
+.pkcrumbs button { border:0; background:none; padding:0; font:inherit; color:var(--muted); cursor:pointer; outline:none; transition:color .15s; }
+.pkcrumbs button:hover { color:var(--fg); }
+.pkcrumbs span { color:var(--fg); }
+.pkcrumbs i { font-style:normal; opacity:.4; }
+.pk.dir .pkimg { background:none; box-shadow:inset 0 0 0 1px var(--faint); display:grid; place-items:center; color:var(--muted); transition:color .2s, outline-color .2s, transform .25s cubic-bezier(.2,.7,.2,1); }
+.pk.dir:hover .pkimg, .pk.dir.at .pkimg { color:var(--fg); }
+.pklook { position:absolute; right:10px; bottom:10px; width:28px; height:28px; border-radius:28px; display:grid; place-items:center;
+          background:color-mix(in srgb, var(--bg) 88%, transparent); color:var(--fg); opacity:0; transition:opacity .2s; cursor:zoom-in; }
+.pk:hover .pklook, .pk.at .pklook { opacity:.9; }
+.pkhint { margin-top:8px; font-size:12px; opacity:.75; }

@@ -848,6 +848,14 @@ def app_index():
         except Exception:
             report()
             continue
+    # Kūhaku's own apps can also be installed as Flatpaks (space.kuhaku.Tegami), with the same window
+    # class. The home screen pins the native ones (tegami.desktop), so an open window keeps that id
+    # and lights its pinned button instead of turning up again as an extra app.
+    for k, entry in list(index.items()):
+        if entry[0].startswith("space.kuhaku."):
+            native = index.get(entry[0].removeprefix("space.kuhaku.").removesuffix(".desktop").lower())
+            if native and not native[0].startswith("space.kuhaku."):
+                index[k] = native
     _APP_INDEX = index
     return index
 

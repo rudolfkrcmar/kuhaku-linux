@@ -25,6 +25,7 @@ function openPanel(name) {
   }
 }
 function closePanel() {
+  if (panel === 'wifi') wifi.tab = 'wifi';  // the card opens on Wi‑Fi again next time
   panel = null; clearInterval(panelTimer);
   document.body.classList.remove('dim');
   $('panel').hidden = true; $('pscrim').hidden = true;
@@ -100,6 +101,7 @@ $('panel').addEventListener('click', (e) => {
     native({ type: 'panel', action: 'vpn-switch', id: v, on: !x.on });
     if (x.kind === 'defguard') closePanel();
   }
+  if (a === 'ntab') { wifi.tab = v; wifi.open = null; renderWifi(); return; }
   if (a === 'wifi-off') { wifi.toggling = true; native({ type: 'panel', action: 'wifi-radio', on: !wifi.data?.enabled }); renderWifi(); }
   if (a === 'wifi-rescan') { wifi.scanning = true; renderWifi(); native({ type: 'panel', action: 'wifi', rescan: true }); }
   if (a === 'wifi-disconnect') native({ type: 'panel', action: 'wifi-disconnect', ssid: v });
@@ -238,7 +240,7 @@ function usageHtml(day) {
 }
 
 // Wi-Fi
-const wifi = { data: null, open: null, busy: null, note: {}, toggling: false, scanning: false };
+const wifi = { data: null, open: null, busy: null, note: {}, toggling: false, scanning: false, tab: 'wifi' };
 const bars = (sig) => `<svg width="16" height="12" viewBox="0 0 16 12">${[3, 6, 9, 12].map((h, i) =>
     `<rect x="${i * 4 + 1}" y="${12 - h}" width="2" height="${h}" rx="1" fill="currentColor" opacity="${sig > [0, 30, 55, 75][i] ? 1 : .25}"/>`).join('')}</svg>`;
 const lock = '<svg width="10" height="12" viewBox="0 0 10 12" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="1" y="5" width="8" height="6" rx="1.5"/><path d="M3 5V3.5a2 2 0 0 1 4 0V5"/></svg>';
@@ -258,11 +260,11 @@ function vpnSection() {
     (vpn.busy === x.id ? `<div class="p-wait" style="padding:6px 0 0;font-size:12px"><span class="dot"></span>${x.on ? 'Disconnecting…' : 'Connecting…'}</div>`
       : vpn.note[x.id] ? `<div class="note err">${esc(vpn.note[x.id])}</div>`
       : `<div class="note">${[x.note, x.kind === 'defguard' ? (x.on ? 'Connected · click to open' : 'Click to open') : (x.on ? 'Connected · click to disconnect' : 'Click to connect')].filter(Boolean).map(esc).join(' · ')}</div>`) + '</li>';
-  return `<div class="p-head" style="margin-top:38px"><h2 class="p-title">VPN</h2></div><ul class="nets">${vpn.data.map(row).join('')}</ul>`;
+  return `<div class="p-head"><h2 class="p-title">VPN</h2></div><ul class="nets">${vpn.data.map(row).join('')}</ul>`;
 }
 function btSection() {
   const d = bt.data, on = d && d.present ? d.on : false;
-  let h = `<div class="p-head" style="margin-top:38px"><h2 class="p-title">Bluetooth</h2>${d && d.present ? `<button class="switch${on !== bt.toggling ? ' on' : ''}" data-act="bt-power" title="Turn Bluetooth ${on ? 'off' : 'on'}"></button>` : ''}</div>`;
+  let h = `<div class="p-head"><h2 class="p-title">Bluetooth</h2>${d && d.present ? `<button class="switch${on !== bt.toggling ? ' on' : ''}" data-act="bt-power" title="Turn Bluetooth ${on ? 'off' : 'on'}"></button>` : ''}</div>`;
   if (!d) h += '<div class="p-wait" style="margin-top:26px"><span class="dot"></span>Looking…</div>';
   else if (!d.present) h += '<p class="p-sub" style="margin-top:14px">Bluetooth isn’t ready on this computer yet. Ask Claude to set it up.</p>';
   else if (!d.on) h += '<p class="p-sub" style="margin-top:14px">Bluetooth is off.</p>';
@@ -292,9 +294,20 @@ $('panel').addEventListener('click', (e) => {
   }
 });
 
+// One card under the Wi‑Fi mark, three tabs on top: Wi‑Fi, VPN (when there are any) and Bluetooth.
+function netTabs() {
+  const tabs = [['wifi', 'Wi‑Fi'], ...(vpn.data && vpn.data.length ? [['vpn', 'VPN']] : []), ['bt', 'Bluetooth']];
+  const cur = tabs.some(([k]) => k === wifi.tab) ? wifi.tab : 'wifi';
+  return '<nav class="ntabs">' + tabs.map(([k, label]) => {
+    const live = k === 'vpn' ? vpn.data.some((x) => x.on) : k === 'bt' ? (bt.data?.devices || []).some((x) => x.connected) : false;
+    return `<button class="ntab${k === cur ? ' on' : ''}" data-act="ntab" data-v="${k}">${label}${live ? '<span class="cdot"></span>' : ''}</button>`;
+  }).join('') + '</nav>';
+}
 function renderWifi() {
+  if (wifi.tab === 'vpn' && vpn.data && vpn.data.length) return showNet(netTabs() + vpnSection());
+  if (wifi.tab === 'bt') return showNet(netTabs() + btSection());
   const d = wifi.data, on = d ? d.enabled : true;
-  let h = `<div class="p-head"><h2 class="p-title">Wi‑Fi</h2><button class="switch${on !== wifi.toggling ? ' on' : ''}" data-act="wifi-off" title="Turn Wi‑Fi ${on ? 'off' : 'on'}"></button></div>`;
+  let h = netTabs() + `<div class="p-head"><h2 class="p-title">Wi‑Fi</h2><button class="switch${on !== wifi.toggling ? ' on' : ''}" data-act="wifi-off" title="Turn Wi‑Fi ${on ? 'off' : 'on'}"></button></div>`;
   if (!d) h += '<div class="p-wait" style="margin-top:26px"><span class="dot"></span>Looking for networks…</div>';
   else if (!d.enabled) h += '<p class="p-sub" style="margin-top:14px">Wi‑Fi is off.</p>';
   else {
@@ -318,8 +331,9 @@ function renderWifi() {
     });
     h += '</ul>';
   }
-  h += vpnSection();
-  h += btSection();
+  showNet(h);
+}
+function showNet(h) {
   const focused = document.activeElement?.matches?.('.pw input') ? document.activeElement.value : null;
   $('panel').innerHTML = h;
   wifi.scanning = false;

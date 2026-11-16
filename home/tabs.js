@@ -280,7 +280,8 @@ window.setAccount = ({ name, many }) => {
 };
 $('vpnBtn').addEventListener('click', () => {
   const app = $('vpnBtn').dataset.app;
-  app ? native({ type: 'panel', action: 'launch', id: app }) : openPanel('wifi');
+  if (app) return native({ type: 'panel', action: 'launch', id: app });
+  wifi.tab = 'vpn'; openPanel('wifi');
 });
 $('acctBtn').addEventListener('click', () => native({ type: 'panel', action: 'account-cycle' }));
 window.setTablet = () => {};

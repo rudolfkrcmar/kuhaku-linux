@@ -168,7 +168,11 @@ class Pictures(PageCase):
         self.page.js(
             "setPictures("
             + json.dumps(
-                {"folder": "Screenshots", "folders": ["Screenshots", "Pictures", "Downloads"], "items": self.items}
+                {
+                    "folder": "Screenshots",
+                    "folders": ["Screenshots", "Pictures", "Downloads", "Other"],
+                    "items": self.items,
+                }
             )
             + "); return true;"
         )
@@ -181,7 +185,7 @@ class Pictures(PageCase):
         self.page.wait(150)
 
     def test_opening_asks_for_recent_pictures(self):
-        self.assertIn({"type": "picture", "action": "list", "folder": "Screenshots"}, self.page.messages)
+        self.assertIn({"type": "picture", "action": "list", "folder": "Screenshots", "path": ""}, self.page.messages)
         self.assertEqual(self.page.js("return document.querySelectorAll('#picks .pk').length;"), 7)
 
     def test_choose_two_and_add(self):
@@ -206,3 +210,36 @@ class Pictures(PageCase):
         self.key("ArrowRight")
         self.key("Enter")
         self.assertIn({"type": "picture", "action": "add", "paths": ["/tmp/p1.png"]}, self.page.messages)
+
+    def test_other_walks_folders_in_the_same_picker(self):
+        self.page.click('#picks [data-folder="Other"]')
+        self.assertIn({"type": "picture", "action": "list", "folder": "Other", "path": ""}, self.page.messages)
+        home_dir = {
+            "folder": "Other",
+            "path": "/home/someone",
+            "crumbs": [{"name": "Home", "path": "/home/someone"}],
+            "folders": ["Screenshots", "Other"],
+            "items": [{"path": "/home/someone/Documents", "name": "Documents", "dir": True}, *self.items[:2]],
+        }
+        self.page.js("setPictures(" + json.dumps(home_dir) + "); return true;")
+        self.page.wait(200)
+        self.assertLooksLike("pictures-other-day", tolerance=0.01)
+        self.key("Enter")
+        self.assertIn(
+            {"type": "picture", "action": "list", "folder": "Other", "path": "/home/someone/Documents"},
+            self.page.messages,
+        )
+        self.assertEqual(self.page.js("return document.getElementById('picks').hidden;"), False)
+
+    def test_space_after_clicking_a_tab_still_looks_closer(self):
+        self.page.click('#picks [data-folder="Pictures"]')
+        self.page.js(
+            "setPictures("
+            + json.dumps({"folder": "Pictures", "folders": ["Pictures"], "items": self.items})
+            + "); return true;"
+        )
+        self.page.wait(200)
+        self.key(" ")
+        self.assertEqual(self.page.js("return document.getElementById('peek').hidden;"), False)
+        self.key("Enter")
+        self.assertIn({"type": "picture", "action": "add", "paths": ["/tmp/p0.png"]}, self.page.messages)
