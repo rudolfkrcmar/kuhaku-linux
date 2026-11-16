@@ -23,7 +23,7 @@ from gi.repository import Gdk, GLib, Gtk, Pango, PangoCairo
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
 # Outside apps that should open filling the screen, as Kūhaku's own apps do (WM_CLASS parts).
-FILL_CLASSES = ("com.anthropic.Claude", "\"slack\"", "io.tangencylabs.solidcraft", "\"Spotify\"", "\"defguard-client\"")
+FILL_CLASSES = ("com.anthropic.Claude", "\"slack\"", "io.tangencylabs.solidcraft", "\"Spotify\"")
 
 H = 34
 HERE = Path(__file__).resolve().parent
