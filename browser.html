@@ -98,6 +98,23 @@
   .panel .dev.on { color:var(--fg); }
   .panel .dev.on::after { content:''; position:absolute; left:12px; right:12px; bottom:3px; height:1.5px; background:var(--accent); }
 
+  /* Developer: the tools' toggle and side, and comments on the page. */
+  .tool.icon { width:30px; padding:0; }
+  .tool.on { color:var(--accent); }
+  .tool.on:hover { color:var(--accent); }
+  .tool .num { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--accent); color:#fff;
+               font-size:11px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; }
+  .panel.notes { flex-direction:column; flex-wrap:nowrap; gap:2px; max-height:220px; padding-left:40px; }
+  .panel .nt { justify-content:flex-start; gap:10px; min-height:30px; padding:4px 12px; border-radius:8px;
+               font-size:13px; font-weight:300; text-align:left; width:100%; }
+  .panel .nt:hover { background:var(--faint); }
+  .panel .nt b { font-weight:500; color:var(--accent); min-width:14px; }
+  .panel .nt small { opacity:.6; font-size:11px; margin-left:auto; padding-left:14px; white-space:nowrap; }
+  .panel .nt.else { opacity:.75; }
+  .panel .acts { display:flex; gap:18px; padding:8px 12px 2px; }
+  .panel .acts button { font-size:13px; }
+  .panel .acts .go { color:var(--accent); }
+
   /* Minimise and close live in Kūhaku's bar at the top of the screen; one of each is enough. */
   #bMin, #bClose, #minimize, #quit { display:none !important; }
 </style>
@@ -113,6 +130,10 @@
     <div class="note" id="note" hidden></div>
     <button class="tool" id="stopped" hidden title="What this site tried to track"></button>
     <button class="tool" id="device" hidden title="Simulate a device"></button>
+    <button class="tool icon" id="tools" hidden title="Show or hide the developer tools"></button>
+    <button class="tool icon" id="dock" hidden title="Tools under the page or beside it"></button>
+    <button class="tool" id="pick" hidden title="Comment on something on this page (Ctrl+Alt+C)"></button>
+    <button class="tool" id="notes" hidden title="Comments on this site"></button>
     <span class="divide" id="divide" hidden></span>
     <div class="modes" id="modes">
       <button data-m="normal" title="Normal: your everyday tabs"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round"><path class="hot" d="M6.2 5.35h11.6"/><path d="M7.2 9.2h9.6v9.6H7.2z" stroke="currentColor"/></svg><span>Normal</span></button>
@@ -149,6 +170,11 @@
     tablet: svg('<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M11 17.6h2"/>'),
     laptop: svg('<rect x="5.5" y="5.5" width="13" height="9" rx="1"/><path d="M3.5 18h17"/>'),
     full: svg('<rect x="3.5" y="5" width="17" height="12" rx="1.2"/><path d="M9 20h6M12 17v3"/>'),
+    toolsOpen: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 13.5h17"/><path d="M7 16.5h4"/>'),
+    toolsShut: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 17h17"/>'),
+    dockBottom: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M14.5 4.5v15"/>'),
+    dockRight: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 13.5h17"/>'),
+    note: svg('<path d="M5 5.5h14v10H11l-4 3.5v-3.5H5z"/><path d="M9 10.5h6"/>'),
   };
   // The bar grows only by what it shows: the tab row, the list of stopped trackers.
   function fit() {
@@ -203,13 +229,36 @@
     $('device').hidden = m !== 'developer';
     const dv = (s.devices || []).find((x) => x.name === s.device);
     if (m === 'developer' && dv) $('device').innerHTML = ICON[dv.kind] + esc(dv.kind === 'full' ? 'Full window' : dv.name) + (s.size ? ` <span class="dim">${esc(s.size)}</span>` : '');
+    // Developer: the tools folded or shown (and on which side), and comments.
+    const dev = m === 'developer';
+    $('tools').hidden = !dev;
+    $('tools').innerHTML = s.tools ? ICON.toolsOpen : ICON.toolsShut;
+    $('tools').title = s.tools ? 'Hide the developer tools' : 'Show the developer tools';
+    $('dock').hidden = !dev || !s.tools;
+    // The icon shows where the tools would go next.
+    $('dock').innerHTML = s.dock === 'right' ? ICON.dockRight : ICON.dockBottom;
+    $('dock').title = s.dock === 'right' ? 'Tools under the page' : 'Tools beside the page';
+    $('pick').hidden = !dev;
+    $('pick').classList.toggle('on', !!s.picking);
+    $('pick').innerHTML = ICON.note + (s.picking ? 'Click what to change <span class="dim">Esc</span>' : 'Comment');
+    const notes = s.notes || [];
+    $('notes').hidden = !dev || (!notes.length && !s.handed);
+    $('notes').innerHTML = s.handed ? `<span class="dim">${esc(s.handed)}</span>` : `<span class="num">${notes.length}</span><span class="dim">open</span>`;
     $('divide').hidden = m === 'normal';
+    if (panel === 'notes' && (!dev || !notes.length)) panel = null;
     if ((panel === 'trackers' && m !== 'private') || (panel === 'devices' && m !== 'developer')) panel = null;
     $('stopped').classList.toggle('open', panel === 'trackers');
     $('device').classList.toggle('open', panel === 'devices');
     const pn = $('panel');
     pn.hidden = !panel;
     pn.classList.toggle('devices', panel === 'devices');
+    pn.classList.toggle('notes', panel === 'notes');
+    $('notes').classList.toggle('open', panel === 'notes');
+    if (panel === 'notes') pn.innerHTML = notes.map((n, i) => {
+      let where = '';
+      try { if (!n.here) where = new URL(n.path).pathname; } catch (e) { where = n.path; }
+      return `<button class="nt${n.here ? '' : ' else'}" data-note="${esc(n.id)}"><b>${i + 1}</b><span>${esc(n.text.length > 110 ? n.text.slice(0, 110) + '…' : n.text)}</span>${where ? `<small>${esc(where)}</small>` : ''}</button>`;
+    }).join('') + `<div class="acts"><button class="go" id="handOff">Hand ${notes.length === 1 ? 'it' : 'all ' + notes.length} to Claude</button></div>`;
     if (panel === 'trackers') pn.innerHTML = st.length
       ? st.map((t) => `<span><span class="h">${esc(t.host)}</span> · ${esc(t.how)}</span>`).join('')
       : '<span>Nothing on this site tried to follow you.</span>';
@@ -262,9 +311,16 @@
   $('modes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send({ type: 'mode', mode: b.dataset.m }); });
   $('stopped').addEventListener('click', () => { panel = panel === 'trackers' ? null : 'trackers'; update(state); });
   $('device').addEventListener('click', () => { panel = panel === 'devices' ? null : 'devices'; update(state); });
+  $('tools').addEventListener('click', () => send({ type: 'tools' }));
+  $('dock').addEventListener('click', () => send({ type: 'dock' }));
+  $('pick').addEventListener('click', () => send({ type: 'pick' }));
+  $('notes').addEventListener('click', () => { panel = panel === 'notes' ? null : 'notes'; update(state); });
   $('panel').addEventListener('click', (e) => {
     const b = e.target.closest('[data-dev]');
     if (b) { panel = null; send({ type: 'device', name: b.dataset.dev }); }
+    const n = e.target.closest('[data-note]');
+    if (n) send({ type: 'note', id: n.dataset.note });
+    if (e.target.closest('#handOff')) { panel = null; send({ type: 'handOff' }); }
   });
   $('plus').addEventListener('click', () => send({ type: 'newTab' }));
   $('quit').addEventListener('click', () => send({ type: 'quit' }));

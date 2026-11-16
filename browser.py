@@ -15,8 +15,11 @@ Three modes in the one window, switched on the bar:
   Private    (Ctrl+Shift+N, `mado --private`) its own tabs on an off-the-record profile:
              nothing is kept, not cookies, history, tabs or site permissions; closing the
              last private tab forgets all of it. The bar lists the trackers it stopped.
-  Developer  (F12, Ctrl+Shift+I) the everyday tabs with developer tools under the page
-             and phones and tablets to simulate.
+  Developer  (F12, Ctrl+Shift+I) the everyday tabs with developer tools under the page (or
+             beside it; hidden and shown from the bar), phones and tablets to simulate, and
+             comments: point at anything on a page (Ctrl+Alt+C) and leave a note for Claude.
+             The notes are kept in ~/.local/state/kuhaku/mado-comments.json (browser_notes.py);
+             the bar hands a site's open ones to Claude on the home screen.
 """
 
 import base64
@@ -58,7 +61,7 @@ os.environ.setdefault(
     ),
 )
 
-from PyQt6.QtCore import QFile, QIODevice, Qt, QTimer, QUrl
+from PyQt6.QtCore import QFile, QIODevice, QRect, Qt, QTimer, QUrl
 from PyQt6.QtGui import QColor, QDesktopServices, QIcon, QKeySequence, QShortcut
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from PyQt6.QtWebChannel import QWebChannel
@@ -73,6 +76,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QSplitter, QStackedWidget, QVBoxLayout, QWidget
 
 import browser_menu
+import browser_notes
 from browser_web import (
     BRIDGE_SCRIPT,
     DEVICES,
@@ -112,6 +116,11 @@ class Browser:
         self.asking = None
         self.tls_pending = {}
         self.chrome_css = CHROME_HEIGHT
+        self.notes = browser_notes.Store()
+        self.picking = False  # pointing at things on the page to comment on them
+        self.tools_open = True  # developer tools shown under (or beside) the page
+        self.dock = "bottom"
+        self.handed = None  # a short word on the bar after the notes went to Claude
         for d in (DATA, CACHE, STATE.parent):
             d.mkdir(parents=True, exist_ok=True)
         self.night = theme() == "night"
@@ -191,6 +200,8 @@ class Browser:
         script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         script.setRunsOnSubFrames(True)
         p.scripts().insert(script)
+        if not private:
+            p.scripts().insert(browser_notes.script())  # comments, only ever shown in developer mode
         return p
 
     def set_scheme(self):
@@ -275,6 +286,7 @@ class Browser:
             "F12": self.toggle_developer,
             "Ctrl+Shift+I": self.toggle_developer,
             "Ctrl+Alt+I": self.toggle_developer,
+            "Ctrl+Alt+C": lambda: self.set_picking(not self.picking),
             "Ctrl+U": lambda: self.current and self.new_tab("view-source:" + self.current.url().toString()),
         }
         for i in range(1, 10):
@@ -294,6 +306,9 @@ class Browser:
         self.stopped_timer = QTimer()
         self.stopped_timer.timeout.connect(self.watch_stopped)
         self.stopped_timer.start(1000)
+        self.notes_timer = QTimer()
+        self.notes_timer.timeout.connect(self.watch_notes)
+        self.notes_timer.start(1500)
 
     # --- modes ------------------------------------------------------------
     def set_mode(self, mode):
@@ -318,6 +333,7 @@ class Browser:
         )
         if mode == "developer":
             self.developer(True)
+        self.sync_notes()
         self.push()
 
     def toggle_developer(self):
@@ -327,15 +343,17 @@ class Browser:
         if on:
             if not self.devtools:
                 self.devtools = QWebEngineView()
-                self.devtools.setPage(QWebEnginePage(self.profile("normal"), self.devtools))
+                tools = QWebEnginePage(self.profile("normal"), self.devtools)
+                # The tools' own close button folds them away; developer mode stays.
+                tools.windowCloseRequested.connect(lambda: self.set_tools(False))
+                self.devtools.setPage(tools)
                 self.split.addWidget(self.devtools)
-            self.devtools.show()
-            h = self.split.height()
-            self.split.setSizes([h * 3 // 5, h - h * 3 // 5])
             if self.current:
                 self.current.page().setDevToolsPage(self.devtools.page())
+            self.set_tools(self.tools_open)
             self.emulate()
         else:
+            self.set_picking(False, push=False)
             if self.devtools:
                 self.devtools.hide()
             if self.current:
@@ -344,6 +362,123 @@ class Browser:
             self.stack.setContentsMargins(0, 0, 0, 0)
             if self.current:
                 self.current.setFocus()
+
+    def set_tools(self, on):
+        """Developer tools shown or folded away; the page keeps the room when they are."""
+        self.tools_open = bool(on)
+        if self.mode != "developer" or not self.devtools:
+            return
+        if not on:
+            self.devtools.hide()
+            if self.current:
+                self.current.setFocus()
+        else:
+            self.split.setOrientation(Qt.Orientation.Horizontal if self.dock == "right" else Qt.Orientation.Vertical)
+            self.devtools.show()
+            n = self.split.width() if self.dock == "right" else self.split.height()
+            page = n * 3 // 5 if self.dock == "bottom" else n * 13 // 20
+            self.split.setSizes([page, n - page])
+        QTimer.singleShot(0, self.fit_device)
+        self.push()
+
+    def set_dock(self, side):
+        if side in ("bottom", "right"):
+            self.dock = side
+            self.set_tools(True)
+
+    # --- comments ---------------------------------------------------------
+    def set_picking(self, on, push=True):
+        v = self.current
+        on = bool(on) and self.mode == "developer" and v is not None and v.url().scheme() in ("http", "https", "file")
+        self.picking = on
+        if on and self.current:
+            self.current.setFocus()
+        self.sync_notes()
+        if push:
+            self.push()
+
+    def sync_notes(self, view=None):
+        """Tell a page (the one in front) its open notes, and whether it is being commented on."""
+        v = view or self.current
+        if not v or v in self.sets["private"]:
+            return
+        dev = self.mode == "developer" and v is self.current
+        notes = [
+            {"id": n["id"], "text": n.get("text", ""), "element": n.get("element", {})}
+            for n in self.notes.open_on(v.url().toString())
+        ]
+        state = {"on": dev, "picking": dev and self.picking, "night": self.night, "notes": notes if dev else []}
+        v.page().runJavaScript(f"window.madoNotes && madoNotes.set({json.dumps(state)})", browser_notes.WORLD)
+
+    def view_of(self, page):
+        return next((t for t in self.sets["normal"] if t.page() is page), None)
+
+    def on_note(self, page, msg):
+        view, kind = self.view_of(page), msg.get("type")
+        if not view:
+            return
+        if kind == "ready":
+            if view is self.current and self.mode == "developer":
+                self.sync_notes(view)
+            return
+        if kind == "pick":
+            self.set_picking(bool(msg.get("on")))
+            return
+        if kind == "save" and msg.get("text"):
+            n = self.notes.add(msg, self.device)
+            # A picture of the spot, outline and all, for Claude to look at.
+            QTimer.singleShot(90, lambda: self.shoot(view, n, msg.get("rect"), msg.get("viewport")))
+            return
+        if kind == "edit":
+            self.notes.change(msg.get("id"), text=str(msg.get("text", ""))[:4000])
+        elif kind == "done":
+            self.notes.change(msg.get("id"), status="done", reply="Done by hand.")
+        elif kind == "delete":
+            self.notes.delete(msg.get("id"))
+        self.sync_notes(view)
+        self.push()
+
+    def shoot(self, view, note, rect, viewport):
+        try:
+            if rect and viewport and viewport[0]:
+                k = view.width() / viewport[0]
+                x, y, w, h = (v * k for v in rect)
+                pad = 40
+                r = QRect(int(x - pad), int(y - pad), int(w + 2 * pad), int(h + 2 * pad)).intersected(view.rect())
+                pic = view.grab(r if r.width() > 8 and r.height() > 8 else view.rect())
+                browser_notes.SHOTS.mkdir(parents=True, exist_ok=True)
+                path = browser_notes.SHOTS / f"{note['id']}.png"
+                if pic.save(str(path), "PNG"):
+                    self.notes.change(note["id"], shot=str(path))
+        except Exception:
+            report()
+        view.page().runJavaScript("window.madoNotes && madoNotes.saved()", browser_notes.WORLD)
+        self.sync_notes(view)
+        self.push()
+
+    def hand_off(self):
+        v = self.current
+        if not v:
+            return
+        url = v.url().toString()
+        notes = self.notes.open_on_site(url)
+        if not notes:
+            return
+        ok = browser_notes.send_home(browser_notes.hand_off_text(notes, url))
+        self.handed = "Claude has them" if ok else "Kūhaku is not listening"
+        self.set_picking(False, push=False)
+        self.push()
+        QTimer.singleShot(5000, self.clear_handed)
+
+    def clear_handed(self):
+        self.handed = None
+        self.push()
+
+    def watch_notes(self):
+        # Claude marks notes done in the file; their pins go as soon as it does.
+        if self.notes.fresh() and self.mode == "developer":
+            self.sync_notes()
+            self.push()
 
     def set_device(self, name):
         if name in DEVICES:
@@ -466,6 +601,8 @@ class Browser:
         view = QWebEngineView()
         page = Page(self, self.profile(key))
         page.setBackgroundColor(self.bg())
+        if key == "normal":
+            browser_notes.attach(self, page)
         view.setPage(page)
         # Right click: Kūhaku's own menu, not Chromium's.
         view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -485,13 +622,15 @@ class Browser:
 
         def finished(_ok):
             view.loading, view.progress = False, 1.0
+            if view is self.current and self.mode == "developer":
+                self.sync_notes(view)
             self.changed(view)
 
         view.loadStarted.connect(started)
         view.loadProgress.connect(progress)
         view.loadFinished.connect(finished)
         view.titleChanged.connect(lambda _t: self.push())
-        view.urlChanged.connect(lambda _u: (self.canvas(view), self.changed(view)))
+        view.urlChanged.connect(lambda _u: (self.canvas(view), self.sync_notes(view), self.changed(view)))
         page.linkHovered.connect(lambda link: self.js(f"window.hover && hover({json.dumps(link or '')})"))
         page.windowCloseRequested.connect(lambda: self.close_tab(view))
         page.fullScreenRequested.connect(self.on_fullscreen)
@@ -543,6 +682,9 @@ class Browser:
         self.show()
 
     def switch(self, view):
+        old = self.current
+        if old is not view:
+            self.picking = False
         if self.current is not view and self.mode == "developer" and self.devtools:
             if self.current is not None:
                 try:
@@ -553,6 +695,9 @@ class Browser:
         self.current = view
         self.stack.setCurrentWidget(view)
         view.setFocus()
+        if old is not view and old in self.sets["normal"]:
+            self.sync_notes(old)
+        self.sync_notes(view)
         if self.mode == "developer" and (not self.session or getattr(self, "session_view", None) is not view):
             self.emulate()
         self.push()
@@ -661,6 +806,15 @@ class Browser:
                 for n, d in DEVICES.items()
             ]
             state["device"] = self.device
+            state["tools"] = self.tools_open
+            state["dock"] = self.dock
+            state["picking"] = self.picking
+            state["handed"] = self.handed
+            here = browser_notes.page_key(uri)
+            state["notes"] = [
+                {"id": n["id"], "text": n.get("text", ""), "here": n.get("page") == here, "path": n.get("page", "")}
+                for n in self.notes.open_on_site(uri)
+            ]
             state["size"] = f"{size[0]} × {size[1]}" if size else ""
         self.js(f"window.update && update({json.dumps(state)})")
 
@@ -697,6 +851,23 @@ class Browser:
             self.set_mode(msg.get("mode", "normal"))
         elif kind == "device":
             self.set_device(msg.get("name", ""))
+        elif kind == "tools":
+            self.set_tools(not self.tools_open)
+        elif kind == "dock":
+            self.set_dock("right" if self.dock == "bottom" else "bottom")
+        elif kind == "pick":
+            self.set_picking(not self.picking)
+        elif kind == "handOff":
+            self.hand_off()
+        elif kind == "note" and v:
+            n = next((n for n in self.notes.notes if n["id"] == msg.get("id")), None)
+            if n and n.get("page") != browser_notes.page_key(v.url().toString()):
+                v.load(QUrl(n.get("url") or n.get("page")))
+            elif n:
+                v.page().runJavaScript(
+                    f"window.madoNotes && madoNotes.reveal({json.dumps(n['id'])})", browser_notes.WORLD
+                )
+                v.setFocus()
         elif kind == "find" and v:
             text = msg.get("text", "")
             F = QWebEnginePage.FindFlag

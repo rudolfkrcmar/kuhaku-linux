@@ -122,6 +122,7 @@ class Static(unittest.TestCase):
         for page, module in (
             ("miru/miru.html", "miru.py"),
             ("browser/tls.html", "browser_web.py"),
+            ("browser/notes.js", "browser_notes.py"),
             ("browser/tls-webkit.html", "browser_webkit.py"),
             ("mail/google-signed-in.html", "tegami_google.py"),
         ):
