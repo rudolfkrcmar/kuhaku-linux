@@ -43,6 +43,9 @@ TRIGGER = STATE_DIR / "cloud.now"  # touched to ask for a sync now
 LOCK = STATE_DIR / "cloud.lock"
 LOG = STATE_DIR / "cloud.log"
 EVERY = 300  # seconds between rounds
+# The most one folder may take in a round. A big first upload goes on next round where it stopped,
+# so it never keeps the other folders waiting for hours.
+SLICE = 240
 MIN_RCLONE = (1, 66)  # bisync's --recover, --resilient, --conflict-resolve
 
 # The kinds of cloud. An account is one kind plus a number (see account()).
@@ -447,7 +450,12 @@ def _set(key: str, **kv: Any) -> None:
     _save(STATUS, st)
 
 
-def sync_folder(key: str, folder: str, first: bool) -> None:
+def _cut_off(r: subprocess.CompletedProcess[str]) -> bool:
+    return "max transfer duration reached" in r.stderr
+
+
+def sync_folder(key: str, folder: str, first: bool) -> bool:
+    """One bisync of a folder. False if its time slice ran out first: it goes on next round."""
     p = acct(key)
     local = p["local"] / folder
     local.mkdir(parents=True, exist_ok=True)
@@ -468,16 +476,27 @@ def sync_folder(key: str, folder: str, first: bool) -> None:
         "--conflict-loser",
         "num",
         "-v",
+        "--max-duration",
+        f"{SLICE}s",
+        "--cutoff-mode",
+        "cautious",
     ]
     # The first run (or a recovery) only copies, never deletes: whatever is newer wins.
     r = rclone(*cmd, *(["--resync", "--resync-mode", "newer"] if first else []))
     _log(f"[{key}] {folder}: exit {r.returncode}\n{r.stderr[-4000:]}")
+    if _cut_off(r):
+        # Stopped on time, not on a fault: --recover (or the next --resync) carries on from here.
+        _log(f"[{key}] {folder}: time slice used, goes on next round")
+        return False
     if r.returncode != 0 and not first and re.search(r"resync", r.stderr, re.I):
         r = rclone(*cmd, "--resync", "--resync-mode", "newer")
         _log(f"[{key}] {folder} (resync): exit {r.returncode}\n{r.stderr[-4000:]}")
+        if _cut_off(r):
+            return False
     if r.returncode != 0:
         errs = [ln for ln in r.stderr.splitlines() if "ERROR" in ln or "NOTICE" in ln]
         raise RuntimeError((errs or r.stderr.strip().splitlines() or ["sync failed"])[-1][-160:])
+    return True
 
 
 def sync_all() -> None:
@@ -490,8 +509,8 @@ def sync_all() -> None:
         ready, error = set(status(key).get("ready", [])), None
         for folder in chosen:
             try:
-                sync_folder(key, folder, folder not in ready)
-                ready.add(folder)
+                if sync_folder(key, folder, folder not in ready):
+                    ready.add(folder)
             except Exception as e:
                 error = f"{folder}: {e}"
                 _log(f"[{key}] {folder}: {e}")

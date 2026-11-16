@@ -240,6 +240,24 @@ class SyncLogic(KumoCase):
         self.assertIn("--drive-skip-gdocs", first.args)
         self.assertIn("--resync", second.args)
 
+    def test_time_slice_cut_off_is_not_a_failure(self):
+        err = "ERROR : Cancelling sync due to fatal error: max transfer duration reached as set by --max-duration"
+        with mock.patch.object(kumo, "rclone", return_value=fake_completed(stderr=err, returncode=7)) as rc:
+            self.assertFalse(kumo.sync_folder("dropbox", "Work", False))
+        self.assertEqual(rc.call_count, 1)  # no full --resync after a cut-off
+        self.assertIn("--max-duration", rc.call_args.args)
+        with mock.patch.object(kumo, "rclone", return_value=fake_completed(stderr=err, returncode=0)):
+            self.assertFalse(kumo.sync_folder("dropbox", "Work", True))
+
+    def test_sync_all_cut_off_first_run_stays_unready(self):
+        self.remotes("dropbox")
+        self.choices({"dropbox": {"folders": ["Big", "Small"]}})
+        with mock.patch.object(kumo, "sync_folder", side_effect=lambda k, f, first: f != "Big"):
+            kumo.sync_all()
+        st = json.loads(kumo.STATUS.read_text())
+        self.assertEqual(st["dropbox"]["ready"], ["Small"])
+        self.assertEqual(st["dropbox"]["state"], "idle")
+
     def test_failure_raises_last_error_line(self):
         err = "INFO : x\nERROR : first\nNOTICE : something\nERROR : the real problem\nmore"
         with mock.patch.object(kumo, "rclone", return_value=fake_completed(stderr=err, returncode=1)):
@@ -255,6 +273,7 @@ class SyncLogic(KumoCase):
             calls.append((key, folder, first))
             if folder == "B":
                 raise RuntimeError("offline")
+            return True
 
         with mock.patch.object(kumo, "sync_folder", side_effect=fake):
             kumo.sync_all()
