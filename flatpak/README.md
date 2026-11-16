@@ -15,3 +15,14 @@ Next, in this order: Kiroku, Kansei, Tsukuru (needs VTE for GTK 4), Mado.
 Tools that belong to the computer, not the sandbox, run on the host through flatpak-spawn:
 Claude Code for Tegami (tegami/claude.sh), udisksctl for Miru (common/host.sh). Cloud folders
 (Kumo, rclone) are not in the Flatpak yet.
+
+## Releasing one app
+
+Each app has its own GitHub release, tagged `<app>-<version>` (tegami-0.4.0, miru-0.4.0), with the
+bundle attached. Never mark it Latest: "Latest" is Kūhaku's, and the website's download links rely on it.
+
+    flatpak-builder --force-clean --repo=REPO BUILD flatpak/tegami/space.kuhaku.Tegami.yml
+    flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo REPO space.kuhaku.Tegami.flatpak space.kuhaku.Tegami
+    gh release create tegami-0.4.1 --latest=false --title "Tegami 0.4.1" space.kuhaku.Tegami.flatpak
+
+Then raise the version in the metainfo file, and in ALONE_DL in the website's tools/build.py.
