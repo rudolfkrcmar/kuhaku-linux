@@ -1,8 +1,11 @@
 """The home screen's page, used like a person would: ask, see the answer, tabs, day and night."""
 
 import json
+from datetime import datetime
 
-from uitests.harness import Page, PageCase
+from uitests.harness import ROOT, Page, PageCase
+
+T = datetime(2026, 11, 12, 9, 41).timestamp()  # the moment the harness freezes the clock at
 
 
 def home(theme="day"):
@@ -144,3 +147,62 @@ class FirstStart(PageCase):
         self.page.click("[data-wel='done']")
         self.assertTrue(self.sent("welcome-done"))
         self.assertEqual(self.page.js("return document.getElementById('page').hidden;"), True)
+
+
+class Pictures(PageCase):
+    """The picture button opens Kūhaku's own picker: choose, look closer with Space, add with Enter."""
+
+    def setUp(self):
+        self.page = home()
+        shots = ROOT / "uitests" / "shots"
+        self.items = [
+            {
+                "path": f"/tmp/p{i}.png",
+                "uri": (shots / "home-day.png").as_uri(),
+                "name": f"Screenshot {i}.png",
+                "t": T - i * 5000,
+            }
+            for i in range(7)
+        ]
+        self.page.js("document.getElementById('pic').click(); return true;")
+        self.page.js(
+            "setPictures("
+            + json.dumps(
+                {"folder": "Screenshots", "folders": ["Screenshots", "Pictures", "Downloads"], "items": self.items}
+            )
+            + "); return true;"
+        )
+        self.page.wait(300)
+
+    def key(self, key):
+        self.page.js(
+            f"window.dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(key)}, bubbles: true, cancelable: true}})); return true;"
+        )
+        self.page.wait(150)
+
+    def test_opening_asks_for_recent_pictures(self):
+        self.assertIn({"type": "picture", "action": "list", "folder": "Screenshots"}, self.page.messages)
+        self.assertEqual(self.page.js("return document.querySelectorAll('#picks .pk').length;"), 7)
+
+    def test_choose_two_and_add(self):
+        self.key("x")
+        self.key("ArrowRight")
+        self.key("x")
+        self.assertLooksLike("pictures-day", tolerance=0.01)
+        self.key("Enter")
+        self.assertIn({"type": "picture", "action": "add", "paths": ["/tmp/p0.png", "/tmp/p1.png"]}, self.page.messages)
+        self.assertEqual(self.page.js("return document.getElementById('picks').hidden;"), True)
+
+    def test_space_looks_closer_and_escape_steps_back(self):
+        self.key(" ")
+        self.assertEqual(self.page.js("return document.getElementById('peek').hidden;"), False)
+        self.key("Escape")
+        self.assertEqual(self.page.js("return document.getElementById('peek').hidden;"), True)
+        self.assertEqual(self.page.js("return document.getElementById('picks').hidden;"), False)
+        self.key("Escape")
+        self.assertEqual(self.page.js("return document.getElementById('picks').hidden;"), True)
+
+    def test_enter_without_choosing_adds_the_one_in_view(self):
+        self.key("ArrowRight")
+        self.key("Enter")
+        self.assertIn({"type": "picture", "action": "add", "paths": ["/tmp/p1.png"]}, self.page.messages)

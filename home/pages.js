@@ -1,5 +1,5 @@
 // Pages: Apps and Settings, then the start of everything.
-// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages.
+// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, pictures.
 // ---- Pages: Apps and Settings -------------------------------------------
 let page = null, appList = null, prefs = null, dragging = null, appQuery = '';
 function openPage(name, section) {

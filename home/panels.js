@@ -1,5 +1,5 @@
 // Panels from the top bar: calendar, Claude usage, Wi-Fi, Bluetooth, battery, notifications.
-// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages.
+// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, pictures.
 // ---- Panels: calendar, Wi-Fi, battery -----------------------------------
 let panel = null, panelTimer;
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

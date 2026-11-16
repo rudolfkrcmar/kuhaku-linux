@@ -469,37 +469,72 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         self.send("setRecording", True)
 
     # --- pictures for Claude: copied into ~/Pictures/ForClaude ------------
+    # The page shows its own calm picker (home/pictures.js): recent pictures from a few folders,
+    # Space for a closer look. "Other…" falls back to the system's file dialog.
+    def pictures(self, m):
+        action = m.get("action")
+        if action == "list":
+            folder = m.get("folder") or "Screenshots"
+            threading.Thread(target=self.list_pictures, args=(folder,), daemon=True).start()
+        elif action == "add":
+            self.send("picturesAdded", {"files": self.copy_for_claude(m.get("paths") or [])})
+        elif action == "other":
+            self.pick_pictures()
+
+    def list_pictures(self, name):
+        folders = {k: v for k, v in PICTURE_FOLDERS.items() if v.is_dir()}
+        items: list[dict] = []
+        folder = folders.get(name)
+        if folder:
+            try:
+                for p in folder.iterdir():
+                    if p.suffix.lower() not in PICTURE_TYPES or p.name.startswith("."):
+                        continue
+                    try:
+                        st = p.stat()
+                    except OSError:
+                        continue
+                    if stat.S_ISREG(st.st_mode) and st.st_size < 40_000_000:
+                        items.append({"path": str(p), "uri": p.as_uri(), "name": p.name, "t": st.st_mtime})
+            except OSError:
+                report()
+        items.sort(key=lambda e: -e["t"])
+        payload = {"folder": name, "folders": list(folders), "items": items[:240]}
+        GLib.idle_add(lambda: (self.send("setPictures", payload), False)[1])
+
+    def copy_for_claude(self, paths):
+        inbox = Path.home() / "Pictures" / "ForClaude"
+        inbox.mkdir(parents=True, exist_ok=True)
+        files = []
+        for name in paths:
+            src = Path(name)
+            if not src.is_file() or src.suffix.lower() not in PICTURE_TYPES:
+                continue
+            if src.parent == inbox:
+                files.append(str(src).replace(str(Path.home()), "~", 1))
+                continue
+            dest, n = inbox / src.name, 2
+            while dest.exists():
+                dest, n = inbox / f"{src.stem} {n}{src.suffix}", n + 1
+            try:
+                shutil.copy2(src, dest)
+                files.append(str(dest).replace(str(Path.home()), "~", 1))
+            except OSError:
+                report()
+        return files
+
     def pick_pictures(self):
         dialog = Gtk.FileChooserNative.new(
             "Add a picture for Claude", self.window, Gtk.FileChooserAction.OPEN, "Add", "Cancel"
         )
         dialog.set_select_multiple(True)
-        shots = Path.home() / "Pictures" / "Screenshots"
-        if shots.is_dir():
-            dialog.set_current_folder(str(shots))
         images = Gtk.FileFilter()
         images.set_name("Pictures")
         images.add_mime_type("image/*")
         dialog.add_filter(images)
-        files = []
-        if dialog.run() == Gtk.ResponseType.ACCEPT:
-            inbox = Path.home() / "Pictures" / "ForClaude"
-            inbox.mkdir(parents=True, exist_ok=True)
-            for name in dialog.get_filenames():
-                src = Path(name)
-                if src.parent == inbox:
-                    files.append(str(src).replace(str(Path.home()), "~", 1))
-                    continue
-                dest, n = inbox / src.name, 2
-                while dest.exists():
-                    dest, n = inbox / f"{src.stem} {n}{src.suffix}", n + 1
-                try:
-                    shutil.copy2(src, dest)
-                    files.append(str(dest).replace(str(Path.home()), "~", 1))
-                except OSError:
-                    pass
+        names = dialog.get_filenames() if dialog.run() == Gtk.ResponseType.ACCEPT else []
         dialog.destroy()
-        self.send("picturesAdded", {"files": files})
+        self.send("picturesAdded", {"files": self.copy_for_claude(names)})
 
     def menu(self, item):
         if item == "terminal":
@@ -654,6 +689,16 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         Gtk.main_quit()
 
 
+# Where the picture picker looks, in its order, and what it shows.
+PICTURE_FOLDERS = {
+    "Screenshots": Path.home() / "Pictures" / "Screenshots",
+    "Pictures": Path.home() / "Pictures",
+    "Downloads": Path.home() / "Downloads",
+    "Desktop": Path.home() / "Desktop",
+}
+PICTURE_TYPES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"}
+
+
 # What the page may say (window.webkit.messageHandlers.kuhaku), and who listens.
 MESSAGES = {
     "ask": lambda k, m: k.ask(m.get("text", ""), voice=bool(m.get("voice"))),
@@ -662,7 +707,7 @@ MESSAGES = {
     "tab": lambda k, m: k.tab_action(m),
     "menu": lambda k, m: k.menu(m.get("id")),
     "dictate": lambda k, m: k.dictate(m.get("on")),
-    "picture": lambda k, m: k.pick_pictures(),
+    "picture": lambda k, m: k.pictures(m),
     "stopRecording": lambda k, m: k.stop_recording(),
     "dismiss": lambda k, m: k.dismiss(),
     "draft": lambda k, m: k.save_draft(m),

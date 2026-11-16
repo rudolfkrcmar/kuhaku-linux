@@ -1,5 +1,5 @@
 // Jobs as tabs, the activity list, the red dot, the safety net's four dots, day and night.
-// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages.
+// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, pictures.
 // ---- Jobs as tabs -------------------------------------------------------
 let jobs = { tabs: [], current: null, agents: [] }, renaming = null;
 const agentName = (id) => (jobs.agents.find((a) => a.id === (id || '')) || { name: 'Claude' }).name;
@@ -156,7 +156,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.resetConversation = () => { setAsk(''); show('home'); };
-window.focusInput = () => { if (!renaming && phase !== 'working' && $('sheet').hidden && !panel && !page) ask.focus(); };
+window.focusInput = () => { if (!renaming && phase !== 'working' && $('sheet').hidden && $('picks').hidden && !panel && !page) ask.focus(); };
 
 ask.addEventListener('keydown', (e) => {
   const firstLine = !ask.value.slice(0, ask.selectionStart).includes('\n');

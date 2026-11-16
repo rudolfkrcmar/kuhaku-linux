@@ -1,5 +1,5 @@
 // The line and the answer: the pulsing dots, dictation and talk, pictures, answers, drafts.
-// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages.
+// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, pictures.
 const $ = (id) => document.getElementById(id);
 // The pulsing dots breathe at 12 frames a second, not 60: every frame redraws the whole
 // screen, and a CSS animation kept the processor and X busy the whole time Claude worked.
@@ -96,7 +96,7 @@ function talk() {
 }
 $('mic').addEventListener('click', talk);
 // Pictures for Claude: picked files are copied into ~/Pictures/ForClaude and named in the line.
-$('pic').addEventListener('click', (e) => { e.preventDefault(); native({ type: 'picture' }); });
+$('pic').addEventListener('click', (e) => { e.preventDefault(); openPictures(); });
 window.picturesAdded = ({ files, error }) => {
   if (error) { ask.placeholder = error; setTimeout(() => setMic(dictation), 3000); return; }
   if (!files || !files.length) { focusInput(); return; }
