@@ -16,9 +16,12 @@ Space or Esc goes back (or closes), Cmd+plus/minus/0 zoom pictures.
     miru [FOLDER | FILE]
 """
 
+import fcntl
+import os
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -35,6 +38,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf
 
 import kumo  # Dropbox and Google Drive, only the folders you choose
+from kuhaku_log import report
 from miru_files import (
     MESH_LIMIT,
     MESH_TYPES,
@@ -726,9 +730,83 @@ MESSAGES = {
 }
 
 
+# One Miru: a second start hands its folder or file to the open window and leaves.
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/kuhaku-{os.getuid()}")
+SOCKET = RUNTIME / "kuhaku-miru.sock"
+
+
+def hand_over(path, sock_path=SOCKET):
+    """True if a Miru is already open and took path."""
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.settimeout(2)
+            s.connect(str(sock_path))
+            s.sendall(str(path).encode() + b"\n")
+            return s.recv(2) == b"ok"
+    except OSError:
+        return False
+
+
+def listen(path, sock_path=SOCKET):
+    """Become the one Miru: later starts reach us here. None if another one got there first."""
+    sock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(f"{sock_path}.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)  # two starting at once: one listens, the other hands over
+        if hand_over(path, sock_path):
+            return None
+        sock_path.unlink(missing_ok=True)  # left by a Miru that is gone
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(str(sock_path))
+        server.listen(4)
+    return server
+
+
+def serve(server, open_path):
+    """Each later start sends a path; open_path(Path) shows it in this window."""
+
+    def take(*_):
+        try:
+            conn, _a = server.accept()
+            with conn:
+                conn.settimeout(2)
+                data = b""
+                while not data.endswith(b"\n") and len(data) < 65536:
+                    part = conn.recv(4096)
+                    if not part:
+                        break
+                    data += part
+                conn.sendall(b"ok")
+            path = data.decode(errors="replace").strip()
+            if path:
+                open_path(Path(path))
+        except Exception:
+            report()
+        return True
+
+    GLib.io_add_watch(server.fileno(), GLib.IO_IN, take)
+
+
+def arrive(m, path):
+    """A path from a later start: show it here and come forward."""
+    if m.app.win is None:  # still opening: start() will show it
+        m.path = path
+        return
+    if path.is_dir():
+        m.browse(path)
+    elif path.exists():
+        m.show(path)
+    m.app.present()
+
+
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     arg = sys.argv[1] if len(sys.argv) > 1 else str(HOME)
     if arg.startswith("file://"):
         arg = urllib.parse.unquote(urllib.parse.urlparse(arg).path)
-    Miru(arg).app.run()
+    target = Path(arg).expanduser().resolve()
+    server = listen(target)
+    if server is None:
+        sys.exit(0)
+    m = Miru(target)
+    serve(server, lambda p: arrive(m, p))
+    m.app.run()

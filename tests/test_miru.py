@@ -3,8 +3,10 @@ file operations of the Miru class (run on a bare instance: no window is ever mad
 
 import json
 import struct
+import threading
 import unittest
 import zipfile
+from pathlib import Path
 from unittest import mock
 
 import miru
@@ -354,6 +356,34 @@ class FileOps(TempDirCase):
 class Page(unittest.TestCase):
     def test_page_loaded(self):
         self.assertIn("<html", miru.PAGE.lower())
+
+
+class OneMiru(TempDirCase):
+    def test_second_start_hands_its_path_to_the_first(self):
+        sock = self.tmp / "miru.sock"
+        self.assertFalse(miru.hand_over("/x", sock))  # nobody open yet
+        server = miru.listen(Path("/first"), sock)
+        self.addCleanup(server.close)
+        got = []
+
+        def answer():
+            conn, _a = server.accept()
+            with conn:
+                got.append(conn.recv(4096))
+                conn.sendall(b"ok")
+
+        t = threading.Thread(target=answer)
+        t.start()
+        self.assertIsNone(miru.listen(Path("/second"), sock))  # the first one took it
+        t.join(5)
+        self.assertEqual(got, [b"/second\n"])
+
+    def test_a_stale_socket_is_taken_over(self):
+        sock = self.tmp / "miru.sock"
+        sock.write_text("")  # left by a Miru that crashed
+        server = miru.listen(self.tmp, sock)
+        self.addCleanup(server.close)
+        self.assertIsNotNone(server)
 
 
 if __name__ == "__main__":
