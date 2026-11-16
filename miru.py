@@ -70,6 +70,7 @@ class Miru:
             right_click=False,  # the page has its own menu
             media=True,
             schemes={"miru": self.on_scheme},
+            fixed_zoom=True,  # pictures zoom with Cmd+plus/minus; the page itself never does
         )
         self.night = self.app.night
 

@@ -141,15 +141,18 @@ class WebApp:
         media=False,
         schemes=None,
         pick_words=("Choose a file", "Choose"),
+        fixed_zoom=False,
     ):
         """right_click: the spelling menu where text is written (False: never a menu, the page has its own).
         media: video and sound play. schemes: {name: handler(request)} for the app's own addresses.
-        pick_words: the title and button of Kūhaku's file picker when the page asks for a file."""
+        pick_words: the title and button of Kūhaku's file picker when the page asks for a file.
+        fixed_zoom: the page never zooms (no pinch, no Ctrl+scroll); it stays at zoom."""
         self.app_id, self.title, self.handler = app_id, title, handler
         self.on_message, self.on_ready = on_message, on_ready
         self.zoom, self.spelling, self.menus = zoom, spelling, menus
         self.right_click, self.media = right_click, media
         self.pick_words = pick_words
+        self.fixed_zoom = fixed_zoom
         self.night = theme() == "night"
         self.uri = None
         self.html: tuple[str, str] | None = None
@@ -187,6 +190,8 @@ class WebApp:
             self.win.set_decorated(False)  # Kūhaku draws no frames; elsewhere the desktop's frame stays
         self.win.maximize()
         self.view.set_zoom_level(self.zoom)
+        if self.fixed_zoom:
+            self._hold_zoom()
         st = self.view.get_settings()
         st.set_allow_file_access_from_file_urls(True)
         st.set_enable_write_console_messages_to_stdout(bool(os.environ.get("KUHAKU_DEBUG")))
@@ -223,6 +228,21 @@ class WebApp:
             self.win.show_all()
         GLib.timeout_add_seconds(30, self._follow_theme)
         self._reload()
+
+    def _hold_zoom(self):
+        """No pinch zoom (it slides the app's own bar off screen) and no Ctrl+scroll zoom."""
+        self.view.connect(
+            "notify::zoom-level", lambda v, _p: v.get_zoom_level() != self.zoom and v.set_zoom_level(self.zoom)
+        )
+        if GTK == 4:
+            pinch = Gtk.GestureZoom()
+            pinch.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)  # before WebKit's own
+            pinch.connect("begin", lambda g, _s: g.set_state(Gtk.EventSequenceState.CLAIMED))
+            self.view.add_controller(pinch)
+            wheel = Gtk.EventControllerScroll(flags=Gtk.EventControllerScrollFlags.BOTH_AXES)
+            wheel.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+            wheel.connect("scroll", lambda c, _x, _y: bool(c.get_current_event_state() & Gdk.ModifierType.CONTROL_MASK))
+            self.view.add_controller(wheel)
 
     def _dark(self, night):
         s = Gtk.Settings.get_default()
