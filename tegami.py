@@ -39,6 +39,7 @@ class Tegami:
             spelling=["cs_CZ", "en_US"],
             menus=True,  # the spelling menu in Kūhaku's look, readable at night
             on_ready=self.ready,
+            pick_words=("Attach files", "Attach"),
         )
         self.mail = Mail(self)
         self.app.load((HERE / "mail" / "tegami.html").as_uri())

@@ -70,6 +70,10 @@ flowchart TB
 5. **Best effort, never silent**: what may fail without harm (a missing battery, a file not there yet)
    is caught and written down with `kuhaku_log.report()`, once per place and error, in
    `~/.local/state/kuhaku/logs/<app>.log`. A test fails on any `except Exception: pass`.
+6. **No system file dialogs**: when a page asks for a file, Kūhaku's picker opens instead
+   (`pick/picker.js` drawing, `kuhaku_pick.py` listing). The home screen shows it in its own page;
+   other apps run `kuhaku-pick.py`, which prints the chosen paths as JSON: `WebApp` does this for
+   every `<input type=file>` (Tegami), Mado in `Page.chooseFiles`. Outside Kūhaku the desktop's dialog stays.
 
 ## The home screen and Claude
 

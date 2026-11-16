@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PAGES = [
     "index.html",
     "miru/miru.html",
+    "pick/pick.html",
     "kansei/kansei.html",
     "kiroku/kiroku.html",
     "mail/tegami.html",

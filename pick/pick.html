@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choose</title>
+<link rel="stylesheet" href="picker.css">
+<style>
+  :root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.08); --accent:#e0301e; }
+  body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.08); --accent:#f0705a; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inter',system-ui,sans-serif; overflow:hidden;
+         -webkit-font-smoothing:antialiased; user-select:none; cursor:default; }
+  [hidden] { display:none !important; }
+  .picks { padding-top:72px; }
+</style>
+</head>
+<body>
+<div class="picks" id="picks" hidden></div>
+<div class="peek" id="peek" hidden></div>
+<script src="picker.js"></script>
+<script>
+// The picker's own window, opened by kuhaku-pick.py for another app; ?title=&verb=&single=1&theme=
+const q = new URLSearchParams(location.search);
+if (q.get('theme') === 'night') document.body.classList.add('night');
+const post = (m) => window.webkit.messageHandlers.pick.postMessage(JSON.stringify(m));
+const picker = makePicker({
+  root: document.getElementById('picks'),
+  peek: document.getElementById('peek'),
+  title: q.get('title') || 'Choose a file',
+  verb: q.get('verb') || 'Choose',
+  multiple: q.get('single') !== '1',
+  start: q.get('start') || 'Recent',
+  send: post,
+  onClose: () => post({ action: 'close' }),
+});
+window.setListing = (l) => picker.set(l);
+window.setPeek = (d) => picker.peekData(d);
+window.addEventListener('keydown', picker.key, true);
+window.addEventListener('keyup', picker.keyup, true);
+picker.open();
+</script>
+</body>
+</html>

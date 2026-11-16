@@ -330,6 +330,29 @@ class Page(QWebEnginePage):
             return False
         return True
 
+    def chooseFiles(self, mode, old, accepted):
+        """An upload on a web page: Kūhaku's own picker instead of Qt's file dialog."""
+        from PyQt6.QtCore import QEventLoop, QProcess
+
+        from kuhaku_pick import pick_command
+
+        Mode = QWebEnginePage.FileSelectionMode
+        if mode not in (Mode.FileSelectOpen, Mode.FileSelectOpenMultiple):
+            return super().chooseFiles(mode, old, accepted)
+        args = pick_command(("Upload", "Upload"), single=mode == Mode.FileSelectOpen, accept=accepted)
+        if not args:
+            return super().chooseFiles(mode, old, accepted)
+        proc, loop = QProcess(), QEventLoop()
+        proc.finished.connect(loop.quit)
+        proc.errorOccurred.connect(lambda _e: loop.quit())
+        proc.start(args[0], args[1:])
+        loop.exec()  # Mado keeps drawing while the picker is open
+        try:
+            return json.loads(bytes(proc.readAllStandardOutput().data()).decode() or "[]")
+        except ValueError:
+            report()
+            return []
+
     def createWindow(self, _kind):
         # A link opened in a new tab stays in the mode its page lives in.
         return self.browser.new_tab(None, key=self.browser.key_of_page(self)).page()

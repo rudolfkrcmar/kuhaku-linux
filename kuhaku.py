@@ -30,6 +30,7 @@ from gi.repository import Gdk, GLib, Gtk, WebKit2
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_accounts as accounts
 import jobs
+import kuhaku_pick
 from kuhaku_claude import ClaudeJobs
 from kuhaku_config import (
     CONFIG_DIR,
@@ -489,48 +490,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             self.send("picturesAdded", {"files": self.copy_for_claude(m.get("paths") or [])})
 
     def list_pictures(self, name, path=""):
-        """One folder's pictures, newest first. "Other" walks the home folder: its folders come first."""
-        home = Path.home()
-        folders = {k: v for k, v in PICTURE_FOLDERS.items() if v.is_dir()}
-        folder = folders.get(name)
-        if name == "Other":
-            folder = Path(path).resolve() if path else home
-            if not (folder == home or home in folder.parents) or not folder.is_dir():
-                folder = home
-        items: list[dict] = []
-        dirs: list[dict] = []
-        if folder:
-            try:
-                for p in folder.iterdir():
-                    if p.name.startswith("."):
-                        continue
-                    try:
-                        st = p.stat()
-                    except OSError:
-                        continue
-                    if name == "Other" and stat.S_ISDIR(st.st_mode):
-                        dirs.append({"path": str(p), "name": p.name, "dir": True})
-                    elif p.suffix.lower() in PICTURE_TYPES and stat.S_ISREG(st.st_mode) and st.st_size < 40_000_000:
-                        items.append({"path": str(p), "uri": p.as_uri(), "name": p.name, "t": st.st_mtime})
-            except OSError:
-                report()
-        items.sort(key=lambda e: -e["t"])
-        dirs.sort(key=lambda e: e["name"].lower())
-        crumbs = []
-        if name == "Other" and folder:
-            q = folder
-            while True:
-                crumbs.append({"name": "Home" if q == home else q.name, "path": str(q)})
-                if q == home:
-                    break
-                q = q.parent
-        payload = {
-            "folder": name,
-            "path": str(folder) if name == "Other" and folder else "",
-            "crumbs": crumbs[::-1],
-            "folders": [*folders, "Other"],
-            "items": dirs + items[:400],
-        }
+        payload = kuhaku_pick.listing(name, path, images=True)
         GLib.idle_add(lambda: (self.send("setPictures", payload), False)[1])
 
     def copy_for_claude(self, paths):
@@ -539,7 +499,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         files = []
         for name in paths:
             src = Path(name)
-            if not src.is_file() or src.suffix.lower() not in PICTURE_TYPES:
+            if not src.is_file() or src.suffix.lower() not in kuhaku_pick.PICTURE_TYPES:
                 continue
             if src.parent == inbox:
                 files.append(str(src).replace(str(Path.home()), "~", 1))
@@ -705,16 +665,6 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             if p and p.poll() is None:
                 p.terminate()
         Gtk.main_quit()
-
-
-# Where the picture picker looks, in its order, and what it shows.
-PICTURE_FOLDERS = {
-    "Screenshots": Path.home() / "Pictures" / "Screenshots",
-    "Pictures": Path.home() / "Pictures",
-    "Downloads": Path.home() / "Downloads",
-    "Desktop": Path.home() / "Desktop",
-}
-PICTURE_TYPES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"}
 
 
 # What the page may say (window.webkit.messageHandlers.kuhaku), and who listens.

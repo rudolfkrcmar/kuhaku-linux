@@ -50,6 +50,7 @@ else:
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from kuhaku_log import report
+from kuhaku_pick import pick_command
 
 HOME = Path.home()
 DAY_BG, NIGHT_BG = (0.969, 0.957, 0.945), (0.071, 0.071, 0.071)
@@ -139,13 +140,16 @@ class WebApp:
         right_click=True,
         media=False,
         schemes=None,
+        pick_words=("Choose a file", "Choose"),
     ):
         """right_click: the spelling menu where text is written (False: never a menu, the page has its own).
-        media: video and sound play. schemes: {name: handler(request)} for the app's own addresses."""
+        media: video and sound play. schemes: {name: handler(request)} for the app's own addresses.
+        pick_words: the title and button of Kūhaku's file picker when the page asks for a file."""
         self.app_id, self.title, self.handler = app_id, title, handler
         self.on_message, self.on_ready = on_message, on_ready
         self.zoom, self.spelling, self.menus = zoom, spelling, menus
         self.right_click, self.media = right_click, media
+        self.pick_words = pick_words
         self.night = theme() == "night"
         self.uri = None
         self.html: tuple[str, str] | None = None
@@ -203,6 +207,7 @@ class WebApp:
 
         self.view.connect("context-menu", menu)
         self.view.connect("decide-policy", self._policy)
+        self.view.connect("run-file-chooser", self._choose_files)
         self.view.connect("web-process-terminated", lambda *_: self._reload())
         self.view.connect("load-changed", self._loaded)
         if self.menus:
@@ -297,6 +302,26 @@ class WebApp:
                 decision.ignore()
                 return True
         return False
+
+    def _choose_files(self, _v, request):
+        """A page asks for a file: inside Kūhaku its own picker, not the system's dialog."""
+        args = pick_command(
+            self.pick_words, single=not request.get_select_multiple(), accept=request.get_mime_types() or []
+        )
+        if not args:
+            return False  # elsewhere the desktop's own dialog
+
+        def run():
+            try:
+                out = subprocess.run(args, capture_output=True, text=True).stdout
+                paths = json.loads(out or "[]")
+            except Exception:
+                report()
+                paths = []
+            GLib.idle_add(lambda: (request.select_files(paths) if paths else request.cancel()) and False)
+
+        __import__("threading").Thread(target=run, daemon=True).start()
+        return True
 
     # --- the window -------------------------------------------------------------------------
     def later(self, f, *args):
