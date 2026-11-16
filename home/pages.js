@@ -6,9 +6,8 @@ function openPage(name, section) {
   closePanel(); closeMenu();
   page = name;
   document.body.classList.add('paged');
-  $('menu').classList.add('open');
   const el = $('page');
-  $('pageClose').hidden = false; $('pageHome').hidden = false;
+  $('pageClose').hidden = false;
   el.hidden = false; el.scrollTop = 0; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   if (!appList || name === 'apps') native({ type: 'panel', action: 'apps' });
   if (name === 'apps') { appQuery = ''; renderApps(); }
@@ -20,7 +19,6 @@ function openPage(name, section) {
   }
 }
 $('pageClose').addEventListener('click', () => closePage());
-$('pageHome').addEventListener('click', () => closePage());
 // Open apps: a dot under the pinned ones, the rest follow after a hairline,
 // in the order they were opened (the same order the three-finger swipe uses).
 let windows = [];
@@ -29,12 +27,12 @@ window.setWindows = (list) => {
   windows = list || [];
   renderRuns();
   const pinned = [...document.querySelectorAll('#quick [data-launch]')];
-  [...pinned, $('filesMark')].forEach((b) => {
+  pinned.forEach((b) => {
     const w = windows.find((x) => x.app === b.dataset.launch);
     b.classList.toggle('on', !!w); b.dataset.xid = w ? w.xid : '';
   });
   document.querySelectorAll('#quick .running, #quick .sep').forEach((n) => n.remove());
-  const pins = [...pinned, $('filesMark')].map((b) => b.dataset.launch), seen = new Set();
+  const pins = pinned.map((b) => b.dataset.launch), seen = new Set();
   const others = windows.filter((w) => !pins.includes(w.app) && !(w.app && seen.has(w.app)) && (seen.add(w.app), true));
   if (!others.length) return;
   const q = $('quick');
@@ -43,11 +41,6 @@ window.setWindows = (list) => {
     (w.icon ? `<img src="${escWin(document.body.classList.contains('night') && w.iconNight ? w.iconNight : w.icon)}" alt="">` : `<span class="letter">${escWin((w.name || '?')[0].toUpperCase())}</span>`) +
     '</button>').join(''));
 };
-$('filesMark').addEventListener('click', () => {
-  const b = $('filesMark');
-  if (b.dataset.xid) native({ type: 'panel', action: 'focus', xid: b.dataset.xid });
-  else native({ type: 'panel', action: 'launch', id: 'miru.desktop' });
-});
 $('quick').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.xid) return native({ type: 'panel', action: 'focus', xid: b.dataset.xid });
@@ -56,9 +49,8 @@ $('quick').addEventListener('click', (e) => {
 function closePage() {
   page = null; onlySection = null;
   document.body.classList.remove('paged');
-  $('menu').classList.remove('open');
   $('page').hidden = true;
-  $('pageClose').hidden = true; $('pageHome').hidden = true;
+  $('pageClose').hidden = true;
   focusInput();
 }
 
