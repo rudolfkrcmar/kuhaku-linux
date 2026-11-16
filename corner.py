@@ -67,8 +67,9 @@ def root_prop(name):
 
 
 class Corner:
-    def __init__(self, theme_fn, own_xid_fn, battery_fn, wifi_fn, open_fn=None):
+    def __init__(self, theme_fn, own_xid_fn, battery_fn, wifi_fn, open_fn=None, vpn_fn=None):
         self.theme_fn, self.own_xid_fn, self.battery_fn, self.wifi_fn = theme_fn, own_xid_fn, battery_fn, wifi_fn
+        self.vpn_fn, self.vpn = vpn_fn, None  # a VPN in use: {"name", "app"} (kuhaku_system.read_vpn)
         self.open_fn = open_fn  # opens a home-screen panel: calendar, light, wifi, battery
         self.zones = []
         self.battery, self.wifi, self.hover = None, None, None
@@ -137,6 +138,7 @@ class Corner:
 
     def read_status(self):
         self.battery, self.wifi = self.battery_fn(), self.wifi_fn()
+        self.vpn = self.vpn_fn() if self.vpn_fn else None
         self.win.queue_draw()
         return True
 
@@ -191,6 +193,26 @@ class Corner:
             return
         if any(c in cls for c in FILL_CLASSES):
             subprocess.Popen(["wmctrl", "-i", "-r", hex(xid), "-b", "add,maximized_vert,maximized_horz"])
+        else:
+            self.clear_bar(xid)
+
+    def clear_bar(self, xid):
+        """A small outside window that opens under the bar (Defguard puts itself at 0, 0) moves to the
+        middle of the screen, below the bar, so its own top stays in reach."""
+        try:
+            out = subprocess.run(["xwininfo", "-id", str(xid)], capture_output=True, text=True, timeout=2).stdout
+            info = {k.strip(): v.strip() for k, _, v in (l.partition(":") for l in out.splitlines()) if v}
+            y = int(info["Absolute upper-left Y"])
+            w, h = int(info["Width"]), int(info["Height"])
+        except Exception:
+            report()
+            return
+        g, bar = self.geo, round(H * self.s)
+        if y >= g.y + bar or w >= g.width:
+            return
+        nx = g.x + max(0, (g.width - w) // 2)
+        ny = g.y + max(bar, (g.height - h) // 2)
+        subprocess.Popen(["wmctrl", "-i", "-r", hex(xid), "-e", f"0,{nx},{ny},-1,-1"])
 
     # drawing --------------------------------------------------------------------------
     # Flat, right-aligned: date, time, Wi‑Fi, battery, then the red dot (open apps), the red line (home, the app stays
@@ -281,6 +303,10 @@ class Corner:
         cr.fill()
         zones.append((x - 21, x + 7, "wifi"))
         x -= 34
+        if self.vpn:  # a VPN in use: its name stays short, "VPN", beside Wi‑Fi
+            vw = self.text(cr, "VPN", x + 8, 8, hot("vpn", c["muted"]), right=True)
+            zones.append((x - vw, x + 12, "vpn"))
+            x -= vw + 22
         now = time.localtime()
         tw = self.text(cr, time.strftime("%H:%M", now), x, 9.5, c["fg"], right=True, weight=Pango.Weight.NORMAL)
         zones.append((x - tw - 9, x + 9, "light"))
@@ -300,6 +326,12 @@ class Corner:
             subprocess.Popen(["wmctrl", "-k", "on"])
         elif w == "close":
             subprocess.Popen(["wmctrl", "-c", ":ACTIVE:"])
+        elif w == "vpn" and self.vpn and self.vpn.get("app"):
+            from kuhaku_system import launch_app  # the app that runs the VPN (Defguard)
+
+            launch_app(self.vpn["app"])
+        elif w == "vpn" and self.open_fn:
+            self.open_fn("wifi")
         elif w and self.open_fn:
             self.open_fn(w)
         return True

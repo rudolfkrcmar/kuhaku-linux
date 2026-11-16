@@ -117,6 +117,26 @@ class Wifi(unittest.TestCase):
             self.assertEqual(ks.wifi_connect("x", ""), {"ok": False, "error": "Could not connect."})
         self.assertEqual(fake.calls[-1], ["nmcli", "device", "wifi", "connect", "x"])
 
+    def test_read_vpn(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            net = Path(d)
+            (net / "tailscale0").mkdir()
+            (net / "tailscale0" / "uevent").write_text("INTERFACE=tailscale0\n")
+            with mock.patch.object(ks.subprocess, "run", return_value=fake_completed("Office:802-11-wireless:wlp1\n")):
+                self.assertIsNone(ks.read_vpn(net))  # Tailscale alone is not a VPN in use
+            with mock.patch.object(ks.subprocess, "run", return_value=fake_completed("Work:vpn:\n")):
+                self.assertEqual(ks.read_vpn(net), {"name": "Work", "app": ""})
+            (net / "wg0").mkdir()
+            (net / "wg0" / "uevent").write_text("DEVTYPE=wireguard\n")
+            with (
+                mock.patch.object(ks.subprocess, "run", return_value=fake_completed("")),
+                mock.patch.object(ks.Path, "exists", return_value=True),
+                mock.patch.object(ks, "defguard_location", return_value="hq"),
+            ):
+                self.assertEqual(ks.read_vpn(net), {"name": "hq", "app": "defguard-client.desktop"})
+
     def test_read_wifi_and_signal(self):
         for out, want in [
             ("wifi:connected\nethernet:unavailable\n", "on"),

@@ -81,6 +81,7 @@ body.paged .quick { opacity:0; pointer-events:none; }
 .stat.open .time, .stat:hover .time { color:var(--fg); }
 .stat.open::after { content:''; position:absolute; }
 .icons .stat { padding:6px; margin:-6px; }
+.stat.vpn { font-size:11px; letter-spacing:.08em; }
 #batteryWrap { gap:5px; }
 
 .rec { color:var(--fg); gap:10px; }

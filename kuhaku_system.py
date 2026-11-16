@@ -145,6 +145,62 @@ def wifi_signal():
         return 0
 
 
+DEFGUARD_DB = HOME / ".local/share/net.defguard/defguard.db"
+
+
+def defguard_location():
+    """The Defguard location connected now (a connection without an end), or ""."""
+    if not DEFGUARD_DB.exists():
+        return ""
+    import sqlite3
+
+    try:
+        with sqlite3.connect(f"file:{DEFGUARD_DB}?mode=ro", uri=True, timeout=1) as db:
+            row = db.execute(
+                "SELECT l.name FROM connection c JOIN location l ON l.id = c.location_id "
+                "WHERE c.end IS NULL ORDER BY c.id DESC LIMIT 1"
+            ).fetchone()
+        return row[0] if row else ""
+    except Exception:
+        report()
+        return ""
+
+
+def read_vpn(net=Path("/sys/class/net")):
+    """A VPN in use: {"name", "app"} or None. "app" is the desktop file of the app that runs it
+    (Defguard), or "" when NetworkManager does (its panel is Wi‑Fi's). Tailscale is not counted:
+    it is always on and only reaches your own devices."""
+    try:
+        wg = [
+            d.name
+            for d in net.iterdir()
+            if d.name.startswith("wg") or "DEVTYPE=wireguard" in (d / "uevent").read_text()
+        ]
+    except OSError:
+        wg = []
+    try:
+        out = subprocess.run(
+            ["nmcli", "-t", "-f", "NAME,TYPE,DEVICE", "con", "show", "--active"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        ).stdout
+    except Exception:
+        report()
+        out = ""
+    nm = {}
+    for line in out.splitlines():
+        name, kind, dev = (line.rsplit(":", 2) + ["", ""])[:3]
+        if kind in ("vpn", "wireguard"):
+            nm[dev or name] = name
+    for dev in wg:
+        if dev not in nm and Path("/usr/share/applications/defguard-client.desktop").exists():
+            return {"name": defguard_location() or "VPN", "app": "defguard-client.desktop"}
+    if nm:
+        return {"name": next(iter(nm.values())), "app": ""}
+    return None
+
+
 def run(argv, timeout=15):
     try:
         out = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, env={**os.environ, "LC_ALL": "C"})

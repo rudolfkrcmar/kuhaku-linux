@@ -54,6 +54,7 @@ from kuhaku_system import (
     on_mains,
     open_windows,
     read_battery,
+    read_vpn,
     read_wifi,
     spawn,
     wifi_signal,
@@ -148,6 +149,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
                 read_battery,
                 read_wifi,
                 self.open_panel,
+                vpn_fn=read_vpn,
             )
         except Exception as e:
             print("Kūhaku: no bar over apps:", e)
@@ -233,7 +235,13 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         self.send("setMicMode", self.config.get("mic_button") or "talk")
         self.send(
             "setStatus",
-            {"battery": read_battery(), "wifi": read_wifi(), "bt": bluetooth_icon_state(), "signal": wifi_signal()},
+            {
+                "battery": read_battery(),
+                "wifi": read_wifi(),
+                "bt": bluetooth_icon_state(),
+                "signal": wifi_signal(),
+                "vpn": read_vpn(),
+            },
         )
         return True
 

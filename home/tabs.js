@@ -278,9 +278,16 @@ window.setAccount = ({ name, many }) => {
   b.hidden = !many; $('acctName').textContent = name;
   if (changed) { b.classList.remove('flip'); void b.offsetWidth; b.classList.add('flip'); }
 };
+$('vpnBtn').addEventListener('click', () => {
+  const app = $('vpnBtn').dataset.app;
+  app ? native({ type: 'panel', action: 'launch', id: app }) : openPanel('wifi');
+});
 $('acctBtn').addEventListener('click', () => native({ type: 'panel', action: 'account-cycle' }));
 window.setTablet = () => {};
-window.setStatus = ({ battery, wifi, bt: btIcon, signal }) => {
+window.setStatus = ({ battery, wifi, bt: btIcon, signal, vpn }) => {
+  // A VPN in use: named beside Wi‑Fi; a click opens the app that runs it (Defguard), or the network panel.
+  $('vpnBtn').hidden = !vpn;
+  if (vpn) { $('vpnBtn').title = 'VPN: ' + vpn.name; $('vpnBtn').dataset.app = vpn.app || ''; }
   const bars = wifi === 'on' ? (signal >= 67 ? 3 : signal >= 34 ? 2 : 1) : 0;
   ['l1', 'l2', 'l3'].forEach((c, i) => $('wifi').querySelector('.' + c).classList.toggle('dim', i >= bars));
   // Bluetooth: dim when off or missing, full when on; a connected device keeps it full too.
