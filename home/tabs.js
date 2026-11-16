@@ -204,7 +204,7 @@ document.addEventListener('mouseup', () => {
 });
 
 // Four dots: the safety net.
-function openMenu() { closeRuns(); $('sheetCap').textContent = ''; $('sheet').hidden = false; $('scrim').hidden = false; $('menu').classList.add('open'); }
+function openMenu() { if (panel) closePanel(); closeRuns(); $('sheetCap').textContent = ''; $('sheet').hidden = false; $('scrim').hidden = false; $('menu').classList.add('open'); }
 function closeMenu() { $('sheet').hidden = true; $('scrim').hidden = true; $('menu').classList.remove('open'); focusInput(); }
 $('menu').addEventListener('click', () => page ? closePage() : $('sheet').hidden ? openMenu() : closeMenu());
 $('scrim').addEventListener('click', () => { closeMenu(); closeRuns(); });

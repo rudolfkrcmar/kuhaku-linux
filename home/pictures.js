@@ -77,11 +77,11 @@ function renderPictures(loading) {
         `<figcaption>${picEsc(picks.folder === 'Other' ? p.name : picWhen(p.t))}</figcaption></figure>`).join('')
     : `<p class="pknone">${picks.folder === 'Other' ? 'No pictures or folders here.' : 'No pictures here yet.'}</p>`;
   $('picks').innerHTML =
-    '<div class="pkhead"><h1>Add a picture</h1></div>' +
+    '<div class="pkhead"><h1>Add a picture</h1>' +
+    `<button class="pkadd" tabindex="-1" data-act="add"${picks.items.some((p) => !p.dir) || n ? '' : ' disabled'}><span class="line"></span>${n > 1 ? `Add ${n} pictures` : 'Add'}</button></div>` +
     `<nav class="pkfolders">${tabs}</nav>${crumbs}` +
     `<div class="pkscroll"><div class="pkgrid">${grid}</div></div>` +
-    '<div class="pkfoot"><span class="pkkeys">Click to choose · Space to look closer · Enter to add · Esc to close</span>' +
-    `<button class="pkadd" tabindex="-1" data-act="add"${picks.items.some((p) => !p.dir) || n ? '' : ' disabled'}><span class="line"></span>${n > 1 ? `Add ${n} pictures` : 'Add'}</button></div>`;
+    '<div class="pkfoot"><span class="pkkeys">Click to choose · Space to look closer · Enter to add · Esc to close</span></div>';
 }
 function drawMarks() {
   document.querySelectorAll('#picks .pk').forEach((f) => {
