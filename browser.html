@@ -102,6 +102,8 @@
   .tool.icon { width:30px; padding:0; }
   .tool.on { color:var(--accent); }
   .tool.on:hover { color:var(--accent); }
+  #pick { position:relative; }
+  #pick .num { position:absolute; top:0; right:-4px; transform:scale(.8); }
   .tool .num { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--accent); color:#fff;
                font-size:11px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; }
   .panel.notes { flex-direction:column; flex-wrap:nowrap; gap:2px; max-height:220px; padding-left:40px; }
@@ -132,8 +134,7 @@
     <button class="tool" id="device" hidden title="Simulate a device"></button>
     <button class="tool icon" id="tools" hidden title="Show or hide the developer tools"></button>
     <button class="tool icon" id="dock" hidden title="Tools under the page or beside it"></button>
-    <button class="tool" id="pick" hidden title="Comment on something on this page (Ctrl+Alt+C)"></button>
-    <button class="tool" id="notes" hidden title="Comments on this site"></button>
+    <button class="tool icon" id="pick" hidden title="Show or hide comments (Ctrl+Alt+C)"></button>
     <span class="divide" id="divide" hidden></span>
     <div class="modes" id="modes">
       <button data-m="normal" title="Normal: your everyday tabs"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round"><path class="hot" d="M6.2 5.35h11.6"/><path d="M7.2 9.2h9.6v9.6H7.2z" stroke="currentColor"/></svg><span>Normal</span></button>
@@ -238,14 +239,16 @@
     // The icon shows where the tools would go next.
     $('dock').innerHTML = s.dock === 'right' ? ICON.dockRight : ICON.dockBottom;
     $('dock').title = s.dock === 'right' ? 'Tools under the page' : 'Tools beside the page';
+    // Comments open and close like the tools: open, the pins show, a click on the page
+    // comments on what is there, and the site's open comments are listed under the bar.
+    const notes = s.notes || [];
     $('pick').hidden = !dev;
     $('pick').classList.toggle('on', !!s.picking);
-    $('pick').innerHTML = ICON.note + (s.picking ? 'Click what to change <span class="dim">Esc</span>' : 'Comment');
-    const notes = s.notes || [];
-    $('notes').hidden = !dev || (!notes.length && !s.handed);
-    $('notes').innerHTML = s.handed ? `<span class="dim">${esc(s.handed)}</span>` : `<span class="num">${notes.length}</span><span class="dim">open</span>`;
+    $('pick').title = s.picking ? 'Hide comments (Esc)' : 'Show comments: click anything on the page to comment (Ctrl+Alt+C)';
+    $('pick').innerHTML = ICON.note + (notes.length ? `<span class="num">${notes.length}</span>` : '');
+    if (dev && s.picking && (notes.length || s.handed)) panel = 'notes';
+    else if (panel === 'notes') panel = null;
     $('divide').hidden = m === 'normal';
-    if (panel === 'notes' && (!dev || !notes.length)) panel = null;
     if ((panel === 'trackers' && m !== 'private') || (panel === 'devices' && m !== 'developer')) panel = null;
     $('stopped').classList.toggle('open', panel === 'trackers');
     $('device').classList.toggle('open', panel === 'devices');
@@ -253,12 +256,11 @@
     pn.hidden = !panel;
     pn.classList.toggle('devices', panel === 'devices');
     pn.classList.toggle('notes', panel === 'notes');
-    $('notes').classList.toggle('open', panel === 'notes');
-    if (panel === 'notes') pn.innerHTML = notes.map((n, i) => {
+    if (panel === 'notes') pn.innerHTML = (notes.length ? '' : `<span class="nt">${esc(s.handed || '')}</span>`) + notes.map((n, i) => {
       let where = '';
       try { if (!n.here) where = new URL(n.path).pathname; } catch (e) { where = n.path; }
       return `<button class="nt${n.here ? '' : ' else'}" data-note="${esc(n.id)}"><b>${i + 1}</b><span>${esc(n.text.length > 110 ? n.text.slice(0, 110) + '…' : n.text)}</span>${where ? `<small>${esc(where)}</small>` : ''}</button>`;
-    }).join('') + `<div class="acts"><button class="go" id="handOff">Hand ${notes.length === 1 ? 'it' : 'all ' + notes.length} to Claude</button></div>`;
+    }).join('') + (notes.length ? s.handed ? `<div class="acts"><span>${esc(s.handed)}</span></div>` : `<div class="acts"><button class="go" id="handOff">Hand ${notes.length === 1 ? 'it' : 'all ' + notes.length} to Claude</button></div>` : '');
     if (panel === 'trackers') pn.innerHTML = st.length
       ? st.map((t) => `<span><span class="h">${esc(t.host)}</span> · ${esc(t.how)}</span>`).join('')
       : '<span>Nothing on this site tried to follow you.</span>';
@@ -314,13 +316,12 @@
   $('tools').addEventListener('click', () => send({ type: 'tools' }));
   $('dock').addEventListener('click', () => send({ type: 'dock' }));
   $('pick').addEventListener('click', () => send({ type: 'pick' }));
-  $('notes').addEventListener('click', () => { panel = panel === 'notes' ? null : 'notes'; update(state); });
   $('panel').addEventListener('click', (e) => {
     const b = e.target.closest('[data-dev]');
     if (b) { panel = null; send({ type: 'device', name: b.dataset.dev }); }
     const n = e.target.closest('[data-note]');
     if (n) send({ type: 'note', id: n.dataset.note });
-    if (e.target.closest('#handOff')) { panel = null; send({ type: 'handOff' }); }
+    if (e.target.closest('#handOff')) send({ type: 'handOff' });
   });
   $('plus').addEventListener('click', () => send({ type: 'newTab' }));
   $('quit').addEventListener('click', () => send({ type: 'quit' }));

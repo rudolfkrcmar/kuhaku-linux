@@ -407,7 +407,12 @@ class Browser:
             {"id": n["id"], "text": n.get("text", ""), "element": n.get("element", {})}
             for n in self.notes.open_on(v.url().toString())
         ]
-        state = {"on": dev, "picking": dev and self.picking, "night": self.night, "notes": notes if dev else []}
+        state = {
+            "on": dev,
+            "picking": dev and self.picking,
+            "night": self.night,
+            "notes": notes if dev and self.picking else [],
+        }
         v.page().runJavaScript(f"window.madoNotes && madoNotes.set({json.dumps(state)})", browser_notes.WORLD)
 
     def view_of(self, page):
@@ -466,7 +471,6 @@ class Browser:
             return
         ok = browser_notes.send_home(browser_notes.hand_off_text(notes, url))
         self.handed = "Claude has them" if ok else "Kūhaku is not listening"
-        self.set_picking(False, push=False)
         self.push()
         QTimer.singleShot(5000, self.clear_handed)
 
