@@ -1,27 +1,30 @@
-/* Kūhaku: GTK message boxes (an app's "Are you sure?") in the home screen's quiet night look. */
-messagedialog.background, messagedialog .dialog-vbox, messagedialog .dialog-action-area {
-  background: #141414; color: #ececec; border: none; box-shadow: none;
+/* Kūhaku: apps' GTK message boxes ("Do you want to…?") in the home screen's language:
+   the night colours, Inter in light weights, the red line, words instead of buttons. */
+messagedialog.background, messagedialog .dialog-vbox, messagedialog .dialog-action-area,
+messagedialog box, messagedialog buttonbox {
+  background: #121212; background-image: none; color: #ececec; border: none; box-shadow: none;
 }
-messagedialog .dialog-vbox { padding: 34px 40px 26px; }
-messagedialog .dialog-vbox > box { margin: 0; }
-messagedialog label {
-  font-family: "Inter Variable", Inter, sans-serif; font-size: 14px; font-weight: 300; color: #9a9a9a;
-}
-messagedialog label.title, messagedialog .dialog-vbox > box > box > label:first-child {
-  color: #ececec; font-size: 15px; font-weight: 300;
-}
-/* No icons: the words say it. */
-messagedialog image { -gtk-icon-transform: scale(0); opacity: 0; min-width: 0; min-height: 0; margin: 0 -24px 0 0; }
-messagedialog button image { margin: 0 -6px 0 0; }
-messagedialog .dialog-action-area { padding: 0 34px 26px; }
+messagedialog * { font-family: "Inter Variable", Inter, sans-serif; }
+messagedialog .dialog-vbox { padding: 30px 36px 22px; }
+
+/* The question: light, with the red line beside it. */
+messagedialog .dialog-vbox > box:first-child { margin-left: -60px; }
+messagedialog .dialog-vbox > box:first-child box { box-shadow: inset 2px 0 0 #f0705a; padding: 2px 0 2px 16px; }
+messagedialog label { color: #ececec; font-size: 13px; font-weight: 300; }
+messagedialog label + label { color: #9a9a9a; font-size: 12px; font-weight: 300; }
+
+/* No icons anywhere: the words say it. */
+messagedialog image { -gtk-icon-transform: scale(0); opacity: 0; min-width: 0; min-height: 0; }
+messagedialog button image { margin: 0 -8px 0 0; }
+
+/* Answers: quiet words; the suggested one underlined in red. */
+messagedialog .dialog-action-area { padding: 6px 0 0; margin: 0; }
 messagedialog button {
-  background: transparent; background-image: none; border: none; box-shadow: none; text-shadow: none;
-  color: #9a9a9a; font-family: "Inter Variable", Inter, sans-serif; font-size: 14px; font-weight: 300;
-  padding: 9px 18px; border-radius: 999px; min-height: 0; margin: 0 6px;
+  background: none; border: none; box-shadow: none; text-shadow: none; border-radius: 0;
+  padding: 4px 0; margin: 0; min-height: 0; outline-color: transparent;
 }
-messagedialog button label { color: inherit; font-size: inherit; }
-messagedialog button:hover { color: #ececec; background: rgba(236,236,236,.06); }
-messagedialog button.default { color: #ececec; background: rgba(236,236,236,.07); }
-messagedialog button:focus { box-shadow: inset 0 0 0 1px rgba(236,236,236,.14); }
-messagedialog button:active { background: rgba(236,236,236,.1); }
-messagedialog selection, messagedialog label selection { background: rgba(240,112,90,.35); color: #ececec; }
+messagedialog button label { color: #9a9a9a; font-size: 13px; font-weight: 300; padding-bottom: 3px; }
+messagedialog button:hover label, messagedialog button.default label { color: #ececec; }
+messagedialog button.default label { border-bottom: 1px solid #f0705a; }
+messagedialog button:focus label { color: #ececec; }
+messagedialog selection { background: rgba(240,112,90,.35); color: #ececec; }
