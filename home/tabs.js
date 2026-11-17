@@ -195,6 +195,7 @@ document.addEventListener('keydown', (e) => {
   if (panel) return closePanel();
   if (!$('sheet').hidden) return closeMenu();
   if (!$('runs').hidden) return closeRuns();
+  if (phase === 'working' && !$('answer').hidden) return closeAnswer();   // the chat first, never the work
   if (phase === 'working') { native({ type: 'cancel' }); show('home'); }
 });
 

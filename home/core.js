@@ -125,6 +125,7 @@ function show(next, question) {
     if (draft) setAsk(draft);
   }
   $('answer').hidden = next !== 'answer';
+  $('answer').classList.remove('glance');
   $('inputRow').hidden = next === 'working';
   $('activity').hidden = next !== 'working' || !showActivity;
   $('tokens').hidden = next !== 'working' || !showActivity || !$('tokens').textContent;
@@ -206,6 +207,7 @@ window.showAnswer = (entry) => {
   renderAnswer(entry, true);
 };
 function closeAnswer() {
+  if (phase === 'working') return peekChat(false);   // the chat looked at while Claude works; the work goes on
   if (!$('answerList').hidden) return listAnswers(false);   // Esc or × leaves the overview first
   if (!$('answerChat').hidden && answerAt >= 0) return chatAnswers(false);   // then the chat, back to the one answer
   native({ type: 'dismiss' }); show('home');
@@ -215,7 +217,7 @@ function listAnswers(on) {
   const list = $('answerList');
   list.hidden = !on;
   $('answer').classList.toggle('listing', on);
-  $('askedAnswer').hidden = on; $('answerText').hidden = on;
+  $('askedAnswer').hidden = on; $('answerText').hidden = on; $('answerOpened').classList.toggle('off', on);
   if (on) chatAnswers(false, true);
   if (!on) return;
   list.innerHTML = '';
@@ -238,12 +240,12 @@ const tabAnswers = () => {
   const mine = answers.filter((e) => e.tab && e.tab === jobs.current);
   return mine.length ? mine : answers.filter((e) => !e.tab).slice(-30);
 };
-function drawHist() { $('histBtn').hidden = !tabAnswers().length; }
+function drawHist() { $('histBtn').hidden = $('peekBtn').hidden = !tabAnswers().length; }
 function chatAnswers(on, quiet) {
   const chat = $('answerChat');
   chat.hidden = !on;
   $('answer').classList.toggle('chatting', on);
-  if (!quiet) { $('askedAnswer').hidden = on; $('answerText').hidden = on; }
+  if (!quiet) { $('askedAnswer').hidden = on; $('answerText').hidden = on; $('answerOpened').classList.toggle('off', on); }
   if (!on) return;
   if (!$('answerList').hidden) { $('answerList').hidden = true; $('answer').classList.remove('listing'); }
   chat.innerHTML = '';
@@ -260,7 +262,16 @@ function chatAnswers(on, quiet) {
   }
   chat.scrollTop = chat.scrollHeight;
 }
+// While Claude works the line is gone, so the chat opens under the pulsing dot, and closing it changes nothing else.
+function peekChat(on) {
+  $('answer').hidden = !on;
+  $('answer').classList.toggle('glance', on);
+  answerAt = -1;
+  chatAnswers(on);
+  place();
+}
 function openChat() {
+  if (phase === 'working') return peekChat($('answer').hidden);
   if (phase !== 'answer') {
     const mine = tabAnswers();
     if (!mine.length) return;
@@ -269,6 +280,7 @@ function openChat() {
   chatAnswers($('answerChat').hidden);
 }
 $('chatBtn').addEventListener('click', openChat);
+$('peekBtn').addEventListener('click', openChat);
 $('histBtn').addEventListener('click', (e) => { e.preventDefault(); openChat(); });
 $('answerPos').addEventListener('click', () => listAnswers($('answerList').hidden));
 $('prevAnswer').addEventListener('click', () => showAt(answerAt - 1));
@@ -287,7 +299,26 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight' && phase === 'answer') { e.preventDefault(); showAt(answerAt + 1); }
 });
 
-function renderAnswer({ question, answer, error }, anim) {
+// What Claude opened in Mado during the job, as quiet links under the answer: one click opens it again.
+function drawOpened(urls) {
+  const box = $('answerOpened');
+  box.textContent = '';
+  box.hidden = !(urls && urls.length);
+  for (const u of urls || []) {
+    const a = document.createElement('a');
+    a.href = 'kuhaku://open?u=' + encodeURIComponent(u);
+    let name = u;
+    try {
+      const x = new URL(u);
+      name = x.protocol === 'file:' ? decodeURIComponent(x.pathname.split('/').pop()) : x.host.replace(/^www\./, '') + (x.pathname.length > 1 ? x.pathname : '');
+    } catch (e) { /* not a URL: shown as it is */ }
+    a.textContent = name.length > 60 ? name.slice(0, 59) + '…' : name;
+    a.title = 'Open in Mado: ' + u;
+    box.append(a);
+  }
+}
+
+function renderAnswer({ question, answer, error, opened }, anim) {
   const text = plain(answer);
   const el = $('answerText');
   el.className = 'a' + (text.length > 600 ? ' long' : text.length > 200 ? ' medium' : '') + (error ? ' error' : '');
@@ -297,6 +328,7 @@ function renderAnswer({ question, answer, error }, anim) {
     a.href = 'kuhaku://details'; a.textContent = 'See what happened';
     el.append(' ', a);
   }
+  drawOpened(opened);
   el.scrollTop = 0;
   listAnswers(false); chatAnswers(false);
   if (anim) { $('answer').style.animation = 'none'; void $('answer').offsetWidth; $('answer').style.animation = ''; }
@@ -306,6 +338,7 @@ function renderAnswer({ question, answer, error }, anim) {
 
 $('nextPlus').addEventListener('click', () => {
   const t = $('nextText'); t.hidden = false; $('next').classList.add('on'); t.focus();
+  if (!$('answer').hidden) peekChat(false);
 });
 $('nextText').addEventListener('input', () => { const t = $('nextText'); t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; });
 $('nextText').addEventListener('keydown', (e) => {

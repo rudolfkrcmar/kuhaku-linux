@@ -349,6 +349,9 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .answer .list .la { font-size:13px; font-weight:300; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .answer .nav .when { font-size:12px; margin-left:8px; }
 .answer.chatting .nav .hist { color:var(--fg); }
+.next.on .hist { display:none; }
+/* Looked at while Claude works: only the chat and its ×. */
+.answer.glance .nav > :not(.close) { display:none; }
 /* One conversation as a chat: each question small and quiet, its answer under it; the newest at the bottom. */
 .answer .chat { display:flex; flex-direction:column; gap:28px; overflow-y:auto; min-height:0; user-select:text;
                 scrollbar-width:none; padding-bottom:4px; }
@@ -371,6 +374,11 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .answer .a.medium { font-size:22px; line-height:1.5; letter-spacing:-.01em; }
 .answer .a.long { font-size:17px; line-height:1.65; letter-spacing:0; }
 .answer .a.error { color:var(--muted); }
+.answer .opened { display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:22px; flex-shrink:0; font-size:14px; font-weight:300; }
+.answer .opened.off { display:none; }
+.answer .opened a { color:var(--muted); text-decoration:none; display:inline-flex; align-items:center; gap:9px; }
+.answer .opened a::before { content:''; width:12px; height:1.4px; background:var(--accent); flex-shrink:0; }
+.answer .opened a:hover { color:var(--fg); }
 .answer .a a { color:inherit; text-decoration-color:var(--accent); text-underline-offset:3px; }
 
 /* The menu: one red line at the end of the top row, after the red dot, where the bar over apps keeps its line home.

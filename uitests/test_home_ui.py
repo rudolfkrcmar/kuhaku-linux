@@ -101,6 +101,19 @@ class Asking(PageCase):
         self.assertEqual(self.page.js("return document.getElementById('answerChat').hidden;"), True)
         self.assertEqual(self.page.js("return document.getElementById('answerText').hidden;"), False)
 
+    def test_the_chat_while_claude_works_and_escape_keeps_the_work(self):
+        old = [{"question": "Is the backup done?", "answer": "Yes.", "error": False, "time": 1794500000, "tab": "1"}]
+        self.page.js(
+            "setAnswers(" + json.dumps({"answers": old, "show": False}) + "); show('working', 'Next'); return true;"
+        )
+        self.page.wait(150)
+        self.page.click("#peekBtn")
+        self.page.wait(300)
+        self.assertIn("Is the backup done?", self.page.js("return document.getElementById('answerChat').innerText;"))
+        self.page.key("Escape")
+        self.assertEqual(self.page.js("return [phase, document.getElementById('answer').hidden];"), ["working", True])
+        self.assertNotIn("cancel", [m.get("type") for m in self.page.messages if isinstance(m, dict)])
+
 
 class Night(PageCase):
     def setUp(self):
