@@ -26,6 +26,7 @@ STATE = Path.home() / ".local" / "state" / "kuhaku"
 NOTES = STATE / "mado-comments.json"
 SHOTS = STATE / "mado-comments"
 FIFO = STATE / "kuhaku.fifo"
+TABS = STATE / "tabs.json"  # the home screen's jobs, where a handed-over batch is followed
 WORLD = int(QWebEngineScript.ScriptWorldId.ApplicationWorld.value)
 NOTES_JS = (HERE / "browser" / "notes.js").read_text(encoding="utf-8")
 
@@ -139,7 +140,7 @@ class Store:
         self.save()
 
 
-def hand_off_text(notes, url):
+def hand_off_text(notes, url, how=""):
     """What Claude is asked when the user hands a site's open comments over."""
     site = site_of(url)
     lines = [
@@ -151,28 +152,66 @@ def hand_off_text(notes, url):
         "Find the project that makes this site (usually in ~/Projects), make the changes, check them, and "
         'commit and push as usual. Then set each note\'s status to "done" with a short "reply". '
         "If one is unclear, leave it open and tell me why.",
+        "Answer in a few short sentences: what you changed, and where to see it.",
         "",
     ]
+    if how:
+        lines += ["How I want it done: " + how, ""]
     for i, n in enumerate(notes, 1):
         el = n.get("element", {})
-        lines.append(f"{i}. {n.get('text', '')}  [on {el.get('tag', '?')} at {n.get('page', '')}]")
+        lines.append(f"{i}. {n.get('text', '')}  [on {el.get('tag') or 'the whole page'} at {n.get('page', '')}]")
     return "\n".join(lines)
 
 
-def send_home(text):
-    """A new job on the home screen, through its FIFO; False when Kūhaku is not listening."""
+def job(origin):
+    """The home screen's job for a handed-over batch: its status, answer and conversation."""
+    if not origin:
+        return None
+    try:
+        tabs = json.loads(TABS.read_text()).get("tabs", [])
+    except FileNotFoundError:
+        return None
+    except Exception:
+        report()
+        return None
+    t = next((t for t in tabs if t.get("origin") == origin), None)
+    if not t:
+        return None
+    a = t.get("answer") or {}
+    return {
+        "status": t.get("status"),
+        "answer": a.get("answer") or "",
+        "error": bool(a.get("error")),
+        "session": t.get("session_id") or "",
+    }
+
+
+def continue_home(session):
+    """Bring a finished job forward on the home screen, ready for the next question."""
+    return bool(session) and _fifo("continue " + session)
+
+
+def _fifo(line):
     try:
         fd = os.open(FIFO, os.O_WRONLY | os.O_NONBLOCK)
     except OSError:
         return False
     try:
-        os.write(fd, ("ask " + json.dumps({"text": text}) + "\n").encode())
+        os.write(fd, (line + "\n").encode())
         return True
     except OSError:
         report()
         return False
     finally:
         os.close(fd)
+
+
+def send_home(text, origin=""):
+    """A new job on the home screen, through its FIFO; False when Kūhaku is not listening.
+    With an origin it starts quietly (a tab of its own, the window stays where it is) and
+    the asking app follows it in tabs.json."""
+    m = {"text": text, "quiet": True, "origin": origin} if origin else {"text": text}
+    return _fifo("ask " + json.dumps(m))
 
 
 def script():

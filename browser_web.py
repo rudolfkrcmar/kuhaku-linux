@@ -304,13 +304,13 @@ class Quiet(QWebEngineUrlRequestInterceptor):
 
 
 class Bridge(QObject):
-    def __init__(self, browser):
+    def __init__(self, browser, handler=None):
         super().__init__()
-        self.browser = browser
+        self.handler = handler or browser.on_chrome
 
     @pyqtSlot(str)
     def post(self, text):
-        self.browser.on_chrome(text)
+        self.handler(text)
 
 
 class Page(QWebEnginePage):

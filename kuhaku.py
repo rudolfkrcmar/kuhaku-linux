@@ -386,7 +386,11 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             GLib.idle_add(self.continue_thread, parts[1], " ".join(parts[2:]))
         elif len(parts) >= 2 and parts[0] == "ask":  # from another app: a new job
             try:
-                GLib.idle_add(self.ask_new_tab, json.loads(line.split(None, 1)[1]).get("text", ""))
+                m = json.loads(line.split(None, 1)[1])
+                if m.get("quiet"):  # the app shows the progress itself; Kūhaku stays where it is
+                    GLib.idle_add(self.ask_quietly, m.get("text", ""), m.get("origin", ""))
+                else:
+                    GLib.idle_add(self.ask_new_tab, m.get("text", ""))
             except Exception:
                 report()
 

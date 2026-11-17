@@ -49,6 +49,20 @@ class ClaudeJobs(Home):
         self.restore_tab()
         return False
 
+    def ask_quietly(self, text, origin=""):
+        """A job from another app that shows its own progress (Mado's comments): a new tab that
+        starts at once and stays in the tab row until it is finished and closed, while the
+        tab in front and the window stay as they are."""
+        text = text.strip()
+        if not text:
+            return False
+        t = self.tabs.blank()
+        t["origin"] = str(origin)[:80]
+        self.tabs.tabs.append(t)
+        self.ask(text, tab=t)
+        self.push_tabs()
+        return False
+
     def continue_thread(self, session_id, agent=""):
         """A finished conversation comes back as a tab (the one it lives in, if still open), ready for the next question."""
         cur = self.tabs.get(self.tabs.current)
@@ -87,10 +101,10 @@ class ClaudeJobs(Home):
             return []
 
     # --- Claude -----------------------------------------------------------
-    def ask(self, text, voice=False):
+    def ask(self, text, voice=False, tab=None):
         """A question goes into the open tab's place in the line; schedule() starts it when there is room."""
         text = text.strip()
-        tab = self.tabs.get(self.tabs.current)
+        tab = tab or self.tabs.get(self.tabs.current)
         if not text or tab["status"] in ("running", "queued"):
             return
         at, text = jobs.parse_when(text)

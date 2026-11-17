@@ -39,6 +39,7 @@ STATE = HOME / ".local" / "state" / "kuhaku" / "browser.json"
 TRUSTED = HOME / ".config" / "kuhaku" / "mado-certificates.json"  # host -> PEM the user chose to trust
 PERMS = HOME / ".config" / "kuhaku" / "mado-permissions.json"  # host -> "media"/"clipboard" -> true/false
 NEWTAB = (HERE / "newtab.html").as_uri()
+PANE = (HERE / "browser/comments.html").as_uri()
 CHROME_HEIGHT = 52
 
 # The Core M-5Y31 decodes H.264 in hardware (VA-API) but not VP9 or AV1. Chromium is told
@@ -117,10 +118,10 @@ class Browser:
         self.tls_pending = {}
         self.chrome_css = CHROME_HEIGHT
         self.notes = browser_notes.Store()
-        self.picking = False  # pointing at things on the page to comment on them
-        self.tools_open = True  # developer tools shown under (or beside) the page
-        self.dock = "bottom"
-        self.handed = None  # a short word on the bar after the notes went to Claude
+        self.picking = False  # the comments pane is open: a click on the page comments on it
+        self.tools_open = True  # developer tools shown under the page
+        self.pane = None  # the comments, beside the page (browser/comments.html)
+        self.jobs: dict[str, dict] = {}  # site -> the batch of comments Claude is doing (or did)
         for d in (DATA, CACHE, STATE.parent):
             d.mkdir(parents=True, exist_ok=True)
         self.night = theme() == "night"
@@ -257,9 +258,13 @@ class Browser:
         self.stack.installEventFilter(self.watch)
         # Developer tools sit under the page in developer mode, and follow the tab in front.
         self.devtools = None
+        # Developer mode: the page with its comments beside it, and the tools under both.
         self.split = QSplitter(Qt.Orientation.Vertical)
         self.split.setHandleWidth(1)
-        self.split.addWidget(self.stack)
+        self.top = QSplitter(Qt.Orientation.Horizontal)
+        self.top.setHandleWidth(1)
+        self.top.addWidget(self.stack)
+        self.split.addWidget(self.top)
         box.addWidget(self.chrome)
         box.addWidget(self.split, 1)
 
@@ -373,29 +378,118 @@ class Browser:
             if self.current:
                 self.current.setFocus()
         else:
-            self.split.setOrientation(Qt.Orientation.Horizontal if self.dock == "right" else Qt.Orientation.Vertical)
             self.devtools.show()
-            n = self.split.width() if self.dock == "right" else self.split.height()
-            page = n * 3 // 5 if self.dock == "bottom" else n * 13 // 20
-            self.split.setSizes([page, n - page])
+            n = self.split.height()
+            self.split.setSizes([n * 3 // 5, n - n * 3 // 5])
         QTimer.singleShot(0, self.fit_device)
         self.push()
 
-    def set_dock(self, side):
-        if side in ("bottom", "right"):
-            self.dock = side
-            self.set_tools(True)
-
     # --- comments ---------------------------------------------------------
     def set_picking(self, on, push=True):
-        v = self.current
-        on = bool(on) and self.mode == "developer" and v is not None and v.url().scheme() in ("http", "https", "file")
+        """The comments pane opens beside the page (and clicks on the page comment), or closes."""
+        on = bool(on) and self.mode == "developer"
         self.picking = on
+        if on and not self.pane:
+            self.build_pane()
+        if self.pane:
+            if on:
+                self.pane.show()
+                w = self.top.width()
+                self.top.setSizes([w - 360, 360])
+            else:
+                self.pane.hide()
         if on and self.current:
             self.current.setFocus()
+        QTimer.singleShot(0, self.fit_device)
         self.sync_notes()
         if push:
             self.push()
+
+    def build_pane(self):
+        self.pane = QWebEngineView()
+        page = QWebEnginePage(QWebEngineProfile(self.app), self.pane)
+        page.setBackgroundColor(self.bg())
+        self.pane.setPage(page)
+        self.pane.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        self.pane_bridge = Bridge(self, self.on_pane)
+        ch = QWebChannel(page)
+        ch.registerObject("chrome", self.pane_bridge)
+        page.setWebChannel(ch)
+        self.pane_channel = ch
+        f = QFile(":/qtwebchannel/qwebchannel.js")
+        f.open(QIODevice.OpenModeFlag.ReadOnly)
+        s = QWebEngineScript()
+        s.setSourceCode(bytes(f.readAll()).decode() + BRIDGE_SCRIPT)
+        s.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+        s.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        page.scripts().insert(s)
+        page.loadFinished.connect(lambda _ok: self.push_pane())
+        self.load_pane()
+        self.top.addWidget(self.pane)
+        self.top.setCollapsible(0, False)
+
+    def load_pane(self):
+        if self.pane:
+            self.pane.load(QUrl(PANE + f"?theme={'night' if self.night else 'day'}"))
+
+    def push_pane(self):
+        v = self.current
+        if not self.pane or not self.picking or not v:
+            return
+        url = v.url().toString()
+        here = browser_notes.page_key(url)
+        where = browser_notes.site_of(url)
+        notes = [
+            {
+                "id": n["id"],
+                "num": i,
+                "text": n.get("text", ""),
+                "element": (n.get("element") or {}).get("tag", ""),
+                "here": n.get("page") == here,
+                "path": n.get("page", ""),
+                "sent": bool(n.get("job")),
+            }
+            for i, n in enumerate(self.notes.open_on_site(url), 1)
+        ]
+        state = {"site": where, "notes": notes, "job": self.jobs.get(where)}
+        self.pane.page().runJavaScript(f"window.update && update({json.dumps(state)})")
+
+    def on_pane(self, text):
+        try:
+            msg = json.loads(text)
+        except Exception:
+            report()
+            return
+        kind, v = msg.get("type"), self.current
+        if kind == "close":
+            self.set_picking(False)
+        elif kind == "add" and v and msg.get("text"):
+            # A comment on the whole page: no element, no pin.
+            self.notes.add(
+                {"text": msg["text"], "url": v.url().toString(), "title": v.title()},
+                self.device,
+            )
+        elif kind == "delete":
+            self.notes.delete(msg.get("id"))
+        elif kind == "reveal" and v:
+            n = next((n for n in self.notes.notes if n["id"] == msg.get("id")), None)
+            if n and n.get("page") != browser_notes.page_key(v.url().toString()):
+                v.load(QUrl(n.get("url") or n.get("page")))
+            elif n:
+                v.page().runJavaScript(
+                    f"window.madoNotes && madoNotes.reveal({json.dumps(n['id'])})", browser_notes.WORLD
+                )
+                v.setFocus()
+        elif kind == "go":
+            self.hand_off(str(msg.get("how", ""))[:2000])
+        elif kind == "more":
+            j = self.jobs.get(browser_notes.site_of(v.url().toString())) if v else None
+            if j:
+                browser_notes.continue_home(j.get("session", ""))
+        elif kind == "clearJob" and v:
+            self.jobs.pop(browser_notes.site_of(v.url().toString()), None)
+        self.sync_notes()
+        self.push()
 
     def sync_notes(self, view=None):
         """Tell a page (the one in front) its open notes, and whether it is being commented on."""
@@ -403,9 +497,12 @@ class Browser:
         if not v or v in self.sets["private"]:
             return
         dev = self.mode == "developer" and v is self.current
+        url = v.url().toString()
+        here = browser_notes.page_key(url)
         notes = [
-            {"id": n["id"], "text": n.get("text", ""), "element": n.get("element", {})}
-            for n in self.notes.open_on(v.url().toString())
+            {"id": n["id"], "num": i, "text": n.get("text", ""), "element": n.get("element", {})}
+            for i, n in enumerate(self.notes.open_on_site(url), 1)
+            if n.get("page") == here
         ]
         state = {
             "on": dev,
@@ -461,26 +558,44 @@ class Browser:
         self.sync_notes(view)
         self.push()
 
-    def hand_off(self):
+    def hand_off(self, how=""):
+        """The site's open comments go to Claude at once, as a quiet job on the home screen
+        (a tab of its own there until it is closed); the pane follows it to the answer."""
         v = self.current
         if not v:
             return
         url = v.url().toString()
-        notes = self.notes.open_on_site(url)
+        where = browser_notes.site_of(url)
+        notes = [n for n in self.notes.open_on_site(url) if not n.get("job")]
         if not notes:
             return
-        ok = browser_notes.send_home(browser_notes.hand_off_text(notes, url))
-        self.handed = "Claude has them" if ok else "Kūhaku is not listening"
-        self.push()
-        QTimer.singleShot(5000, self.clear_handed)
-
-    def clear_handed(self):
-        self.handed = None
-        self.push()
+        origin = "mado:" + os.urandom(5).hex()
+        if browser_notes.send_home(browser_notes.hand_off_text(notes, url, how), origin):
+            for n in notes:
+                n["job"] = origin
+            self.notes.save()
+            self.jobs[where] = {"origin": origin, "status": "sending"}
+        else:
+            self.jobs[where] = {"origin": "", "status": "failed", "answer": "Kūhaku is not listening."}
 
     def watch_notes(self):
         # Claude marks notes done in the file; their pins go as soon as it does.
-        if self.notes.fresh() and self.mode == "developer":
+        changed = self.notes.fresh()
+        for j in self.jobs.values():
+            if j.get("status") not in ("sending", "queued", "running"):
+                continue
+            got = browser_notes.job(j["origin"])
+            if not got or got["status"] == j.get("status"):
+                continue
+            j.update(got)
+            changed = True
+            if got["status"] == "idle":
+                # Finished: what Claude left open can be handed over again.
+                for n in self.notes.notes:
+                    if n.get("job") == j["origin"] and n.get("status") == "open":
+                        n.pop("job")
+                self.notes.save()
+        if changed and self.mode == "developer":
             self.sync_notes()
             self.push()
 
@@ -687,8 +802,6 @@ class Browser:
 
     def switch(self, view):
         old = self.current
-        if old is not view:
-            self.picking = False
         if self.current is not view and self.mode == "developer" and self.devtools:
             if self.current is not None:
                 try:
@@ -811,16 +924,11 @@ class Browser:
             ]
             state["device"] = self.device
             state["tools"] = self.tools_open
-            state["dock"] = self.dock
             state["picking"] = self.picking
-            state["handed"] = self.handed
-            here = browser_notes.page_key(uri)
-            state["notes"] = [
-                {"id": n["id"], "text": n.get("text", ""), "here": n.get("page") == here, "path": n.get("page", "")}
-                for n in self.notes.open_on_site(uri)
-            ]
+            state["notes"] = len(self.notes.open_on_site(uri))
             state["size"] = f"{size[0]} × {size[1]}" if size else ""
         self.js(f"window.update && update({json.dumps(state)})")
+        self.push_pane()
 
     def on_chrome(self, text):
         try:
@@ -857,21 +965,8 @@ class Browser:
             self.set_device(msg.get("name", ""))
         elif kind == "tools":
             self.set_tools(not self.tools_open)
-        elif kind == "dock":
-            self.set_dock("right" if self.dock == "bottom" else "bottom")
         elif kind == "pick":
             self.set_picking(not self.picking)
-        elif kind == "handOff":
-            self.hand_off()
-        elif kind == "note" and v:
-            n = next((n for n in self.notes.notes if n["id"] == msg.get("id")), None)
-            if n and n.get("page") != browser_notes.page_key(v.url().toString()):
-                v.load(QUrl(n.get("url") or n.get("page")))
-            elif n:
-                v.page().runJavaScript(
-                    f"window.madoNotes && madoNotes.reveal({json.dumps(n['id'])})", browser_notes.WORLD
-                )
-                v.setFocus()
         elif kind == "find" and v:
             text = msg.get("text", "")
             F = QWebEnginePage.FindFlag
@@ -902,6 +997,7 @@ class Browser:
         for t in self.sets["normal"] + self.sets["private"]:
             self.canvas(t)
         self.load_chrome()
+        self.load_pane()
 
     def on_fullscreen(self, request):
         request.accept()

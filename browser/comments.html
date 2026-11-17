@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Comments</title>
+<style>
+  :root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.07); --faint2:rgba(17,17,17,.1); --accent:#e0301e; }
+  body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.07); --faint2:rgba(236,236,236,.12); --accent:#f0705a; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--fg); font:300 14px/1.45 'Inter Variable','Inter',system-ui,sans-serif;
+         -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; border-left:1px solid var(--faint2); cursor:default; }
+  button { border:0; background:none; padding:0; font:inherit; color:var(--muted); cursor:pointer; }
+  button:hover { color:var(--fg); }
+  textarea { width:100%; border:0; outline:0; resize:none; background:var(--faint); color:var(--fg); font:inherit;
+             border-radius:10px; padding:10px 12px; caret-color:var(--accent); }
+  textarea::placeholder { color:var(--muted); opacity:.8; }
+  header { padding:18px 20px 6px; display:flex; align-items:baseline; gap:10px; }
+  header h1 { margin:0; font-size:15px; font-weight:400; }
+  header .site { color:var(--muted); font-size:12.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hint { padding:0 20px 12px; font-size:12.5px; color:var(--muted); }
+  .hint b { font-weight:400; color:var(--accent); }
+  .write { padding:0 20px 12px; }
+  .write textarea { height:60px; }
+  .list { flex:1; overflow:auto; padding:2px 12px 12px; }
+  .empty { padding:24px 8px; color:var(--muted); font-size:13px; text-align:center; }
+  .n { display:flex; gap:10px; padding:9px 8px; border-radius:10px; position:relative; }
+  .n:hover { background:var(--faint); }
+  .n .num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff;
+            font-size:11px; font-weight:500; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .n.page .num { background:none; color:var(--accent); box-shadow:inset 0 0 0 1.3px var(--accent); }
+  .n .body { flex:1; min-width:0; cursor:pointer; }
+  .n .t { white-space:pre-wrap; word-wrap:break-word; }
+  .n .on { font-size:11.5px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .n .x { opacity:0; width:22px; height:22px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .n:hover .x { opacity:.7; }
+  .n.sent .num { opacity:.45; }
+  .do { padding:12px 20px 18px; border-top:1px solid var(--faint2); }
+  .do textarea { height:52px; margin-bottom:10px; }
+  .do .row { display:flex; align-items:center; gap:14px; }
+  .go { color:#fff !important; background:var(--accent); border-radius:10px; padding:8px 14px; font-weight:400; }
+  .go:hover { filter:brightness(1.08); }
+  .go[disabled] { opacity:.35; pointer-events:none; }
+  .do .later { font-size:12.5px; }
+  .job { margin-top:12px; font-size:13px; }
+  .job .st { display:flex; align-items:center; gap:8px; color:var(--muted); }
+  .job .st i { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 1.4s ease-in-out infinite; }
+  .job .ans { margin-top:8px; white-space:pre-wrap; max-height:180px; overflow:auto; }
+  .job .acts { margin-top:8px; display:flex; gap:16px; font-size:12.5px; }
+  [hidden] { display:none !important; }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.15 } }
+</style>
+</head>
+<body>
+  <header><h1>Comments</h1><span class="site" id="site"></span>
+    <button id="close" title="Close comments (Ctrl+Alt+C)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div class="hint" id="hint"><b>Click anything on the page</b> to comment on it, or write about the whole page.</div>
+  <div class="write"><textarea id="write" placeholder="A comment on this page…" spellcheck="true"></textarea></div>
+  <div class="list" id="list"></div>
+  <div class="do">
+    <textarea id="how" placeholder="How should Claude do them? (optional: only the CSS, deploy when done…)"></textarea>
+    <div class="row"><button class="go" id="go">Do them now</button><span class="later" id="count"></span></div>
+    <div class="job" id="job" hidden></div>
+  </div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const send = (m) => { try { window.webkit.messageHandlers.chrome.postMessage(JSON.stringify(m)); } catch (e) {} };
+  const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  if (new URLSearchParams(location.search).get('theme') === 'night') document.body.classList.add('night');
+  let state = { notes: [], job: null };
+
+  window.update = (s) => {
+    state = s;
+    $('site').textContent = s.site || '';
+    const notes = s.notes || [];
+    $('list').innerHTML = notes.length ? notes.map((n) => {
+      let on = n.element || 'the whole page';
+      if (!n.here) { try { on += ' · ' + new URL(n.path).pathname; } catch (e) {} }
+      return `<div class="n${n.element ? '' : ' page'}${n.sent ? ' sent' : ''}" data-id="${esc(n.id)}">
+        <span class="num">${n.num}</span>
+        <div class="body"><div class="t">${esc(n.text)}</div><div class="on">${esc(on)}${n.sent ? ' · with Claude' : ''}</div></div>
+        <button class="x" data-del="${esc(n.id)}" title="Remove"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;
+    }).join('') : '<div class="empty">No comments on this site yet.</div>';
+    const fresh = notes.filter((n) => !n.sent).length;
+    const busy = s.job && (s.job.status === 'running' || s.job.status === 'queued' || s.job.status === 'sending');
+    $('go').disabled = !fresh || busy;
+    $('go').textContent = fresh > 1 ? `Do all ${fresh} now` : 'Do it now';
+    $('count').textContent = '';
+    const j = s.job, box = $('job');
+    box.hidden = !j;
+    if (j) {
+      if (busy) box.innerHTML = `<div class="st"><i></i>${j.status === 'running' ? 'Claude is working on it' : 'Claude will start in a moment'} · also on the home screen</div>`;
+      else if (j.status === 'failed') box.innerHTML = `<div class="st">${esc(j.answer || 'Kūhaku is not listening.')}</div>`;
+      else box.innerHTML = `<div class="st">Claude is done${j.error ? ', with a problem' : ''}</div><div class="ans">${esc(j.answer || '')}</div>
+        <div class="acts">${j.session ? '<button id="more">Continue on the home screen</button>' : ''}<button id="clear">Clear</button></div>`;
+    }
+  };
+
+  $('close').addEventListener('click', () => send({ type: 'close' }));
+  $('write').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+    const t = $('write').value.trim();
+    if (t) { send({ type: 'add', text: t }); $('write').value = ''; }
+  });
+  $('list').addEventListener('click', (e) => {
+    const d = e.target.closest('[data-del]');
+    if (d) return send({ type: 'delete', id: d.dataset.del });
+    const n = e.target.closest('.n');
+    if (n) send({ type: 'reveal', id: n.dataset.id });
+  });
+  $('go').addEventListener('click', () => { send({ type: 'go', how: $('how').value.trim() }); $('how').value = ''; });
+  $('job').addEventListener('click', (e) => {
+    if (e.target.id === 'more') send({ type: 'more' });
+    if (e.target.id === 'clear') send({ type: 'clearJob' });
+  });
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+</script>
+</body>
+</html>

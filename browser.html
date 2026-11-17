@@ -106,16 +106,7 @@
   #pick .num { position:absolute; top:0; right:-4px; transform:scale(.8); }
   .tool .num { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--accent); color:#fff;
                font-size:11px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; }
-  .panel.notes { flex-direction:column; flex-wrap:nowrap; gap:2px; max-height:220px; padding-left:40px; }
-  .panel .nt { justify-content:flex-start; gap:10px; min-height:30px; padding:4px 12px; border-radius:8px;
                font-size:13px; font-weight:300; text-align:left; width:100%; }
-  .panel .nt:hover { background:var(--faint); }
-  .panel .nt b { font-weight:500; color:var(--accent); min-width:14px; }
-  .panel .nt small { opacity:.6; font-size:11px; margin-left:auto; padding-left:14px; white-space:nowrap; }
-  .panel .nt.else { opacity:.75; }
-  .panel .acts { display:flex; gap:18px; padding:8px 12px 2px; }
-  .panel .acts button { font-size:13px; }
-  .panel .acts .go { color:var(--accent); }
 
   /* Minimise and close live in Kūhaku's bar at the top of the screen; one of each is enough. */
   #bMin, #bClose, #minimize, #quit { display:none !important; }
@@ -133,7 +124,6 @@
     <button class="tool" id="stopped" hidden title="What this site tried to track"></button>
     <button class="tool" id="device" hidden title="Simulate a device"></button>
     <button class="tool icon" id="tools" hidden title="Show or hide the developer tools"></button>
-    <button class="tool icon" id="dock" hidden title="Tools under the page or beside it"></button>
     <button class="tool icon" id="pick" hidden title="Show or hide comments (Ctrl+Alt+C)"></button>
     <span class="divide" id="divide" hidden></span>
     <div class="modes" id="modes">
@@ -173,8 +163,6 @@
     full: svg('<rect x="3.5" y="5" width="17" height="12" rx="1.2"/><path d="M9 20h6M12 17v3"/>'),
     toolsOpen: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 13.5h17"/><path d="M7 16.5h4"/>'),
     toolsShut: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 17h17"/>'),
-    dockBottom: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M14.5 4.5v15"/>'),
-    dockRight: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 13.5h17"/>'),
     note: svg('<path d="M5 5.5h14v10H11l-4 3.5v-3.5H5z"/><path d="M9 10.5h6"/>'),
   };
   // The bar grows only by what it shows: the tab row, the list of stopped trackers.
@@ -235,19 +223,12 @@
     $('tools').hidden = !dev;
     $('tools').innerHTML = s.tools ? ICON.toolsOpen : ICON.toolsShut;
     $('tools').title = s.tools ? 'Hide the developer tools' : 'Show the developer tools';
-    $('dock').hidden = !dev || !s.tools;
-    // The icon shows where the tools would go next.
-    $('dock').innerHTML = s.dock === 'right' ? ICON.dockRight : ICON.dockBottom;
-    $('dock').title = s.dock === 'right' ? 'Tools under the page' : 'Tools beside the page';
-    // Comments open and close like the tools: open, the pins show, a click on the page
-    // comments on what is there, and the site's open comments are listed under the bar.
-    const notes = s.notes || [];
+    // Comments open and close like the tools: a pane beside the page, its count on the icon.
+    const count = s.notes || 0;
     $('pick').hidden = !dev;
     $('pick').classList.toggle('on', !!s.picking);
-    $('pick').title = s.picking ? 'Hide comments (Esc)' : 'Show comments: click anything on the page to comment (Ctrl+Alt+C)';
-    $('pick').innerHTML = ICON.note + (notes.length ? `<span class="num">${notes.length}</span>` : '');
-    if (dev && s.picking && (notes.length || s.handed)) panel = 'notes';
-    else if (panel === 'notes') panel = null;
+    $('pick').title = s.picking ? 'Hide comments (Ctrl+Alt+C)' : 'Comments: mark things on the page for Claude (Ctrl+Alt+C)';
+    $('pick').innerHTML = ICON.note + (count ? `<span class="num">${count}</span>` : '');
     $('divide').hidden = m === 'normal';
     if ((panel === 'trackers' && m !== 'private') || (panel === 'devices' && m !== 'developer')) panel = null;
     $('stopped').classList.toggle('open', panel === 'trackers');
@@ -255,12 +236,6 @@
     const pn = $('panel');
     pn.hidden = !panel;
     pn.classList.toggle('devices', panel === 'devices');
-    pn.classList.toggle('notes', panel === 'notes');
-    if (panel === 'notes') pn.innerHTML = (notes.length ? '' : `<span class="nt">${esc(s.handed || '')}</span>`) + notes.map((n, i) => {
-      let where = '';
-      try { if (!n.here) where = new URL(n.path).pathname; } catch (e) { where = n.path; }
-      return `<button class="nt${n.here ? '' : ' else'}" data-note="${esc(n.id)}"><b>${i + 1}</b><span>${esc(n.text.length > 110 ? n.text.slice(0, 110) + '…' : n.text)}</span>${where ? `<small>${esc(where)}</small>` : ''}</button>`;
-    }).join('') + (notes.length ? s.handed ? `<div class="acts"><span>${esc(s.handed)}</span></div>` : `<div class="acts"><button class="go" id="handOff">Hand ${notes.length === 1 ? 'it' : 'all ' + notes.length} to Claude</button></div>` : '');
     if (panel === 'trackers') pn.innerHTML = st.length
       ? st.map((t) => `<span><span class="h">${esc(t.host)}</span> · ${esc(t.how)}</span>`).join('')
       : '<span>Nothing on this site tried to follow you.</span>';
@@ -314,14 +289,10 @@
   $('stopped').addEventListener('click', () => { panel = panel === 'trackers' ? null : 'trackers'; update(state); });
   $('device').addEventListener('click', () => { panel = panel === 'devices' ? null : 'devices'; update(state); });
   $('tools').addEventListener('click', () => send({ type: 'tools' }));
-  $('dock').addEventListener('click', () => send({ type: 'dock' }));
   $('pick').addEventListener('click', () => send({ type: 'pick' }));
   $('panel').addEventListener('click', (e) => {
     const b = e.target.closest('[data-dev]');
     if (b) { panel = null; send({ type: 'device', name: b.dataset.dev }); }
-    const n = e.target.closest('[data-note]');
-    if (n) send({ type: 'note', id: n.dataset.note });
-    if (e.target.closest('#handOff')) send({ type: 'handOff' });
   });
   $('plus').addEventListener('click', () => send({ type: 'newTab' }));
   $('quit').addEventListener('click', () => send({ type: 'quit' }));

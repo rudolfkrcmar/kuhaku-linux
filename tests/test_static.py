@@ -123,6 +123,7 @@ class Static(unittest.TestCase):
             ("miru/miru.html", "miru.py"),
             ("browser/tls.html", "browser_web.py"),
             ("browser/notes.js", "browser_notes.py"),
+            ("browser/comments.html", "browser.py"),
             ("browser/tls-webkit.html", "browser_webkit.py"),
             ("mail/google-signed-in.html", "tegami_google.py"),
         ):

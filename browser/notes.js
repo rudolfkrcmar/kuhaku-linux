@@ -115,8 +115,9 @@
       const at = n.element.at || [1, 0];
       const pin = document.createElement('div');
       pin.className = 'pin';
-      pin.textContent = i + 1;
+      pin.textContent = n.num || i + 1;
       pin.title = n.text;
+      pin.dataset.id = n.id;
       pin.style.left = Math.min(innerWidth - 14, Math.max(14, r.left + r.width * at[0])) + 'px';
       pin.style.top = Math.min(innerHeight - 14, Math.max(14, r.top + r.height * at[1])) + 'px';
       pin.addEventListener('click', (e) => { e.stopPropagation(); openNote(n, pin); });
@@ -220,7 +221,7 @@
     if (state.picking && !mine(e)) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
   }
   function onKey(e) {
-    if (e.key === 'Escape' && state.picking && !box) { e.preventDefault(); post({ type: 'pick', on: false }); }
+    if (e.key === 'Escape' && box) { e.preventDefault(); closeBox(); drawHilite(null); }
   }
   addEventListener('mousemove', onMove, true);
   addEventListener('click', onClick, true);
@@ -249,7 +250,7 @@
       const el = n && find(n);
       if (!el) return;
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      setTimeout(() => { const pins = layer.querySelectorAll('.pin'); const p = pins[state.notes.indexOf(n)]; if (p) openNote(n, p); }, 450);
+      setTimeout(() => { const p = [...layer.querySelectorAll('.pin')].find((x) => x.dataset.id === id); if (p) openNote(n, p); }, 450);
     },
   };
   post({ type: 'ready' });
