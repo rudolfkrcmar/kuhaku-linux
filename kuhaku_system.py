@@ -5,6 +5,7 @@ Plain functions that read and change the system through its own tools (nmcli, bl
 xrandr, wmctrl) and Kūhaku's desktop.json. They never touch the window; kuhaku.py shows what they return.
 """
 
+import functools
 import json
 import os
 import pwd
@@ -949,35 +950,102 @@ def describe(ev):
     return steps
 
 
-def opened(ev):
-    """What Claude opened in Mado in one stream-json event (`mado <url or file>` in a Bash call), as URLs."""
-    import shlex
+# Commands that put something on screen: the words after them are what was opened.
+OPENERS = {"mado", "miru", "tegami", "tsukuru", "kansei", "kiroku", "xdg-open"}
+
+
+def _target(w):
+    """A word of a command as something to open again (a URL, or a file as file://), or None."""
     from urllib.parse import quote
 
-    found: list[str] = []
+    if re.match(r"(https?|file)://", w):
+        return w
+    if w.startswith(("/", "~/")):
+        return "file://" + quote(str(Path(w).expanduser()))
+    return None
+
+
+def opened(ev):
+    """What Claude put on screen in one stream-json event, to offer again under its answer.
+
+    Each is {"app", "url"}: a page or file opened in Mado, Miru or another app (`mado <url>`,
+    `xdg-open <file>`, `gio open`, anything started with setsid or nohup), an app started on its
+    own (url ""), or a file made with Write in the home folder (app "", opened as the system opens it).
+    """
+    import shlex
+
+    found: list[dict] = []
     if ev.get("type") != "assistant":
         return found
     for block in (ev.get("message") or {}).get("content") or []:
-        if block.get("type") != "tool_use" or block.get("name") != "Bash":
+        if block.get("type") != "tool_use":
+            continue
+        i = block.get("input") or {}
+        if block.get("name") == "Write":
+            path = str(i.get("file_path") or "")
+            home = str(HOME) + "/"
+            if (
+                path.startswith(home)
+                and not path.startswith(home + "Projects/")
+                and not any(p.startswith(".") for p in Path(path[len(home) :]).parts)
+            ):
+                found.append({"app": "", "url": _target(path)})
+            continue
+        if block.get("name") != "Bash":
             continue
         try:
-            lex = shlex.shlex((block.get("input") or {}).get("command") or "", posix=True, punctuation_chars=True)
-            words = list(lex)
+            words = list(shlex.shlex(i.get("command") or "", posix=True, punctuation_chars=True))
         except ValueError:
             continue
-        after = False
-        for w in words:
-            if Path(w).name == "mado":
-                after = True
-            elif not after:
+        app, launch, got = None, False, False
+        for k, w in enumerate(words + [";"]):
+            name = Path(w).name
+            if w and set(w) <= set("();&|<>"):
+                if app and not got and app != "xdg-open":
+                    found.append({"app": app, "url": ""})
+                app, launch, got = None, False, False  # a redirect's file is no target either
                 continue
-            elif w and set(w) <= set("();&|<>"):
-                after = False
-            elif "://" in w and re.match(r"(https?|file)://", w):
-                found.append(w)
-            elif w.startswith(("/", "~/")):
-                found.append("file://" + quote(str(Path(w).expanduser())))
-    return found
+            if app:
+                if not w.startswith("-") and (t := _target(w)):
+                    found.append({"app": "" if app == "xdg-open" else app, "url": t})
+                    got = True
+            elif name in ("setsid", "nohup"):
+                launch = True
+            elif name == "gio" or (name == "open" and words[k - 1 : k] == ["gio"]):
+                app = "xdg-open" if name == "open" else None
+            elif name in OPENERS or (launch and not w.startswith("-") and "=" not in w):
+                app = name
+    seen, out = set(), []
+    for o in found:
+        key = (o["app"], o["url"])
+        if o["url"] is not None and key not in seen and (not o["app"] or o["app"] in OPENERS or can_launch(o["app"])):
+            seen.add(key)
+            out.append(o)
+    return out
+
+
+@functools.lru_cache(maxsize=64)
+def can_launch(app):
+    """Is this a real app (it has a desktop entry that runs it)? Only those are started from a link."""
+    if not re.fullmatch(r"[\w.+-]+", app or "") or not shutil.which(app):
+        return False
+    if re.fullmatch(r"(python|perl|ruby|node|bash|sh|dash|zsh|env|sleep|timeout)[\d.]*", app):  # runs code, not an app
+        return False
+        return False
+    dirs = [HOME / ".local/share/applications", Path("/usr/share/applications"), Path("/usr/local/share/applications")]
+    dirs += [
+        HOME / ".local/share/flatpak/exports/share/applications",
+        Path("/var/lib/flatpak/exports/share/applications"),
+    ]
+    for d in dirs:
+        for f in d.glob("*.desktop") if d.is_dir() else []:
+            try:
+                for line in f.read_text(errors="replace").splitlines():
+                    if line.startswith("Exec=") and Path(line[5:].split()[0] if line[5:].split() else "").name == app:
+                        return True
+            except OSError:
+                continue
+    return False
 
 
 # --- Notifications -------------------------------------------------------------

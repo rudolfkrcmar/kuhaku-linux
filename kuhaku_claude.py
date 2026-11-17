@@ -494,9 +494,9 @@ class ClaudeJobs(Home):
             run.update(model=ev.get("model"), cwd=ev.get("cwd"))
             if ev.get("model") and not run["agent"].startswith(("agent:", "acct:")):
                 self.state.setdefault("models", {})[run["agent"]] = ev["model"]
-        for url in opened(ev):
-            if url not in live.setdefault("opened", []):
-                live["opened"] = (live["opened"] + [url])[-4:]
+        for thing in opened(ev):
+            if thing not in live.setdefault("opened", []):
+                live["opened"] = (live["opened"] + [thing])[-4:]
         for step in describe(ev):
             live["activity"] = (live["activity"] + [step])[-200:]
             GLib.idle_add(self.send, "addActivity", dict(step, tab=tab_id))

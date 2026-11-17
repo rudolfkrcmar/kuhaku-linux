@@ -49,8 +49,10 @@ from kuhaku_panels import Panels
 from kuhaku_settings import Settings, welcome_due
 from kuhaku_sun import is_night  # night follows the sun
 from kuhaku_system import (
+    OPENERS,
     _limits_cache,
     bluetooth_icon_state,
+    can_launch,
     follow_power,
     load_json,
     on_mains,
@@ -189,10 +191,19 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         # Links in answers open in the browser, never inside Kūhaku.
         if kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
             uri = decision.get_navigation_action().get_request().get_uri()
-            if uri.startswith("kuhaku://open?u="):
-                # What Claude opened in Mado, one click away under its answer.
-                url = urllib.parse.unquote(uri[len("kuhaku://open?u=") :])
-                if url.startswith(("https://", "http://", "file://")):
+            if uri.startswith("kuhaku://open?"):
+                # What Claude put on screen, one click away under its answer: in the same app, or as the system opens it.
+                q = urllib.parse.parse_qs(urllib.parse.urlsplit(uri).query)
+                url, app = (q.get("u") or [""])[0], (q.get("app") or [""])[0]
+                url = url if url.startswith(("https://", "http://", "file://")) else ""
+                if app and (app in OPENERS or can_launch(app)) and app != "xdg-open":
+                    spawn(
+                        [str(HOME / ".local/bin" / app) if (HOME / ".local/bin" / app).exists() else app]
+                        + ([url] if url else [])
+                    )
+                elif url.startswith("file://"):
+                    spawn(["xdg-open", url])
+                elif url:
                     spawn([str(HOME / ".local/bin/mado"), url])
                 decision.ignore()
                 return True

@@ -299,21 +299,26 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight' && phase === 'answer') { e.preventDefault(); showAt(answerAt + 1); }
 });
 
-// What Claude opened in Mado during the job, as quiet links under the answer: one click opens it again.
-function drawOpened(urls) {
+// What Claude put on screen during the job (a page, a file, a folder, an app) or made as a file,
+// as quiet links under the answer: one click opens it again, in the same app.
+const APP_NAMES = { mado: 'Mado', miru: 'Miru', tegami: 'Tegami', tsukuru: 'Tsukuru', kansei: 'Kansei', kiroku: 'Kiroku' };
+const undo = (u) => { try { return decodeURI(u); } catch (e) { return u; } };
+const appName = (a) => APP_NAMES[a] || (a ? a[0].toUpperCase() + a.slice(1) : '');
+function drawOpened(list) {
   const box = $('answerOpened');
   box.textContent = '';
-  box.hidden = !(urls && urls.length);
-  for (const u of urls || []) {
+  box.hidden = !(list && list.length);
+  for (const o of list || []) {
+    const { app, url } = typeof o === 'string' ? { app: 'mado', url: o } : o;   // older answers: Mado links only
     const a = document.createElement('a');
-    a.href = 'kuhaku://open?u=' + encodeURIComponent(u);
-    let name = u;
+    a.href = 'kuhaku://open?app=' + encodeURIComponent(app || '') + '&u=' + encodeURIComponent(url || '');
+    let name = url ? url : appName(app);
     try {
-      const x = new URL(u);
-      name = x.protocol === 'file:' ? decodeURIComponent(x.pathname.split('/').pop()) : x.host.replace(/^www\./, '') + (x.pathname.length > 1 ? x.pathname : '');
-    } catch (e) { /* not a URL: shown as it is */ }
+      const x = new URL(url);
+      name = x.protocol === 'file:' ? decodeURIComponent(x.pathname.replace(/\/$/, '').split('/').pop()) || '/' : x.host.replace(/^www\./, '') + (x.pathname.length > 1 ? x.pathname : '');
+    } catch (e) { /* an app on its own: its name */ }
     a.textContent = name.length > 60 ? name.slice(0, 59) + '…' : name;
-    a.title = 'Open in Mado: ' + u;
+    a.title = url ? (app ? 'Open in ' + appName(app) + ': ' : 'Open: ') + undo(url.replace(/^file:\/\//, '')) : 'Open ' + appName(app);
     box.append(a);
   }
 }

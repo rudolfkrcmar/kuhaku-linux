@@ -632,27 +632,43 @@ if __name__ == "__main__":
 
 
 class OpenedTest(unittest.TestCase):
-    """opened(): what Claude showed in Mado, so the answer can offer it again."""
+    """opened(): what Claude put on screen or made, so the answer can offer it again."""
+
+    def use(self, name, **inp):
+        return {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": name, "input": inp}]}}
 
     def bash(self, command):
-        return {
-            "type": "assistant",
-            "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": command}}]},
-        }
+        return ks.opened(self.use("Bash", command=command))
 
-    def test_web_and_file(self):
+    def test_pages_files_and_folders(self):
         self.assertEqual(
-            ks.opened(self.bash('setsid -f mado "https://example.com/a b" >/dev/null 2>&1')),
-            ["https://example.com/a b"],
+            self.bash('setsid -f mado "https://example.com/a b" >/dev/null 2>&1'),
+            [{"app": "mado", "url": "https://example.com/a b"}],
         )
         self.assertEqual(
-            ks.opened(self.bash("export DISPLAY=:0; setsid -f mado file:///tmp/x.html; sleep 4")),
-            ["file:///tmp/x.html"],
+            self.bash("export DISPLAY=:0; setsid -f mado file:///tmp/x.html; sleep 4"),
+            [{"app": "mado", "url": "file:///tmp/x.html"}],
         )
-        self.assertEqual(ks.opened(self.bash("mado '/tmp/my page.html'")), ["file:///tmp/my%20page.html"])
+        self.assertEqual(self.bash("mado '/tmp/my page.html'"), [{"app": "mado", "url": "file:///tmp/my%20page.html"}])
+        self.assertEqual(self.bash("setsid -f miru /srv/photos"), [{"app": "miru", "url": "file:///srv/photos"}])
+        self.assertEqual(self.bash("xdg-open /srv/a.pdf"), [{"app": "", "url": "file:///srv/a.pdf"}])
+        self.assertEqual(self.bash("gio open /srv/b.png"), [{"app": "", "url": "file:///srv/b.png"}])
+
+    def test_apps_on_their_own(self):
+        self.assertEqual(self.bash("setsid -f tegami >/dev/null 2>&1"), [{"app": "tegami", "url": ""}])
+        self.assertEqual(self.bash("nohup python3 x.py &"), [])
+
+    def test_files_made(self):
+        home = str(ks.HOME)
+        self.assertEqual(
+            ks.opened(self.use("Write", file_path=home + "/Documents/k.html")),
+            [{"app": "", "url": "file://" + home + "/Documents/k.html"}],
+        )
+        for p in (home + "/Projects/a/b.py", home + "/.config/x", "/tmp/a"):
+            self.assertEqual(ks.opened(self.use("Write", file_path=p)), [])
 
     def test_nothing_else(self):
-        self.assertEqual(ks.opened(self.bash("echo mado")), [])
-        self.assertEqual(ks.opened(self.bash("ls /tmp && grep x /etc/hosts")), [])
-        self.assertEqual(ks.opened(self.bash("mado 'unclosed")), [])
+        self.assertEqual(self.bash("echo hi"), [])
+        self.assertEqual(self.bash("ls /tmp && grep x /etc/hosts"), [])
+        self.assertEqual(self.bash("mado 'unclosed"), [])
         self.assertEqual(ks.opened({"type": "user"}), [])
