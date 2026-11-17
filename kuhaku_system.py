@@ -949,6 +949,37 @@ def describe(ev):
     return steps
 
 
+def opened(ev):
+    """What Claude opened in Mado in one stream-json event (`mado <url or file>` in a Bash call), as URLs."""
+    import shlex
+    from urllib.parse import quote
+
+    found: list[str] = []
+    if ev.get("type") != "assistant":
+        return found
+    for block in (ev.get("message") or {}).get("content") or []:
+        if block.get("type") != "tool_use" or block.get("name") != "Bash":
+            continue
+        try:
+            lex = shlex.shlex((block.get("input") or {}).get("command") or "", posix=True, punctuation_chars=True)
+            words = list(lex)
+        except ValueError:
+            continue
+        after = False
+        for w in words:
+            if Path(w).name == "mado":
+                after = True
+            elif not after:
+                continue
+            elif w and set(w) <= set("();&|<>"):
+                after = False
+            elif "://" in w and re.match(r"(https?|file)://", w):
+                found.append(w)
+            elif w.startswith(("/", "~/")):
+                found.append("file://" + quote(str(Path(w).expanduser())))
+    return found
+
+
 # --- Notifications -------------------------------------------------------------
 NOTIFY_LOG = HOME / ".local" / "state" / "kuhaku" / "notices.sqlite"  # kept by kuhaku-notify.py
 

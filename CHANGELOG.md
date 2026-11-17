@@ -6,6 +6,7 @@ number lives in `VERSION`, and each release is a git tag (`v0.3.0`).
 ## Unreleased
 
 ### New
+- **One click back to what Claude showed you.** When Claude opens a page or a file in Mado while it works, its answer ends with a quiet link to it, so you can open it again later without asking.
 - **Earlier messages as a chat.** Answers still fade away on their own, but a history button beside the line (and above an answer) shows the tab's whole conversation as one quiet chat, oldest first, newest at the bottom, also while Claude is still working (beside the + for the next message). Esc goes back and never stops the work.
 - **Comments on web pages, for Claude.** Mado's Developer mode has **Comment** (Ctrl+Alt+C), opened and closed by its icon like the tools: open, point at anything on a page, a site of yours or any other, click, and write what should change. A red pin stays on the spot. The open comments are listed under the bar, which counts a site's open comments and hands them all to Claude on the home screen in one click; Claude finds the project, makes the changes and marks each done, and the pins go. Ask later instead ("do my Mado comments") and it works the same way. The page's own scripts never see the comments.
 - **Developer tools fold away.** Their close button now works (Developer mode stays), the bar shows and hides them, and puts them under the page or beside it.

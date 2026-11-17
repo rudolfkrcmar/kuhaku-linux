@@ -629,3 +629,30 @@ class LoadJson(TempDirCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OpenedTest(unittest.TestCase):
+    """opened(): what Claude showed in Mado, so the answer can offer it again."""
+
+    def bash(self, command):
+        return {
+            "type": "assistant",
+            "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": command}}]},
+        }
+
+    def test_web_and_file(self):
+        self.assertEqual(
+            ks.opened(self.bash('setsid -f mado "https://example.com/a b" >/dev/null 2>&1')),
+            ["https://example.com/a b"],
+        )
+        self.assertEqual(
+            ks.opened(self.bash("export DISPLAY=:0; setsid -f mado file:///tmp/x.html; sleep 4")),
+            ["file:///tmp/x.html"],
+        )
+        self.assertEqual(ks.opened(self.bash("mado '/tmp/my page.html'")), ["file:///tmp/my%20page.html"])
+
+    def test_nothing_else(self):
+        self.assertEqual(ks.opened(self.bash("echo mado")), [])
+        self.assertEqual(ks.opened(self.bash("ls /tmp && grep x /etc/hosts")), [])
+        self.assertEqual(ks.opened(self.bash("mado 'unclosed")), [])
+        self.assertEqual(ks.opened({"type": "user"}), [])

@@ -27,7 +27,7 @@ import keepawake
 from kuhaku_base import Home
 from kuhaku_config import ANSWERS_FILE, HOME, LOG_FILE, SYSTEM_PROMPT, VOICE_PROMPT
 from kuhaku_log import report
-from kuhaku_system import _limits_cache, describe, note_limits, plan_limits, spawn
+from kuhaku_system import _limits_cache, describe, note_limits, opened, plan_limits, spawn
 
 
 class ClaudeJobs(Home):
@@ -494,6 +494,9 @@ class ClaudeJobs(Home):
             run.update(model=ev.get("model"), cwd=ev.get("cwd"))
             if ev.get("model") and not run["agent"].startswith(("agent:", "acct:")):
                 self.state.setdefault("models", {})[run["agent"]] = ev["model"]
+        for url in opened(ev):
+            if url not in live.setdefault("opened", []):
+                live["opened"] = (live["opened"] + [url])[-4:]
         for step in describe(ev):
             live["activity"] = (live["activity"] + [step])[-200:]
             GLib.idle_add(self.send, "addActivity", dict(step, tab=tab_id))
@@ -570,6 +573,8 @@ class ClaudeJobs(Home):
             "time": int(time.time()),
             "tab": tab_id,
         }
+        if (self.live.get(tab_id) or {}).get("opened"):
+            entry["opened"] = self.live[tab_id]["opened"]
         if tab:
             if session_id:
                 tab["session_id"] = session_id

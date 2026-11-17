@@ -18,6 +18,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 from pathlib import Path
 
 import gi
@@ -188,6 +189,13 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         # Links in answers open in the browser, never inside Kūhaku.
         if kind == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
             uri = decision.get_navigation_action().get_request().get_uri()
+            if uri.startswith("kuhaku://open?u="):
+                # What Claude opened in Mado, one click away under its answer.
+                url = urllib.parse.unquote(uri[len("kuhaku://open?u=") :])
+                if url.startswith(("https://", "http://", "file://")):
+                    spawn([str(HOME / ".local/bin/mado"), url])
+                decision.ignore()
+                return True
             if uri.startswith("kuhaku://details"):
                 self.open_terminal()  # what happened, in real Claude Code
                 decision.ignore()
