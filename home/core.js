@@ -195,17 +195,19 @@ function drawNav() {
   $('answerWhen').textContent = i >= 0 ? when(answers[i].time) : '';
 }
 window.setAnswers = ({ answers: list, show: visible }) => {
-  answers = list || [];
+  answers = list || []; drawHist();
   if (visible && answers.length && phase === 'home' && !ask.value) showAt(answers.length - 1, false);
 };
 window.showAnswer = (entry) => {
   if (entry.tab && entry.tab !== jobs.current) { if (!entry.error) answers.push(entry); return; }  // its tab shows a red dot
   if (!entry.error) { answers.push(entry); answerAt = answers.length - 1; }
   else answerAt = -1;
+  drawHist();
   renderAnswer(entry, true);
 };
 function closeAnswer() {
   if (!$('answerList').hidden) return listAnswers(false);   // Esc or × leaves the overview first
+  if (!$('answerChat').hidden && answerAt >= 0) return chatAnswers(false);   // then the chat, back to the one answer
   native({ type: 'dismiss' }); show('home');
 }
 // Clicking "177 of 182" shows every answer, newest first; clicking one opens it.
@@ -214,6 +216,7 @@ function listAnswers(on) {
   list.hidden = !on;
   $('answer').classList.toggle('listing', on);
   $('askedAnswer').hidden = on; $('answerText').hidden = on;
+  if (on) chatAnswers(false, true);
   if (!on) return;
   list.innerHTML = '';
   for (let i = answers.length - 1; i >= 0; i--) {
@@ -230,6 +233,43 @@ function listAnswers(on) {
   const here = list.querySelector('.here');
   if (here) here.scrollIntoView({ block: 'nearest' });
 }
+// The history button: this tab's questions and answers as one quiet chat, oldest first, the newest at the bottom.
+const tabAnswers = () => {
+  const mine = answers.filter((e) => e.tab && e.tab === jobs.current);
+  return mine.length ? mine : answers.filter((e) => !e.tab).slice(-30);
+};
+function drawHist() { $('histBtn').hidden = !tabAnswers().length; }
+function chatAnswers(on, quiet) {
+  const chat = $('answerChat');
+  chat.hidden = !on;
+  $('answer').classList.toggle('chatting', on);
+  if (!quiet) { $('askedAnswer').hidden = on; $('answerText').hidden = on; }
+  if (!on) return;
+  if (!$('answerList').hidden) { $('answerList').hidden = true; $('answer').classList.remove('listing'); }
+  chat.innerHTML = '';
+  const cur = answers[answerAt];
+  let last = '';
+  for (const e of tabAnswers()) {
+    const day = e.time ? new Date(e.time * 1000).toDateString() : '';
+    const m = document.createElement('div'); m.className = 'msg' + (e === cur ? ' here' : '');
+    const q = document.createElement('p'); q.className = 'cq'; q.textContent = e.question || '';
+    const t = document.createElement('span'); t.className = 't'; t.textContent = day === last ? when(e.time).slice(-5) : when(e.time);
+    last = day;
+    const a = document.createElement('p'); a.className = 'ca'; linkify(a, plain(e.answer || ''));
+    m.append(t, q, a); chat.append(m);
+  }
+  chat.scrollTop = chat.scrollHeight;
+}
+function openChat() {
+  if (phase !== 'answer') {
+    const mine = tabAnswers();
+    if (!mine.length) return;
+    showAt(answers.lastIndexOf(mine[mine.length - 1]), false);
+  }
+  chatAnswers($('answerChat').hidden);
+}
+$('chatBtn').addEventListener('click', openChat);
+$('histBtn').addEventListener('click', (e) => { e.preventDefault(); openChat(); });
 $('answerPos').addEventListener('click', () => listAnswers($('answerList').hidden));
 $('prevAnswer').addEventListener('click', () => showAt(answerAt - 1));
 $('nextAnswer').addEventListener('click', () => showAt(answerAt + 1));
@@ -258,7 +298,7 @@ function renderAnswer({ question, answer, error }, anim) {
     el.append(' ', a);
   }
   el.scrollTop = 0;
-  listAnswers(false);
+  listAnswers(false); chatAnswers(false);
   if (anim) { $('answer').style.animation = 'none'; void $('answer').offsetWidth; $('answer').style.animation = ''; }
   show('answer', question);
   drawNav();

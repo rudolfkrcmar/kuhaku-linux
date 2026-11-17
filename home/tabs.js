@@ -92,12 +92,12 @@ window.setTabs = (j) => {
   const was = jobs.current; jobs = Object.assign({ agents: [] }, j);
   const t = curTab();
   if (was === jobs.current && t && phase === 'working' && t.status === 'idle' && !t.answer) { /* the answer arrives on its own */ }
-  drawTabs();
+  drawTabs(); drawHist();
 };
 // Each tab keeps its own view, its own typed text and its own prepared next message.
 window.restoreTab = ({ id, status, question, activity, tokens, answer, draft, next }) => {
   if (id) jobs.current = id;
-  clearTimeout(draftT);
+  clearTimeout(draftT); drawHist();
   const busy = status === 'running' || status === 'queued';
   $('nextText').value = ''; $('nextText').hidden = true; $('next').classList.remove('on');
   $('agentMenu').hidden = true;

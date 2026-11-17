@@ -348,6 +348,18 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .answer .list .lq { font-size:16px; font-weight:300; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .answer .list .la { font-size:13px; font-weight:300; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .answer .nav .when { font-size:12px; margin-left:8px; }
+.answer.chatting .nav .hist { color:var(--fg); }
+/* One conversation as a chat: each question small and quiet, its answer under it; the newest at the bottom. */
+.answer .chat { display:flex; flex-direction:column; gap:28px; overflow-y:auto; min-height:0; user-select:text;
+                scrollbar-width:none; padding-bottom:4px; }
+.answer .chat::-webkit-scrollbar { display:none; }
+.answer .chat .msg { display:flex; flex-direction:column; gap:6px; }
+.answer .chat .t { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; letter-spacing:.04em; }
+.answer .chat .cq { margin:0; font-size:14px; line-height:1.5; font-weight:300; color:var(--muted);
+                    white-space:pre-wrap; overflow-wrap:anywhere; padding-left:12px; box-shadow:inset 2px 0 0 var(--faint); }
+.answer .chat .ca { margin:0; font-size:17px; line-height:1.6; font-weight:300; white-space:pre-wrap; overflow-wrap:anywhere; }
+.answer .chat .msg.here .cq { box-shadow:inset 2px 0 0 var(--accent); }
+.answer .chat a { color:inherit; text-decoration-color:var(--accent); text-underline-offset:3px; }
 .answer .nav .close { margin-left:auto; }
 .answer .q { margin:0; font-size:14px; line-height:1.5; font-weight:300; color:var(--muted); flex-shrink:0;
              white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3;

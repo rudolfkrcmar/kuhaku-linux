@@ -81,6 +81,26 @@ class Asking(PageCase):
         self.assertIn("Yes. It finished at 7:02", text)  # markdown that slips through is stripped
         self.assertNotIn("**", text)
 
+    def test_the_history_button_shows_the_tab_as_a_chat(self):
+        old = [
+            {"question": "Is the backup done?", "answer": "Yes.", "error": False, "time": 1794500000, "tab": "1"},
+            {"question": "Other tab", "answer": "Not here.", "error": False, "time": 1794500100, "tab": "2"},
+            {"question": "And the photos?", "answer": "Those too.", "error": False, "time": 1794500200, "tab": "1"},
+        ]
+        self.page.js("setAnswers(" + json.dumps({"answers": old, "show": False}) + "); return true;")
+        self.page.wait(150)
+        self.assertEqual(self.page.js("return document.getElementById('histBtn').hidden;"), False)
+        self.page.click("#histBtn")
+        self.page.wait(300)
+        chat = self.page.js("return document.getElementById('answerChat').innerText;")
+        self.assertIn("Is the backup done?", chat)
+        self.assertIn("Those too.", chat)
+        self.assertNotIn("Not here.", chat)  # only this tab's conversation
+        self.assertLess(chat.index("backup"), chat.index("photos"))  # oldest first, like a chat
+        ask_key(self.page, "Escape")
+        self.assertEqual(self.page.js("return document.getElementById('answerChat').hidden;"), True)
+        self.assertEqual(self.page.js("return document.getElementById('answerText').hidden;"), False)
+
 
 class Night(PageCase):
     def setUp(self):
