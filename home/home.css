@@ -1,6 +1,6 @@
 /* Kūhaku's home screen: day and night colours, the line, answers, tabs, panels and pages. */
-:root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.08); --accent:#e0301e; }
-body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.08); --accent:#f0705a; }
+:root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.08); --accent:#e0301e; --charge:#2f9d62; }
+body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.08); --accent:#f0705a; --charge:#5cc98a; }
 * { box-sizing:border-box; }
 html, body { margin:0; height:100%; }
 body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inter',system-ui,sans-serif;

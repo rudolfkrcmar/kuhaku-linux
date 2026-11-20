@@ -296,9 +296,9 @@ window.setStatus = ({ battery, wifi, bt: btIcon, signal, vpn }) => {
   if (!battery) { $('batteryWrap').hidden = true; return; }
   $('batteryWrap').hidden = false;
   $('batteryFill').setAttribute('width', Math.max(1.5, 18 * battery.level / 100).toFixed(1));
-  $('batteryFill').style.fill = battery.level <= 15 && !battery.charging ? 'var(--accent)' : '';
+  // Charging: the bar itself turns green (no separate bolt); low and not charging: red.
+  $('batteryFill').style.fill = battery.charging ? 'var(--charge)' : battery.level <= 15 ? 'var(--accent)' : '';
   // An <svg> has no .hidden property: setting it does nothing, so change the attribute itself.
-  $('batteryBolt').toggleAttribute('hidden', !battery.charging);
   $('batteryWrap').title = battery.level + '%' + (battery.charging ? ', charging' : '');
 };
 

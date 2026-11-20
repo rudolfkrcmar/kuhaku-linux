@@ -372,7 +372,7 @@ window.setRecording = (s) => {
   $('recMicBtn').hidden = !on;
   $('recMicBtn').classList.toggle('off', mic !== true);
   $('recMicBtn').disabled = mic == null;
-  $('recMicText').textContent = mic == null ? 'No microphone' : mic ? 'Microphone on' : 'Microphone off';
+  $('recMicBtn').title = mic == null ? 'No microphone' : mic ? 'Microphone on: click to mute it in this recording' : 'Microphone off: click to turn it on';
 };
 $('recBtn').addEventListener('click', () => native({ type: 'stopRecording' }));
 $('recMicBtn').addEventListener('click', () => native({ type: 'recMic' }));

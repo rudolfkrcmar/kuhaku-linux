@@ -21,13 +21,12 @@
   </div>
 </nav>
 <div class="status">
-  <button class="stat rec" id="recBtn" title="Stop recording and save it to Videos (Cmd+Shift+5)" hidden><span class="rdot"></span>Stop recording</button>
-  <button class="stat recmic" id="recMicBtn" title="Switch the microphone in this recording" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M9.5 6a2.5 2.5 0 0 1 5 0v6a2.5 2.5 0 0 1-5 0z"/><path d="M6.5 11.5a5.5 5.5 0 0 0 11 0M12 17v3"/><path class="strike" d="M5 4l14 16"/></svg><span id="recMicText">Microphone on</span></button>
+  <button class="stat rec" id="recBtn" title="Stop recording and save it to Videos (Cmd+Shift+5)" hidden><span class="rdot"></span>Stop</button>
+  <button class="stat recmic" id="recMicBtn" title="Switch the microphone in this recording" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M9.5 6a2.5 2.5 0 0 1 5 0v6a2.5 2.5 0 0 1-5 0z"/><path d="M6.5 11.5a5.5 5.5 0 0 0 11 0M12 17v3"/><path class="strike" d="M5 4l14 16"/></svg></button>
   <button class="stat acct" id="acctBtn" title="Claude account: click to switch" hidden><span id="acctName" hidden></span><svg class="acctIcon" id="acctHome" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 10.5V19h11v-8.5" stroke="currentColor"/><path class="acc" d="M4 12L12 5l8 7"/></svg><svg class="acctIcon" id="acctWork" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M4.5 8.5h15v10h-15z" stroke="currentColor"/><path d="M9.5 8.5V6h5v2.5" stroke="currentColor"/><path class="acc" d="M4.5 13h15"/></svg></button>
   <span class="icons">
     <button class="stat" id="wifiBtn" title="Connections: Wi‑Fi, VPN, Bluetooth"><svg id="wifi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="butt"><path class="l3" d="M4.5 6.5h15" stroke="currentColor"/><path class="l2" d="M7.5 11h9" stroke="currentColor"/><path class="l1" d="M10 15.5h4" stroke="currentColor"/><path class="stem" d="M12 15.5v5"/></svg></button>
     <button class="stat" id="batteryWrap" title="">
-      <svg id="batteryBolt" width="6" height="9" viewBox="0 0 6 9" hidden><path d="M3.6 0L0 5h2.4L1.8 9 6 3.8H3.4z" fill="currentColor"/></svg>
       <svg width="18" height="6" viewBox="0 0 18 6"><rect width="18" height="6" fill="currentColor" opacity=".18"/><rect id="batteryFill" width="12" height="6" fill="currentColor"/></svg>
     </button>
   </span>

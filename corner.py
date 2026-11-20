@@ -5,7 +5,8 @@ below it), laid out as the home screen's top row. On the left: the red line, whi
 (the app stays open), and the red dot (the open apps, as cards). On the right: Wi‑Fi, battery, date and time,
 then a cross that closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku
 in front, or a fullscreen app (a game), the bar steps away. While the screen is recorded, the left side says so
-after the dot: "Stop recording" (a click stops it) and the microphone, on or off (a click switches it).
+after the dot: a red dot and "Stop" (a click stops it), then a microphone, struck through when off (a click
+switches it).
 """
 
 import os
@@ -44,12 +45,14 @@ DAY = {
     "fg": (0.067, 0.067, 0.067),
     "muted": (0.4, 0.4, 0.4),
     "accent": (0.878, 0.188, 0.118),
+    "charge": (0.184, 0.616, 0.384),
 }
 NIGHT = {
     "bg": (0.071, 0.071, 0.071),
     "fg": (0.925, 0.925, 0.925),
     "muted": (0.6, 0.6, 0.6),
     "accent": (0.941, 0.439, 0.353),
+    "charge": (0.361, 0.788, 0.541),
 }
 
 
@@ -229,7 +232,7 @@ class Corner:
 
     # drawing --------------------------------------------------------------------------
     # As on the home screen. Left: the red line (home, the app stays open), then the red dot (open apps, as cards);
-    # while recording, "Stop recording" and the microphone follow. Right: Wi‑Fi, battery, date and time, then the
+    # while recording, "Stop" and the microphone follow. Right: Wi‑Fi, battery, date and time, then the
     # cross (close the app) at the very end.
     def where(self, x):
         x /= self.s
@@ -304,18 +307,13 @@ class Corner:
             cr.set_source_rgba(*c["muted"], 0.18)
             cr.rectangle(x - 18, mid - 3, 18, 6)
             cr.fill()
-            cr.set_source_rgb(*(c["accent"] if b["level"] <= 15 and not b["charging"] else hot("battery", c["muted"])))
+            # Charging: the bar itself turns green, as on the home screen; low and not charging: red.
+            fill = c["charge"] if b["charging"] else c["accent"] if b["level"] <= 15 else hot("battery", c["muted"])
+            cr.set_source_rgb(*fill)
             cr.rectangle(x - 18, mid - 3, max(1.5, 18 * b["level"] / 100), 6)
             cr.fill()
-            if b["charging"]:  # plugged in: a small bolt before the bar, as on the home screen
-                cr.set_source_rgb(*hot("battery", c["muted"]))
-                bx, by = x - 29, mid - 4.5
-                for i, (px, py) in enumerate(((3.6, 0), (0, 5), (2.4, 5), (1.8, 9), (6, 3.8), (3.4, 3.8))):
-                    (cr.move_to if i == 0 else cr.line_to)(bx + px, by + py)
-                cr.close_path()
-                cr.fill()
-            zones.append((x - 31, x + 9, "battery"))
-            x -= 46 if b["charging"] else 34
+            zones.append((x - 22, x + 9, "battery"))
+            x -= 34
         # Wi‑Fi: three flat lines, as on the home screen.
         on = self.wifi in ("on", "wired")
         cr.set_source_rgba(*hot("wifi", c["muted"]), 1 if on else 0.3)
@@ -332,7 +330,7 @@ class Corner:
         self.zones = zones
 
     def draw_recording(self, cr, c, zones):
-        """Left end, while recording: a red dot, "Stop recording", then the microphone and its state."""
+        """Left side, while recording: a red dot and "Stop", then the microphone, struck through when off."""
         rec = self.rec_fn() if self.rec_fn else None
         if not rec:
             return
@@ -343,7 +341,7 @@ class Corner:
         cr.fill()
         tw = self.text(
             cr,
-            "Stop recording",
+            "Stop",
             x + 14,
             9.5,
             c["accent"] if self.hover == "rec-stop" else c["fg"],
@@ -352,7 +350,6 @@ class Corner:
         zones.append((x - 8, x + 14 + tw + 8, "rec-stop"))
         x += 14 + tw + 26
         mic = rec.get("mic")
-        label = "No microphone" if mic is None else "Microphone on" if mic else "Microphone off"
         color = c["fg"] if self.hover == "rec-mic" and mic is not None else c["muted"]
         # A small microphone: a capsule and its stand; struck through when off.
         cr.set_source_rgba(*color, 1 if mic else 0.55)
@@ -372,9 +369,8 @@ class Corner:
             cr.move_to(x - 1, mid - 6)
             cr.line_to(x + 9, mid + 6)
             cr.stroke()
-        mw = self.text(cr, label, x + 16, 9.5, color)
-        if mic is not None:
-            zones.append((x - 8, x + 16 + mw + 8, "rec-mic"))
+        if mic is not None:  # the icon alone says it: struck through when off
+            zones.append((x - 8, x + 16, "rec-mic"))
 
     def click(self, _w, e):
         w = self.where(e.x)
