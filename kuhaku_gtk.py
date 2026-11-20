@@ -10,6 +10,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SOURCE = HERE / "system" / "gtk" / "kuhaku.css"
 TARGET = Path.home() / ".config" / "gtk-3.0" / "kuhaku.css"
+# GTK 4 and libadwaita apps (zenity's questions among them) read their own folder.
+SOURCE4 = HERE / "system" / "gtk" / "kuhaku-gtk4.css"
+TARGET4 = Path.home() / ".config" / "gtk-4.0" / "kuhaku.css"
 
 # Night token -> day token: paper, ink, rest, the quieter grey, the seal, ink at any strength.
 DAY = {
@@ -32,14 +35,20 @@ def css_for(theme, night_css):
     return _TOKEN.sub(lambda m: DAY[m.group(0).lower()], night_css)
 
 
-def apply(theme, source=SOURCE, target=TARGET):
-    """Write the stylesheet for this theme, once per change."""
+def apply(theme, pairs=None):
+    """Write the stylesheets for this theme, once per change."""
     global _written
-    if theme == _written and target.exists():
+    pairs = pairs or ((SOURCE, TARGET), (SOURCE4, TARGET4))
+    if theme == _written and all(t.exists() for _s, t in pairs):
         return False
-    css = css_for(theme, source.read_text())
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if not target.exists() or target.read_text() != css:
-        target.write_text(css)
+    for source, target in pairs:
+        css = css_for(theme, source.read_text())
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.exists() or target.read_text() != css:
+            target.write_text(css)
+        imports = target.parent / "gtk.css"  # the user's own gtk.css only gains an import
+        if "kuhaku.css" not in (imports.read_text() if imports.exists() else ""):
+            with open(imports, "a") as f:
+                f.write('@import url("kuhaku.css");\n')
     _written = theme
     return True

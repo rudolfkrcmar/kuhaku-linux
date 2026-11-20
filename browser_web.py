@@ -353,6 +353,22 @@ class Page(QWebEnginePage):
             report()
             return []
 
+    # A page's alert, confirm and prompt: Kūhaku's sheet (browser_dialogs.py) instead of Qt's boxes.
+    def javaScriptAlert(self, origin, text):
+        import browser_dialogs
+
+        browser_dialogs.alert(self.browser.window, self.browser.night, origin, text)
+
+    def javaScriptConfirm(self, origin, text):
+        import browser_dialogs
+
+        return browser_dialogs.confirm(self.browser.window, self.browser.night, origin, text)
+
+    def javaScriptPrompt(self, origin, text, default):
+        import browser_dialogs
+
+        return browser_dialogs.prompt(self.browser.window, self.browser.night, origin, text, default)
+
     def createWindow(self, _kind):
         # A link opened in a new tab stays in the mode its page lives in.
         return self.browser.new_tab(None, key=self.browser.key_of_page(self)).page()

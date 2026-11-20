@@ -76,6 +76,7 @@ from PyQt6.QtWebEngineCore import (
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QSplitter, QStackedWidget, QVBoxLayout, QWidget
 
+import browser_dialogs
 import browser_menu
 import browser_notes
 from browser_web import (
@@ -211,6 +212,8 @@ class Browser:
             self.app.styleHints().setColorScheme(Qt.ColorScheme.Dark if self.night else Qt.ColorScheme.Light)
         except Exception:
             report()
+        # Whatever stock Qt window is left (a colour picker, a save dialog, a tooltip): paper and ink.
+        self.app.setStyleSheet(browser_dialogs.qt_style(self.night))
 
     def bg(self):
         return QColor("#121212") if self.night else QColor("#f7f4f1")
@@ -755,6 +758,8 @@ class Browser:
         page.fullScreenRequested.connect(self.on_fullscreen)
         page.permissionRequested.connect(lambda perm: self.on_permission(view, perm))
         page.certificateError.connect(lambda err: self.on_tls_error(view, err))
+        page.authenticationRequired.connect(lambda url, auth: self.on_sign_in(url, auth))
+        page.proxyAuthenticationRequired.connect(lambda url, auth, proxy: self.on_sign_in(url, auth, proxy))
         page.findTextFinished.connect(lambda r: self.js(f"window.found && found({r.numberOfMatches()})"))
         return view
 
@@ -984,6 +989,14 @@ class Browser:
             self.quit()
         elif kind == "openDownloads":
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(HOME / "Downloads")))
+
+    def on_sign_in(self, url, auth, proxy=None):
+        """A site or a proxy asks for a name and password: Kūhaku's night sheet, not Qt's box."""
+        got = browser_dialogs.sign_in(self.window, QUrl("//" + proxy) if proxy else url, auth.realm(), bool(proxy))
+        if got is None:
+            return  # cancelled: nothing set, so the page shows the site's own "not signed in"
+        auth.setUser(got[0])
+        auth.setPassword(got[1])
 
     def follow_theme(self):
         """Day and night follow Kūhaku while Mado is open, not only when it was opened."""

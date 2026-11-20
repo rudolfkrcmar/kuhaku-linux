@@ -124,3 +124,110 @@ filechooser ~ .dialog-action-box button label { color: #9a9a9a; font-size: 15px;
 filechooser ~ .dialog-action-box button:hover label, filechooser ~ .dialog-action-box button:focus label,
 filechooser ~ .dialog-action-box button.default label { color: #ececec; }
 filechooser ~ .dialog-action-box button:disabled label { color: #666666; }
+
+/* Every other app window GTK draws for an app: print, "Open with", screen sharing, a colour, a
+   font, About. Paper and ink, Inter light, fields on a hairline, answers as words, tabs as words
+   with the red line under the one you are on, switches as squares. */
+dialog.background, dialog .dialog-vbox, dialog .dialog-action-area, dialog headerbar, dialog .titlebar,
+dialog notebook, dialog notebook > header, dialog notebook > stack, dialog scrolledwindow, dialog viewport,
+dialog list, dialog row, dialog treeview.view, dialog iconview, dialog frame, dialog frame > border,
+dialog box, dialog grid, dialog stack, dialog .view, dialog actionbar {
+  background: #121212; background-image: none; color: #ececec; border-color: rgba(236,236,236,.08); box-shadow: none; text-shadow: none;
+}
+dialog * { font-family: "Inter Variable", Inter, sans-serif; font-weight: 300; }
+dialog .dialog-vbox { padding: 18px 26px 6px; }
+dialog headerbar, dialog .titlebar { border: none; padding: 10px 20px; min-height: 0; }
+dialog headerbar .title { font-size: 15px; font-weight: 300; }
+dialog label { color: #ececec; }
+dialog .dim-label, dialog label.dim-label { color: #9a9a9a; opacity: 1; }
+dialog selection { background: rgba(236,236,236,.18); color: #ececec; }
+dialog frame > border { border: none; }
+dialog separator { background: rgba(236,236,236,.08); min-height: 1px; min-width: 1px; }
+
+/* Answers and actions: words. The main one ink, the others grey. */
+dialog button, dialog headerbar button {
+  background: none; background-image: none; border: none; box-shadow: none; text-shadow: none; border-radius: 0;
+  color: #9a9a9a; padding: 4px 8px; min-height: 0; outline-color: transparent; -gtk-icon-shadow: none;
+}
+dialog button label { color: #9a9a9a; }
+dialog button:hover, dialog button:hover label, dialog button:focus label, dialog button:checked label,
+dialog button.default label, dialog button.suggested-action label { color: #ececec; }
+dialog button.default, dialog button.suggested-action, dialog button.destructive-action { background: none; color: #ececec; }
+dialog button:disabled label { color: #666666; }
+dialog .dialog-action-area { padding: 14px 18px 20px; }
+dialog .dialog-action-area button { margin-left: 18px; }
+dialog button image { color: #9a9a9a; -gtk-icon-style: symbolic; }
+dialog button.color, dialog colorswatch { border-radius: 0; box-shadow: none; }
+
+/* Fields: a hairline to write on, the red caret where you are. */
+dialog entry, dialog spinbutton, dialog spinbutton entry {
+  background: none; color: #ececec; border: none; border-radius: 0; box-shadow: inset 0 -1px rgba(236,236,236,.18);
+  padding: 4px 0; min-height: 0; caret-color: #f0705a;
+}
+dialog entry:focus { box-shadow: inset 0 -1px rgba(236,236,236,.45); }
+dialog spinbutton button { padding: 2px 6px; }
+dialog combobox button, dialog combobox box { background: none; border: none; box-shadow: inset 0 -1px rgba(236,236,236,.18); border-radius: 0; color: #ececec; }
+
+/* Switches and choices: the 12 square, empty or filled with ink; never red. */
+dialog check, dialog radio, menu check, menu radio {
+  background: none; background-image: none; -gtk-icon-source: none; border: 1px solid #9a9a9a; border-radius: 0;
+  min-width: 10px; min-height: 10px; box-shadow: none; color: transparent;
+}
+dialog check:checked, dialog radio:checked, menu check:checked, menu radio:checked { background: #ececec; border-color: #ececec; }
+dialog switch {
+  /* The square is painted, so it stays 12 even where the app stretches the switch. */
+  background-color: transparent; border: none; border-radius: 0; box-shadow: none; padding: 0; margin: 0;
+  min-width: 12px; min-height: 12px; font-size: 0; color: transparent;
+  background-image: linear-gradient(#121212, #121212), linear-gradient(#9a9a9a, #9a9a9a);
+  background-size: 10px 10px, 12px 12px; background-position: 1px 50%, 0 50%; background-repeat: no-repeat;
+}
+dialog switch:checked { background-image: linear-gradient(#ececec, #ececec), linear-gradient(#ececec, #ececec); }
+dialog switch image { -gtk-icon-transform: scale(0); opacity: 0; min-width: 0; min-height: 0; }
+dialog switch slider { background: none; background-image: none; border: none; min-width: 0; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+dialog scale trough, dialog progressbar trough { background: rgba(236,236,236,.18); border: none; border-radius: 0; min-height: 6px; }
+dialog scale highlight, dialog progressbar progress { background: #ececec; border: none; border-radius: 0; }
+dialog scale slider { background: none; border: none; box-shadow: none; min-width: 0; min-height: 0; margin: 0; }
+
+/* Tabs: words; the one you are on is ink with the red line, 14 by 1.5, beneath it. */
+dialog notebook > header { border: none; box-shadow: none; padding: 0 20px; }
+dialog notebook > header tab { background: none; border: none; box-shadow: none; padding: 8px 0; margin-right: 22px; min-height: 0; }
+dialog notebook > header tab label { color: #9a9a9a; }
+dialog notebook > header tab:hover label, dialog notebook > header tab:checked label { color: #ececec; }
+dialog notebook > header tab:checked { background-image: linear-gradient(#f0705a, #f0705a); background-size: 14px 1.5px;
+  background-position: left bottom; background-repeat: no-repeat; }
+dialog notebook > stack { padding-top: 12px; }
+
+/* Lists: light type on paper; the chosen row on a faint sheet. */
+dialog row, dialog treeview.view { color: #ececec; }
+dialog row:selected, dialog treeview.view:selected, dialog iconview:selected { background: rgba(236,236,236,.08); color: #ececec; }
+dialog row:hover { background: rgba(236,236,236,.04); }
+dialog treeview.view header button { color: #666666; border-bottom: 1px solid rgba(236,236,236,.08); }
+dialog scrollbar, dialog scrollbar trough { background: none; border: none; }
+dialog scrollbar slider { background: rgba(236,236,236,.18); border: none; border-radius: 0; min-width: 3px; min-height: 3px; }
+
+/* Menus (an app's right-click and menu bar) and popovers: a quiet sheet of words. */
+menu, .menu, .context-menu, popover, popover.background {
+  background: #121212; background-image: none; color: #ececec; border: 1px solid rgba(236,236,236,.08);
+  border-radius: 0; box-shadow: none; padding: 6px 0;
+}
+menu *, popover * { font-family: "Inter Variable", Inter, sans-serif; font-weight: 300; }
+menu menuitem, .menu menuitem, .context-menu menuitem, popover modelbutton {
+  background: none; color: #ececec; padding: 6px 22px; min-height: 0; border: none; text-shadow: none; font-size: 13px;
+}
+menu menuitem:hover, .menu menuitem:hover, .context-menu menuitem:hover, popover modelbutton:hover { background: rgba(236,236,236,.08); color: #ececec; }
+menu menuitem:disabled, menu menuitem:disabled label, popover modelbutton:disabled { color: #666666; }
+menu menuitem accelerator { color: #666666; }
+menu menuitem arrow { color: #9a9a9a; }
+menu separator, popover separator { background: rgba(236,236,236,.08); margin: 5px 0; min-height: 1px; }
+menu image, popover image { color: #9a9a9a; -gtk-icon-style: symbolic; }
+menubar { background: none; box-shadow: none; border: none; }
+menubar > menuitem { color: #9a9a9a; padding: 4px 10px; }
+menubar > menuitem:hover { color: #ececec; background: none; box-shadow: none; }
+
+/* Tooltips: a few grey words on a sheet. */
+tooltip, tooltip.background { background: #121212; background-image: none; border: 1px solid rgba(236,236,236,.08);
+  border-radius: 0; box-shadow: none; padding: 5px 9px; opacity: 1; }
+tooltip * { color: #ececec; font-family: "Inter Variable", Inter, sans-serif; font-weight: 300; font-size: 12.5px; text-shadow: none; }
+dialog scrolledwindow, dialog scrolledwindow.frame, dialog scrolledwindow > border, dialog notebook, dialog notebook > stack,
+dialog .dialog-vbox > notebook { border: none; box-shadow: none; }
+dialog spinbutton entry { box-shadow: none; }
