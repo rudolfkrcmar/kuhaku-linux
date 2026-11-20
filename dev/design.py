@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds design/library.html: every icon Kūhaku draws, gathered from the pages themselves,
+"""Builds design/library.html, the inventory beside the design manual (design/index.html): every icon Kūhaku draws, gathered from the pages themselves,
 shown at its real size and large, at rest and on, by day and by night, with a quiet audit
 against the icon grammar in design/MANUAL.md.
 
@@ -76,6 +76,8 @@ def audit(svg, sizes=()):
     accents = len(re.findall(r'class="(?:[^"]*\s)?(?:hot|acc)(?:\s[^"]*)?"', svg))
     if accents > 1:
         notes.append(f"{accents} accent parts")
+    if re.search(r'stroke-linecap="round"|stroke-linejoin="round"|\srx="', svg):
+        notes.append("soft ends or corners (the canon is cut)")
     colours = set(re.findall(r"#[0-9a-fA-F]{3,6}\b", svg))
     if colours:
         notes.append("fixed colour " + " ".join(sorted(colours)))
@@ -187,7 +189,7 @@ PAGE = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Kūhaku · Icon library</title>
+<title>Kūhaku · Icon inventory</title>
 <!-- Written by dev/design.py from the pages themselves. Do not edit by hand. -->
 <style>
 :root {{ --bg:#f7f4f1; --fg:#111; --muted:#666; --faint:rgba(17,17,17,.08); --accent:#e0301e; }}
@@ -238,9 +240,9 @@ figcaption b {{ font-weight:400; }}
 </style>
 </head>
 <body>
-<header><span class="line"></span><h1>Icon library</h1></header>
+<header><span class="line"></span><h1>Icon inventory</h1></header>
 <p class="lede">Every icon Kūhaku draws ({total}), taken from the pages each time it is built. Large on the 24 grid at rest and on,
-then at real size by day and by night. Red notes are where an icon steps outside the grammar in the <a href="MANUAL.md" style="color:inherit">design manual</a>: a question, not a verdict.</p>
+then at real size by day and by night. Red notes are where an icon steps outside the grammar in the <a href="index.html" style="color:inherit">design manual</a>: a question, not a verdict.</p>
 <h2>Colour</h2>
 <div class="swatches">{swatches}</div>
 <h2>Signs<small>drawn in CSS</small></h2>

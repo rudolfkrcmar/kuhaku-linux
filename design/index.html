@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kūhaku · Design manual</title>
+<!-- The design manual. Written by hand: every drawing here is drawn on purpose.
+     The raw inventory of icons in the code is library.html, built by dev/design.py. -->
+<style>
+:root { --paper:#f7f4f1; --ink:#111111; --muted:#6b6b6b; --faint:rgba(17,17,17,.08); --hair:rgba(17,17,17,.16); --seal:#e0301e; }
+body.night { --paper:#121212; --ink:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.08); --hair:rgba(236,236,236,.18); --seal:#f0705a; }
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; background:var(--paper); color:var(--ink); font-family:'Inter Variable','Inter',system-ui,sans-serif; font-weight:300;
+       -webkit-font-smoothing:antialiased; transition:background .6s, color .6s; font-feature-settings:'ss01','cv11'; }
+a { color:inherit; text-decoration:none; border-bottom:1px solid var(--hair); }
+.wrap { max-width:1180px; margin:0 auto; padding:0 64px; }
+
+/* Cover */
+.cover { min-height:100vh; display:grid; grid-template-rows:auto 1fr auto; padding:40px 0 56px; }
+.cover .top { display:flex; justify-content:space-between; font-size:12.5px; letter-spacing:.04em; color:var(--muted); }
+.cover .mid { display:flex; flex-direction:column; justify-content:center; }
+.cover .kanji { font-size:200px; font-weight:200; letter-spacing:.06em; line-height:1; margin:0 0 0 -10px; }
+.cover .line { width:56px; height:3px; background:var(--seal); margin:56px 0 28px; }
+.cover h1 { margin:0; font-size:40px; font-weight:200; letter-spacing:-.02em; }
+.cover p { margin:14px 0 0; font-size:17px; color:var(--muted); max-width:520px; line-height:1.6; }
+.cover .toc { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px 28px; font-size:13px; color:var(--muted); }
+.cover .toc a { border:0; display:flex; gap:10px; }
+.cover .toc a b { font-weight:400; color:var(--ink); font-variant-numeric:tabular-nums; }
+.cover .toc a:hover { color:var(--ink); }
+#night { position:fixed; right:28px; top:34px; z-index:3; border:0; background:none; color:var(--muted); font:inherit; font-size:12.5px;
+         letter-spacing:.04em; cursor:pointer; padding:0; }
+#night:hover { color:var(--ink); }
+
+/* Chapters */
+section.ch { padding:160px 0 40px; }
+.ch > .wrap > header { display:grid; grid-template-columns:120px 1fr; margin-bottom:72px; }
+.ch header .n { font-size:13px; color:var(--seal); font-weight:400; font-variant-numeric:tabular-nums; padding-top:14px; }
+.ch header h2 { margin:0; font-size:56px; font-weight:200; letter-spacing:-.03em; line-height:1.05; }
+.ch header p { grid-column:2; margin:22px 0 0; font-size:21px; line-height:1.55; color:var(--muted); max-width:720px; font-weight:300; }
+.ch header p em { font-style:normal; color:var(--ink); }
+.body { margin-left:120px; }
+.lead { font-size:28px; line-height:1.45; font-weight:200; letter-spacing:-.01em; max-width:820px; margin:0 0 40px; }
+.lead b { font-weight:300; }
+.text { font-size:16px; line-height:1.7; max-width:640px; color:var(--ink); }
+.text p { margin:0 0 18px; }
+.text .m { color:var(--muted); }
+h3 { font-size:24px; font-weight:200; letter-spacing:-.01em; margin:96px 0 28px; }
+h3 small { font-size:13px; color:var(--muted); font-weight:300; margin-left:12px; letter-spacing:0; }
+.cap { font-size:12.5px; color:var(--muted); line-height:1.55; }
+.cap b { color:var(--ink); font-weight:400; display:block; font-size:14px; margin-bottom:4px; }
+.rule { height:1px; background:var(--faint); margin:72px 0; }
+
+/* Lineage */
+.lineage { display:grid; grid-template-columns:repeat(3, 1fr); gap:72px 56px; }
+.lineage figure { margin:0; }
+.lineage svg { width:100%; aspect-ratio:3/2; display:block; margin-bottom:22px; stroke-width:.32; }
+.lineage svg path, .lineage svg circle { stroke-width:inherit; }
+.lineage .who { font-size:12.5px; letter-spacing:.04em; color:var(--muted); }
+.lineage h4 { margin:6px 0 8px; font-size:20px; font-weight:300; letter-spacing:-.01em; }
+.lineage p { margin:0; font-size:14.5px; line-height:1.6; color:var(--muted); }
+
+/* Principles */
+.principles { list-style:none; margin:0 0 0 120px; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:56px 72px; }
+.principles li { display:grid; grid-template-columns:44px 1fr; }
+.principles .k { font-size:13px; color:var(--seal); font-weight:400; padding-top:8px; font-variant-numeric:tabular-nums; }
+.principles h4 { margin:0 0 10px; font-size:24px; font-weight:200; letter-spacing:-.01em; }
+.principles p { margin:0; font-size:15px; line-height:1.65; color:var(--muted); }
+
+/* Colour */
+.planes { display:grid; grid-template-columns:5fr 3fr 1fr; height:420px; box-shadow:0 0 0 1px var(--faint); }
+.planes div { padding:28px; display:flex; flex-direction:column; justify-content:flex-end; font-size:13px; }
+.planes .p { background:#f7f4f1; color:#6b6b6b; }
+.planes .i { background:#111; color:#9a9a9a; }
+.planes .s { background:#e0301e; color:#fff; }
+.planes b { display:block; font-size:22px; font-weight:200; margin-bottom:6px; letter-spacing:-.01em; }
+.planes .p b { color:#111; } .planes .i b { color:#ececec; }
+.trio { display:grid; grid-template-columns:repeat(3, 1fr); gap:56px; margin-top:56px; }
+.trio h4 { margin:0 0 10px; font-size:20px; font-weight:300; }
+.trio .jp { color:var(--muted); font-size:14px; margin-left:8px; }
+.trio p { margin:0 0 10px; font-size:14.5px; line-height:1.65; color:var(--muted); }
+.trio code { font-family:inherit; font-size:12.5px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.proportion { display:flex; height:18px; margin-top:56px; box-shadow:0 0 0 1px var(--faint); }
+.proportion i { display:block; height:100%; }
+
+/* Studies */
+.studies { display:grid; grid-template-columns:repeat(4, 1fr); gap:28px; }
+.study { display:flex; flex-direction:column; }
+.study .stage { aspect-ratio:1; display:grid; place-items:center; box-shadow:0 0 0 1px var(--faint); position:relative; }
+.study .stage .real { position:absolute; left:0; right:0; bottom:0; height:44px; display:grid; place-items:center; border-top:1px solid var(--faint); }
+.study .v { margin-top:16px; font-size:12.5px; letter-spacing:.04em; }
+.study .v.yes { color:var(--seal); }
+.study .v.no { color:var(--muted); }
+.study h4 { margin:6px 0 8px; font-size:18px; font-weight:300; }
+.study p { margin:0; font-size:13.5px; line-height:1.6; color:var(--muted); }
+@keyframes breathe { 0%, 100% { opacity:1; } 50% { opacity:.38; } }
+.breathe { animation:breathe 2.8s ease-in-out infinite; }
+
+/* Type */
+.specimen { display:grid; grid-template-columns:200px 1fr; gap:36px 40px; align-items:baseline; }
+.specimen .meta { font-size:12.5px; color:var(--muted); line-height:1.6; }
+.specimen .meta b { color:var(--ink); font-weight:400; }
+
+/* The line: plates */
+.plates { display:grid; grid-template-columns:repeat(3, 1fr); gap:72px 40px; }
+.plate { margin:0; }
+.plate svg.big { width:100%; aspect-ratio:1; display:block; }
+.plate .row { display:flex; align-items:center; gap:22px; margin-top:18px; }
+.plate .row svg { flex:none; }
+.plate .row .cap { flex:1; }
+.grid-l { stroke:var(--faint); stroke-width:.04; }
+.live { stroke:var(--hair); stroke-width:.05; stroke-dasharray:.25 .25; fill:none; }
+.dim { stroke:var(--seal); stroke-width:.05; opacity:.7; }
+.dimt { fill:var(--seal); font-size:.95px; font-family:inherit; font-weight:400; opacity:.9; }
+.k { stroke:var(--ink); fill:none; }
+.h { stroke:var(--seal); fill:none; }
+.hf { fill:var(--seal); }
+
+/* Steps of reduction */
+.steps { display:grid; grid-template-columns:repeat(4, 1fr); gap:0; box-shadow:0 0 0 1px var(--faint); }
+.steps figure { margin:0; padding:28px 24px 24px; border-left:1px solid var(--faint); }
+.steps figure:first-child { border-left:0; }
+.steps svg { width:100%; aspect-ratio:1; display:block; margin-bottom:16px; }
+.steps .cap b { font-size:13px; }
+
+/* Do / don't */
+.pairs { display:grid; grid-template-columns:repeat(3, 1fr); gap:56px; }
+.pair2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.pair2 > div { aspect-ratio:1; display:grid; place-items:center; box-shadow:0 0 0 1px var(--faint); position:relative; }
+.pair2 > div span { position:absolute; left:12px; top:10px; font-size:11.5px; letter-spacing:.04em; color:var(--muted); }
+.pair2 > div.ok span { color:var(--seal); }
+.pairs .cap { margin-top:14px; }
+
+/* Redraws */
+.redraws { display:grid; grid-template-columns:repeat(4, 1fr); gap:56px 28px; }
+.rd .two { display:grid; grid-template-columns:1fr 1fr; box-shadow:0 0 0 1px var(--faint); }
+.rd .two > div { aspect-ratio:1; display:grid; place-items:center; position:relative; }
+.rd .two > div + div { border-left:1px solid var(--faint); }
+.rd .two > div span { position:absolute; left:10px; top:8px; font-size:10.5px; letter-spacing:.05em; color:var(--muted); }
+.rd .real { display:flex; justify-content:center; gap:40px; padding:12px 0; border:1px solid var(--faint); border-top:0; color:var(--muted); }
+.rd .real .on .hh { stroke:var(--seal); }
+.rd .cap { margin-top:12px; }
+svg .hh { stroke:currentColor; }
+.rd .two svg .hh { stroke:var(--seal); }
+.rd .real > span:first-child { color:var(--muted); }
+.rd .real > span.on { color:var(--ink); }
+
+/* Signs */
+.signs { display:grid; grid-template-columns:repeat(4, 1fr); gap:28px; }
+.sign .stage { height:180px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 1px var(--faint); gap:10px; }
+.sign .cap { margin-top:14px; }
+
+/* Method */
+.method { list-style:none; margin:0; padding:0; counter-reset:m; }
+.method li { display:grid; grid-template-columns:64px 1fr 1.2fr; gap:40px; padding:32px 0; border-top:1px solid var(--faint); align-items:baseline; }
+.method li::before { counter-increment:m; content:counter(m, decimal-leading-zero); font-size:13px; color:var(--seal); font-weight:400; }
+.method h4 { margin:0; font-size:24px; font-weight:200; letter-spacing:-.01em; }
+.method p { margin:0; font-size:15px; line-height:1.65; color:var(--muted); }
+.checks { columns:2; column-gap:72px; font-size:17px; line-height:1.6; font-weight:300; padding:0; list-style:none; }
+.checks li { break-inside:avoid; padding:14px 0 14px 28px; border-top:1px solid var(--faint); position:relative; }
+.checks li::before { content:''; position:absolute; left:0; top:27px; width:12px; height:1.5px; background:var(--seal); }
+
+footer { padding:200px 0 120px; }
+footer .line { width:20px; height:2px; background:var(--seal); margin-bottom:28px; }
+footer p { font-size:15px; color:var(--muted); max-width:560px; line-height:1.7; }
+</style>
+</head>
+<body>
+<button id="night" title="See the manual by night">Night</button>
+
+<div class="wrap cover">
+  <div class="top"><span>Kūhaku</span><span>Design manual · Edition 1 · November 2026</span></div>
+  <div class="mid">
+    <div class="kanji">空白</div>
+    <div class="line"></div>
+    <h1>The space that is left, not forgotten.</h1>
+    <p>How Kūhaku looks, why it looks that way, and how each line of it is made.</p>
+  </div>
+  <nav class="toc">
+    <a href="#why"><b>01</b>Why</a><a href="#lineage"><b>02</b>Lineage</a><a href="#principles"><b>03</b>Principles</a>
+    <a href="#colour"><b>04</b>Colour</a><a href="#type"><b>05</b>Type</a><a href="#line"><b>06</b>The line</a>
+    <a href="#reduction"><b>07</b>Reduction</a><a href="#redraws"><b>08</b>Redraws</a><a href="#signs"><b>09</b>Signs</a>
+    <a href="#method"><b>10</b>Method</a>
+  </nav>
+</div>
+
+<!-- 01 -->
+<section class="ch" id="why"><div class="wrap">
+  <header><span class="n">01</span><h2>Why design<br>is the work</h2></header>
+  <div class="body">
+    <p class="lead">AI is loud. It is fast, it can do almost anything, and it says so. <b>Kūhaku takes that power and sets it in calm</b>, so that a person meets a clear surface, not a machine.</p>
+    <div class="text">
+      <p>The whole difficulty is balance. Quiet that hides what you need is not calm, it is fog. Function that shouts over the surface is not help, it is noise. Kūhaku lives on the narrow line between them.</p>
+      <p>So the question asked of every line, word and colour is never <em>is it simpler?</em> nor <em>is it more useful?</em> It is: <span class="m">is this the most useful thing that is still quiet?</span></p>
+    </div>
+  </div>
+</div></section>
+
+<!-- 02 -->
+<section class="ch" id="lineage"><div class="wrap">
+  <header><span class="n">02</span><h2>Lineage</h2><p>Kūhaku is a blend, not a copy. Each source gives it <em>one</em> lesson, and each lesson is drawn here in Kūhaku's own line.</p></header>
+  <div class="body lineage">
+    <figure>
+      <svg viewBox="0 0 36 24" fill="none" stroke-width=".7"><path class="k" d="M6 7h8v8H6z"/><circle class="k" cx="20" cy="11" r="4"/><path class="h" d="M26 15l4-8 4 8z"/></svg>
+      <div class="who">Bauhaus</div><h4>Geometry first</h4><p>Line, square, circle. Every mark starts as pure geometry, and form follows what it does.</p>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 36 24"><text x="4" y="17" font-size="14" font-weight="200" fill="var(--ink)" font-family="Inter" letter-spacing="-.6">Aa</text><path class="h" d="M24 17h8" stroke-width=".7"/></svg>
+      <div class="who">Swiss typography</div><h4>Type does the lifting</h4><p>One good face, set large and light, can lift a whole surface. Hierarchy comes from size and weight, not from boxes.</p>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 36 24" fill="none"><path class="h" d="M7 15c6-1 13-6 22-7" stroke-width="1.1"/></svg>
+      <div class="who">Sumi-e</div><h4>One stroke, with confidence</h4><p>One sure stroke instead of many careful ones. An icon is a gesture, not an illustration.</p>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 36 24" fill="none" stroke-width=".7"><path class="k" d="M26 20V9"/><circle class="hf" cx="26" cy="7.6" r="1.1"/></svg>
+      <div class="who">Ikebana</div><h4>Space is the material</h4><p>The empty part is arranged as carefully as the flower. Nothing is placed to fill a gap.</p>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 36 24" fill="none" stroke-width=".7"><path class="k" d="M10 4.5C17 4 21 4 25.8 4.5c.6 4.6.6 10.4 0 15C21 20 15 20 10 19.5c-.6-4.6-.6-10.4 0-15z"/></svg>
+      <div class="who">Jacobsen · Rybakken · Stelton</div><h4>Looks simple. Is not.</h4><p>A shape that reads as a square but is not quite one. It looks effortless only because of how much thought went into it.</p>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 36 24" fill="none" stroke-width=".7"><path class="k" d="M9 5h18v14H9z"/><path class="k" d="M12 9h3M17 9h3M12 13h3M17 13h3"/><circle class="hf" cx="23.5" cy="11" r="1.1"/></svg>
+      <div class="who">Dieter Rams</div><h4>Colour has a reason</h4><p>Grey for the body, one colour for the thing you act on. Less, but better.</p>
+    </figure>
+  </div>
+</div></section>
+
+<!-- 03 -->
+<section class="ch" id="principles"><div class="wrap">
+  <header><span class="n">03</span><h2>Ten principles</h2></header>
+  <ol class="body principles">
+    <li><span class="k">1</span><div><h4>One thing speaks</h4><p>In a mark, a row, a screen: at most one thing is red. The rest is ink and space. If two things want to speak, one waits.</p></div></li>
+    <li><span class="k">2</span><div><h4>Colour has a reason</h4><p>Red means this is yours, this is on, this needs you. A colour that cannot finish the sentence "it is coloured because…" goes.</p></div></li>
+    <li><span class="k">3</span><div><h4>State changes in place</h4><p>A thing shows its state by changing itself, never by adding something beside it. The footprint stays the same.</p></div></li>
+    <li><span class="k">4</span><div><h4>Space is a material</h4><p>Empty space is designed. Remove before you add. A gap is not an invitation.</p></div></li>
+    <li><span class="k">5</span><div><h4>Cut, not moulded</h4><p>Lines end square and corners are sharp, like a sheet of steel cut clean. Curves only where the thing is truly round.</p></div></li>
+    <li><span class="k">6</span><div><h4>Type carries the order</h4><p>Size and weight (200, 300, 400) make the hierarchy. Never bold for emphasis, never boxes, borders or badges.</p></div></li>
+    <li><span class="k">7</span><div><h4>Quiet until needed</h4><p>Labels and controls come when you point at them and leave when you don't. Nothing explains itself twice.</p></div></li>
+    <li><span class="k">8</span><div><h4>Day and night are equals</h4><p>Every mark is drawn and checked in both. Password and lock screens are always night.</p></div></li>
+    <li><span class="k">9</span><div><h4>Calm motion</h4><p>Things rise and settle, a quarter of a second. Nothing bounces or spins for show. A slow pulse means "working", and only that.</p></div></li>
+    <li><span class="k">10</span><div><h4>The effort is invisible</h4><p>If it looks simple but feels arbitrary, it is not finished. Simple is the result of the most thinking, not the least.</p></div></li>
+  </ol>
+</div></section>
+
+<!-- 04 -->
+<section class="ch" id="colour"><div class="wrap">
+  <header><span class="n">04</span><h2>Paper, ink, seal</h2><p>Kūhaku has three colours. Not a palette to choose from: <em>three materials</em>, each with one job, used in a fixed proportion.</p></header>
+  <div class="body">
+    <div class="planes">
+      <div class="p"><b>Paper</b>#f7f4f1 · by night #121212</div>
+      <div class="i"><b>Ink</b>#111111 · by night #ececec</div>
+      <div class="s"><b>Seal</b>#e0301e</div>
+    </div>
+    <div class="trio">
+      <div><h4>Paper<span class="jp">紙</span></h4><p>Warm, unbleached, never pure white. It is the space of 空白 itself, and it is most of every screen.</p><p><code>--bg</code></p></div>
+      <div><h4>Ink<span class="jp">墨</span></h4><p>Sumi, a black that is not quite black. Full for what you read and what is on; at 60% (muted) for things at rest; at 8% (faint) for hairlines and edges.</p><p><code>--fg · --muted · --faint</code></p></div>
+      <div><h4>Seal<span class="jp">朱</span></h4><p>Shu, the vermilion of the hanko: the stamp that says <em>this is mine</em>. Placed once, it means yours, on, or needs you. Never decoration. By night it lifts to #f0705a so it glows without burning.</p><p><code>--accent</code></p></div>
+    </div>
+    <div class="proportion" title="Roughly how much of a screen each takes"><i style="flex:90;background:#f7f4f1"></i><i style="flex:9;background:#111"></i><i style="flex:1;background:#e0301e"></i></div>
+    <p class="cap" style="margin-top:10px">About ninety parts paper, nine parts ink, one part seal. If the seal grows past one part, it stops meaning anything.</p>
+
+    <h3>The question of green<small>a study, not a decision made in passing</small></h3>
+    <div class="text">
+      <p>Charging once added a fourth colour. The battery is a good test of the whole system, so here it is worked through properly. The bar is 18 by 6: track at 18% ink, fill in full ink, red when low. What should change while it charges?</p>
+    </div>
+    <div class="studies" style="margin-top:40px">
+      <div class="study">
+        <div class="stage"><span style="display:flex;align-items:center;gap:14px;margin-top:-44px"><svg width="144" height="48" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect width="12" height="6" fill="var(--ink)"/></svg><svg width="32" height="48" viewBox="0 0 8 12" fill="none" stroke="var(--ink)" stroke-width=".6"><path d="M5 1L2 6.5h4L3 11"/></svg></span>
+          <div class="real"><span style="display:flex;gap:4px;align-items:center"><svg width="18" height="6" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect width="12" height="6" fill="var(--ink)"/></svg><svg width="6" height="9" viewBox="0 0 8 12" fill="none" stroke="var(--ink)" stroke-width="1.2"><path d="M5 1L2 6.5h4L3 11"/></svg></span></div></div>
+        <span class="v no">A · Rejected</span><h4>A bolt beside it</h4><p>Says what the bar could say itself, and adds a column: the whole top row shifts. Breaks principle 3.</p>
+      </div>
+      <div class="study">
+        <div class="stage"><svg width="144" height="48" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect width="12" height="6" fill="#2f9d62"/></svg>
+          <div class="real"><svg width="18" height="6" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect width="12" height="6" fill="#2f9d62"/></svg></div></div>
+        <span class="v no">B · Rejected</span><h4>Green fill</h4><p>Changes in place, so it is better. But green is a fourth material with no story, and charging does not need you. It is the loudest thing on screen while nothing is wrong. Breaks principles 1 and 2.</p>
+      </div>
+      <div class="study">
+        <div class="stage"><svg width="144" height="48" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect width="12" height="6" fill="var(--seal)"/></svg>
+          <div class="real"><svg width="18" height="6" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect width="12" height="6" fill="var(--seal)"/></svg></div></div>
+        <span class="v no">C · Rejected</span><h4>Seal fill</h4><p>Stays in the three colours, but red already means low. The same colour cannot mean "needs you" and "all is well".</p>
+      </div>
+      <div class="study">
+        <div class="stage"><svg width="144" height="48" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect class="breathe" width="12" height="6" fill="var(--ink)"/></svg>
+          <div class="real"><svg width="18" height="6" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect class="breathe" width="12" height="6" fill="var(--ink)"/></svg></div></div>
+        <span class="v yes">D · Proposed</span><h4>The fill breathes</h4><p>Ink stays ink. While charging, the fill slowly breathes, the same pulse that already means "working" across Kūhaku. Same size, same colours, and visible only to someone who looks. Red keeps its one meaning: low.</p>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 05 -->
+<section class="ch" id="type"><div class="wrap">
+  <header><span class="n">05</span><h2>Type</h2><p>Inter, light. Kūhaku speaks in a <em>low, clear voice</em>: large and thin for what matters, small and open for what is around it.</p></header>
+  <div class="body specimen">
+    <div class="meta"><b>Time · numbers</b><br>72 · 200 · −.04em · tabular</div><div style="font-size:72px;font-weight:200;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums">14:32</div>
+    <div class="meta"><b>Answers · titles</b><br>30 · 200 to 300 · −.02em</div><div style="font-size:30px;font-weight:200;letter-spacing:-.02em;line-height:1.35">The printer is on the network again.</div>
+    <div class="meta"><b>The composer</b><br>26 · 200 · −.01em</div><div style="font-size:26px;font-weight:200;letter-spacing:-.01em;display:flex;align-items:center;gap:0"><span style="width:1.5px;height:30px;background:var(--seal);display:inline-block"></span><span style="width:7px;height:7px;border-radius:9px;background:var(--seal);display:inline-block;margin:0 16px 0 -4px"></span><span style="color:var(--muted)">Ask anything</span></div>
+    <div class="meta"><b>Body · panels</b><br>14 to 15 · 300</div><div style="font-size:15px;line-height:1.65;max-width:520px">Connected to the home network. Bluetooth is off; the headphones you used last are nearby.</div>
+    <div class="meta"><b>The top row · captions</b><br>12.7 · 300 · +.02em</div><div style="font-size:12.7px;letter-spacing:.02em;color:var(--muted)">Fri 20 Nov &nbsp;&nbsp;<span style="color:var(--ink);font-weight:400">14:32</span></div>
+  </div>
+  <div class="body text" style="margin-top:56px"><p class="m">Never bold for emphasis; the important thing is one step darker, not heavier. Never all capitals as decoration. Numbers that change are tabular, so they do not dance.</p></div>
+</div></section>
+
+<!-- 06 -->
+<section class="ch" id="line"><div class="wrap">
+  <header><span class="n">06</span><h2>The line</h2><p>How a Kūhaku icon is made. Every mark is built the same way, from the same few measures, so that a new one can sit beside the old ones <em>as if it had always been there</em>.</p></header>
+  <div class="body">
+    <div class="plates" id="rulesPlates"></div>
+
+    <h3>Five canonical marks<small>the quick-start row: the model for everything else</small></h3>
+    <div class="text"><p>Grey at rest; when the app is open, <em>one stroke</em> takes the seal. Nothing is added: no badge, no dot, no underline. A window that is open simply has its title bar lit.</p></div>
+    <div class="plates" id="canonPlates" style="margin-top:48px"></div>
+  </div>
+</div></section>
+
+<!-- 07 -->
+<section class="ch" id="reduction"><div class="wrap">
+  <header><span class="n">07</span><h2>Reduction</h2><p>A mark is found by taking away. Start from the object, then remove until <em>one more cut would lose it</em>. The last line left standing is usually the one that takes the seal.</p></header>
+  <div class="body">
+    <h3 style="margin-top:0">Tegami · a letter</h3>
+    <div class="steps" id="stepsTegami"></div>
+    <h3>Account · home</h3>
+    <div class="steps" id="stepsHome"></div>
+
+    <h3>Right and wrong<small>the same idea, drawn twice</small></h3>
+    <div class="pairs" id="pairs"></div>
+  </div>
+</div></section>
+
+<!-- 08 -->
+<section class="ch" id="redraws"><div class="wrap">
+  <header><span class="n">08</span><h2>Redraws</h2><p>Over time some icons drifted from the canon: soft corners, round ends, borrowed shapes that look like everyone else's. Here each is <em>redrawn in Kūhaku's line</em>. Proposals, to be adopted one by one.</p></header>
+  <div class="body redraws" id="redrawGrid"></div>
+</div></section>
+
+<!-- 09 -->
+<section class="ch" id="signs"><div class="wrap">
+  <header><span class="n">09</span><h2>Signs</h2><p>The top row has a language smaller than icons. <em>A line, a dot, a bar.</em> They are the most Kūhaku things there are.</p></header>
+  <div class="body signs">
+    <div class="sign"><div class="stage"><i style="width:40px;height:4px;background:var(--seal)"></i></div><div class="cap"><b>Menu</b>One red line, 20 by 2. It grows when pointed at, thickens when open.</div></div>
+    <div class="sign"><div class="stage"><i style="width:40px;height:4px;background:var(--seal)"></i><i style="width:12px;height:12px;border-radius:9px;background:var(--seal);margin-left:8px"></i></div><div class="cap"><b>Open apps</b>A dot just after the line, only while something is open. Click it to see them.</div></div>
+    <div class="sign"><div class="stage"><i style="width:3px;height:60px;background:var(--seal)"></i><i style="width:14px;height:14px;border-radius:9px;background:var(--seal);margin-left:-18px"></i></div><div class="cap"><b>Line and dot</b>The composer: where you speak to Claude. The cursor and the voice.</div></div>
+    <div class="sign"><div class="stage"><svg width="108" height="36" viewBox="0 0 18 6"><rect width="18" height="6" fill="var(--ink)" opacity=".18"/><rect width="12" height="6" fill="var(--ink)"/></svg></div><div class="cap"><b>Battery</b>A bar, no outline, no cap. Fills with ink; red when low; breathes while charging.</div></div>
+  </div>
+</div></section>
+
+<!-- 10 -->
+<section class="ch" id="method"><div class="wrap">
+  <header><span class="n">10</span><h2>Method</h2><p>For an icon, a panel or a page. Slow at first; it becomes the fast way.</p></header>
+  <div class="body">
+    <ol class="method">
+      <li><h4>Name the one idea</h4><p>What is it, and what does it change, in a few words. A sentence with "and" is two things.</p></li>
+      <li><h4>Find the gesture</h4><p>Draw the object, then reduce it (chapter 07). Stop when one more cut would lose it.</p></li>
+      <li><h4>Build it on the grid</h4><p>24 units, live area 4 to 20, rhythm of 6. Straight lines, square ends, sharp corners. Curves only for things truly round.</p></li>
+      <li><h4>Give one stroke the seal</h4><p>Which line is the idea, or the thing that changes? That one turns red when on. If none is, it is a glyph: one ink.</p></li>
+      <li><h4>Set it among its neighbours</h4><p>Run the inventory and look at it in its row, at real size, by day and night. Weight and rhythm must match.</p></li>
+      <li><h4>Subtract</h4><p>Hide each part in turn. If it still reads without one, that part goes.</p></li>
+      <li><h4>Show every state</h4><p>If any state grows wider, adds a symbol or adds a colour, find a way for it to change in place.</p></li>
+      <li><h4>Live with it for a day</h4><p>Calm is felt over time, not in a screenshot. Then write the decision here.</p></li>
+    </ol>
+    <h3>Before anything is kept</h3>
+    <ul class="checks">
+      <li>One thing speaks, and it is the right thing.</li>
+      <li>Every colour can say why it is there.</li>
+      <li>Every state changes in place.</li>
+      <li>Square ends, sharp corners, on the grid.</li>
+      <li>It reads at real size, by day and by night.</li>
+      <li>It sits in its row as if it had always been there.</li>
+      <li>Nothing is left to take away.</li>
+      <li>It is still useful. Quiet never costs function.</li>
+    </ul>
+  </div>
+</div></section>
+
+<footer><div class="wrap"><div class="line"></div>
+  <p>This manual is drawn by hand and changes only with a reason written into it. What the code draws today, every icon, is gathered automatically in the <a href="library.html">inventory</a>, read against this manual. The rules in short, for anyone working on Kūhaku, are in MANUAL.md beside this page.</p>
+</div></footer>
+
+<script>
+'use strict';
+document.getElementById('night').onclick = (e) => {
+  document.body.classList.toggle('night');
+  e.target.textContent = document.body.classList.contains('night') ? 'Day' : 'Night';
+};
+
+// A plate: an icon drawn large on its 24 grid, with the live area and its measures.
+const NS = 'http://www.w3.org/2000/svg';
+function plate(inner, dims = [], { grid = true, stroke = 1.4, join = 'miter' } = {}) {
+  let g = '';
+  if (grid) for (let i = 1; i < 24; i++) g += `<path class="grid-l" d="M${i} 0V24M0 ${i}H24"/>`;
+  const live = grid ? '<rect class="live" x="4" y="4" width="16" height="16"/>' : '';
+  const d = dims.map(([x1, y1, x2, y2, t, tx, ty]) =>
+    `<path class="dim" d="M${x1} ${y1}L${x2} ${y2}"/>` + (t ? `<text class="dimt" x="${tx}" y="${ty}">${t}</text>` : '')).join('');
+  return `<svg class="big" viewBox="0 0 24 24" fill="none" stroke-width="${stroke}" stroke-linecap="butt" stroke-linejoin="${join}">${g}${live}${d}${inner}</svg>`;
+}
+function real(inner, size = 18, stroke = 1.4, on = true) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linejoin="miter" class="${on ? 'on' : ''}">${inner}</svg>`;
+}
+function fig(el, svg, title, text, realInner) {
+  const f = document.createElement('figure'); f.className = 'plate';
+  f.innerHTML = svg + `<div class="row">${realInner ? `<span style="color:var(--muted)">${real(realInner.replace(/class="h"/g, 'class="hh"'), 18, 1.4, false)}</span><span>${real(realInner.replace(/class="h"/g, 'style="stroke:var(--seal)"'))}</span>` : ''}<div class="cap"><b>${title}</b>${text}</div></div>`;
+  el.appendChild(f);
+}
+
+// The rules, drawn.
+const R = document.getElementById('rulesPlates');
+fig(R, plate('', [[4, 2.6, 20, 2.6, '16 · the live area, 4 to 20', 4.2, 2.1], [2.6, 4, 2.6, 20, '', 0, 0]]),
+  'The grid', 'Twenty-four units. Marks live inside 4 to 20; the edge is breathing room, so every icon has the same air around it.');
+fig(R, plate('<path class="k" d="M4 9h16"/><path class="k" d="M4 15h16"/>', [[21, 9, 21, 15, '6', 21.3, 12.3], [9, 21, 15, 21, '6', 11.6, 22.6]]),
+  'The rhythm', 'Parallel lines stand 6 apart, at 9 and 15: the grid in thirds. Miru, Tsukuru and Settings share it, which is why they look like one family.');
+fig(R, plate('<path class="k" d="M4 12h16"/>', [[4, 9.5, 20, 9.5, '1.4 at 18px ≈ 1 pixel', 4.2, 9]]),
+  'The weight', 'The line you see is about one pixel. So the stroke follows the size: 1.4 at 16 to 18, 1 at 40, a little more on the very smallest. Never heavier for emphasis.');
+fig(R, plate('<path class="k" d="M5 8h9"/><path class="h" d="M5 15.5h9" stroke-linecap="round"/><path class="k" d="M16 6v5h3"/><path class="h" d="M16 13.5v5h3" stroke-linejoin="round"/>'),
+  'Cut, not moulded', 'Ends are square and corners sharp (top). Round ends and soft corners (red, below) are the look of every other icon set; they are not Kūhaku.');
+fig(R, plate('<path class="k" d="M7.2 9.2h9.6v9.6H7.2z"/><circle class="k" cx="12" cy="12" r="5.4" opacity=".0"/>', [[7.2, 20.4, 16.8, 20.4, '9.6', 10.9, 21.8], [3, 9.2, 3, 18.8, '9.6', 0.8, 14.3]]),
+  'Optical size', 'A square looks bigger than a line of the same length. So squares are drawn smaller, 9.6, and circles a little larger, until they feel the same weight as a 16-unit line.');
+fig(R, plate('<path class="k" d="M4 9h16"/><path class="h" d="M4 15h16"/>'),
+  'One seal', 'One part per mark can turn red. It is the idea of the thing, or the part that changes. Two red parts and neither speaks.', '<path d="M4 9h16"/><path class="h" d="M4 15h16"/>');
+
+// The five canonical marks, with their measures.
+const C = document.getElementById('canonPlates');
+fig(C, plate('<path class="k" d="M4 9h16"/><path class="h" d="M4 15h16"/>', [[4, 6.6, 20, 6.6, '16', 11.4, 6.1], [21.2, 9, 21.2, 15, '6', 21.5, 12.3]]),
+  'Miru · files', 'Two shelves. The lower one, where things are kept, takes the seal.', '<path d="M4 9h16"/><path class="h" d="M4 15h16"/>');
+fig(C, plate('<path class="k" d="M9 4v16"/><path class="h" d="M15 4v16"/>', [[9, 21.4, 15, 21.4, '6', 11.6, 22.9], [17, 4, 17, 20, '16', 17.4, 12.3]]),
+  'Tsukuru · making', 'Two pillars, the start of every structure. The second, the one you raise, takes the seal.', '<path d="M9 4v16"/><path class="h" d="M15 4v16"/>');
+fig(C, plate('<path class="k" d="M7.2 9.2h9.6v9.6H7.2z"/><path class="h" d="M6.2 5.35h11.6"/>', [[6.2, 3.4, 17.8, 3.4, '11.6', 10.8, 2.9], [7.2, 20.6, 16.8, 20.6, '9.6', 10.9, 22]]),
+  'Mado · a window', 'A window and its title bar. The bar overhangs by 1 on each side, like an eave. When the browser is open, its bar is lit.', '<path d="M7.2 9.2h9.6v9.6H7.2z"/><path class="h" d="M6.2 5.35h11.6"/>');
+fig(C, plate('<path class="k" d="M4.5 7.5L12 16.5L19.5 7.5"/><path class="h" d="M4.5 7.5h15"/>', [[4.5, 5.4, 19.5, 5.4, '15', 11.4, 4.9], [21, 7.5, 21, 16.5, '9', 21.3, 12.3]]),
+  'Tegami · a letter', 'The flap and the fold, nothing else: a triangle 15 wide and 9 deep. The open edge takes the seal.', '<path d="M4.5 7.5L12 16.5L19.5 7.5"/><path class="h" d="M4.5 7.5h15"/>');
+fig(C, plate('<circle cx="12" cy="12" r="8" class="live"/><path class="k" d="M12 4v16M4 12h16M6.3 17.7L17.7 6.3"/><path class="h" d="M6.3 6.3l11.4 11.4"/>', [[12, 12, 20, 12, '', 0, 0], [12, 21.2, 12, 21.2, 'all four on a circle of 8', 6.6, 22.4]]),
+  'Claude', 'Four strokes through one centre, every end on the same circle. One diagonal takes the seal.', '<path d="M12 4v16M4 12h16M6.3 17.7L17.7 6.3"/><path class="h" d="M6.3 6.3l11.4 11.4"/>');
+
+// Reduction steps.
+function steps(id, list) {
+  const el = document.getElementById(id);
+  for (const [inner, t, s] of list) {
+    const f = document.createElement('figure');
+    f.innerHTML = plate(inner, [], { grid: false }) + `<div class="cap"><b>${t}</b>${s}</div>`;
+    el.appendChild(f);
+  }
+}
+steps('stepsTegami', [
+  ['<path class="k" d="M4.5 7.5h15v10h-15z"/><path class="k" d="M4.5 7.5L12 13l7.5-5.5"/><path class="k" d="M4.5 17.5L10 12.5M19.5 17.5L14 12.5"/><path class="k" d="M15 9.5h2.5v2H15z"/>', 'The object', 'An envelope: body, flap, folds, a stamp. Seven ideas; it is a picture.'],
+  ['<path class="k" d="M4.5 7.5h15v10h-15z"/><path class="k" d="M4.5 7.5L12 13l7.5-5.5"/>', 'The outline', 'Folds and stamp go; still reads. But it is every mail icon there is.'],
+  ['<path class="k" d="M4.5 7.5L12 16.5L19.5 7.5"/><path class="k" d="M4.5 7.5h15"/>', 'The gesture', 'The body goes too. The flap, deepened to fill the space, is enough.'],
+  ['<path class="k" d="M4.5 7.5L12 16.5L19.5 7.5"/><path class="h" d="M4.5 7.5h15"/>', 'The seal', 'The open edge, where letters come in, is the part that lights.'],
+]);
+steps('stepsHome', [
+  ['<path class="k" d="M6.5 10.5V19h11v-8.5"/><path class="k" d="M4 12L12 5l8 7"/><path class="k" d="M10.5 19v-4.5h3V19"/><path class="k" d="M15.5 7.5V5h1.8v4"/><path class="k" d="M8.5 12.5h2v2h-2z"/>', 'The object', 'A house: walls, roof, door, window, chimney.'],
+  ['<path class="k" d="M6.5 10.5V19h11v-8.5"/><path class="k" d="M4 12L12 5l8 7"/><path class="k" d="M10.5 19v-4.5h3V19"/>', 'Less', 'The door alone still says "a house". It is still a drawing.'],
+  ['<path class="k" d="M6.5 10.5V19h11v-8.5"/><path class="k" d="M4 12L12 5l8 7"/>', 'The gesture', 'Walls and a roof. One more cut and it is a triangle.'],
+  ['<path class="k" d="M6.5 10.5V19h11v-8.5"/><path class="h" d="M4 12L12 5l8 7"/>', 'The seal', 'The roof, the shelter, is the idea. It takes the seal.'],
+]);
+
+// Right and wrong.
+const P = document.getElementById('pairs');
+for (const [bad, good, t, s] of [
+  ['<rect class="k" x="3.5" y="5" width="17" height="11" rx="2" stroke-linecap="round"/><path class="h" d="M9 19.5h6" stroke-linecap="round"/>',
+   '<path class="k" d="M3.5 5h17v11h-17z"/><path class="h" d="M9 19.5h6"/>', 'Corners', 'A soft corner is borrowed from every phone. A cut corner is Kūhaku.'],
+  ['<path class="k" d="M3.5 12a8.5 8.5 0 1 0 2.5-6" stroke-linecap="round"/><path class="k" d="M3.5 4v4h4" stroke-linecap="round"/><path class="h" d="M12 7.5V12l3 2" stroke-linecap="round"/>',
+   '<path class="k" d="M4 9h11"/><path class="h" d="M9 15h11"/>', 'Borrowed shapes', 'A clock with an arrow is the history icon of every app. Two offset lines, one voice then the other, is a conversation.'],
+  ['<path class="k" d="M4 8h16M4 16h16"/><circle class="h" cx="9" cy="8" r="2.2" fill="var(--paper)"/><circle class="h" cx="15" cy="16" r="2.2" fill="var(--paper)"/>',
+   '<path class="k" d="M4 8h16M4 16h16"/><circle class="k" cx="9" cy="8" r="2.2" fill="var(--paper)"/><circle class="h" cx="15" cy="16" r="2.2" fill="var(--paper)"/>', 'One seal', 'Two red knobs and neither says which one you moved. One part speaks.'],
+]) {
+  const d = document.createElement('div');
+  d.innerHTML = `<div class="pair2"><div><span>Not</span>${plate(bad, [], { grid: false }).replace('class="big"', 'width="70%"')}</div><div class="ok"><span>Kūhaku</span>${plate(good, [], { grid: false }).replace('class="big"', 'width="70%"')}</div></div><div class="cap"><b>${t}</b>${s}</div>`;
+  P.appendChild(d);
+}
+
+// Redraws: what is in the code today, and the same idea in Kūhaku's line.
+const RD = document.getElementById('redrawGrid');
+const redraws = [
+  ['Earlier messages', 'Home screen · chat',
+   '<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6" stroke-linecap="round"/><path d="M3.5 4v4h4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/>',
+   '<path d="M4 9h11"/><path d="M9 15h11"/>', 'Two voices, offset: a conversation, on the same 6 rhythm as Miru. A glyph, so one ink.'],
+  ['Account · work', 'Top row',
+   '<path d="M4.5 8.5h15v10h-15z"/><path d="M9.5 8.5V6h5v2.5"/><path class="h" d="M4.5 13h15"/>',
+   '<path d="M7 7v12h10V7"/><path class="h" d="M5 7h14"/>', 'Home is a pitched roof on walls. Work is the same building, taller, under a flat roof. One stroke changed, so the pair reads as a pair.'],
+  ['Picture', 'Composer',
+   '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8.5 8" stroke-linecap="round" stroke-linejoin="round"/>',
+   '<path d="M4.5 6.5h15v11h-15z"/><path d="M4.5 17.5l5.5-5.5 3.5 3.5 2-2 4 4"/>', 'A cut frame and a horizon. A glyph in the composer, so one ink.'],
+  ['Lock', 'Menu',
+   '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/><path class="h" d="M12 14v2.5" stroke-linecap="round"/>',
+   '<path d="M6 11h12v9H6z"/><path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11"/><path class="h" d="M12 14v3"/>', 'Cut body, true half-circle shackle. The keyhole is the idea.'],
+  ['Log out', 'Menu',
+   '<path d="M10 4.5H6.5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1H10" stroke-linecap="round"/><path class="h" d="M11 12h9" stroke-linecap="round"/><path class="h" d="M17 9l3 3-3 3" stroke-linecap="round" stroke-linejoin="round"/>',
+   '<path d="M10 4.5H5v15h5"/><path class="h" d="M10.5 12H20M16.5 8.5L20 12l-3.5 3.5"/>', 'A sharp door frame; the way out as one stroke.'],
+  ['Screenshot', 'Menu',
+   '<path d="M4 8.5V5.5a1 1 0 0 1 1-1h3M16 4.5h3a1 1 0 0 1 1 1v3M20 15.5v3a1 1 0 0 1-1 1h-3M8 19.5H5a1 1 0 0 1-1-1v-3" stroke-linecap="round"/><circle class="h" cx="12" cy="12" r="2.5"/>',
+   '<path d="M4 8.5V4h4.5M15.5 4H20v4.5M20 15.5V20h-4.5M8.5 20H4v-4.5"/><path class="h" d="M10 12h4"/>', 'Four cut corners frame the view; one level line, the moment held.'],
+  ['Display', 'Menu',
+   '<rect x="3.5" y="5" width="17" height="11" rx="2"/><path class="h" d="M9 19.5h6" stroke-linecap="round"/>',
+   '<path d="M3.5 5h17v11h-17z"/><path class="h" d="M9 19.5h6"/>', 'Just the corners, cut. The stand is what you adjust.'],
+  ['Restart', 'Menu',
+   '<path d="M18.5 12a6.5 6.5 0 1 1-1.9-4.6" stroke-linecap="round"/><path class="h" d="M17.5 3.5v4h-4" stroke-linecap="round" stroke-linejoin="round"/>',
+   '<path d="M18.5 12a6.5 6.5 0 1 1-1.9-4.6"/><path class="h" d="M17.5 3v4.5H13"/>', 'A true circle may stay round. Its ends are cut, the arrow is a sharp corner.'],
+  ['Reply', 'Tegami',
+   '<path d="M10 7l-5 5 5 5M5 12h9a5 5 0 0 1 5 5" stroke-linecap="round" stroke-linejoin="round"/>',
+   '<path d="M9.5 7.5L5 12l4.5 4.5"/><path d="M5 12h14v6"/>', 'Back, then down: a turn in two straight lines, no swoosh.'],
+  ['Attach', 'Tegami',
+   '<path d="M8 12.5l5.5-5.5a2.5 2.5 0 0 1 3.5 3.5L10 17.5a4 4 0 0 1-5.5-5.5L11 5.5" stroke-linecap="round" stroke-linejoin="round"/>',
+   '<path d="M9 19V8a3 3 0 0 1 6 0v9a1.5 1.5 0 0 1-3 0V9"/>', 'The clip, stood upright on the grid: two straight sides and two true half-circles.'],
+  ['Close', 'Everywhere · at 12 to 16px, stroke 1.4 to 2.2',
+   '<path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" stroke-width="2.2"/>',
+   '<path d="M6 6l12 12M18 6L6 18"/>', 'One close everywhere: cut ends, one weight per size. Today there are six.'],
+  ['Back · forward', 'Everywhere',
+   '<path d="M15 5l-7 7 7 7" stroke-linecap="round" stroke-linejoin="round"/>',
+   '<path d="M14.5 5L7.5 12l7 7"/>', 'A sharp chevron, the same angle as Tegami\'s fold.'],
+];
+for (const [name, where, now, next, why] of redraws) {
+  const d = document.createElement('div'); d.className = 'rd';
+  const big = (inner, current) => `<svg width="58%" viewBox="0 0 24 24" fill="none" stroke="${current ? 'var(--muted)' : 'var(--ink)'}" stroke-width="1.4" stroke-linejoin="miter">${inner.replace(/class="h"/g, 'class="hh"')}</svg>`;
+  d.innerHTML = `<div class="two"><div><span>Today</span>${big(now, true)}</div><div><span>Kūhaku</span>${big(next)}</div></div>`
+    + `<div class="real"><span>${real(next.replace(/class="h"/g, 'class="hh"'), 18, 1.4, false)}</span><span class="on">${real(next.replace(/class="h"/g, 'class="hh"'))}</span></div>`
+    + `<div class="cap"><b>${name}</b>${why}<br><span style="opacity:.7">${where}</span></div>`;
+  RD.appendChild(d);
+}
+</script>
+</body>
+</html>
