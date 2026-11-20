@@ -453,6 +453,12 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         if how == "record":
             self.toggle_recording(stamp)
             return False
+        if how == "record-area":
+            if self.recording:  # the same keys stop it
+                self.toggle_recording(stamp)
+            else:
+                threading.Thread(target=self.pick_and_record, args=(stamp,), daemon=True).start()
+            return False
         # Mac-style: crosshair for an area, a picture in the corner to mark up (kuhaku-shot.py).
         if getattr(self, "osd", None):
             self.osd.win.hide()
@@ -464,7 +470,25 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         )
         return False
 
-    def toggle_recording(self, stamp):
+    def pick_and_record(self, stamp):
+        """The crosshair in its own process (this one must keep running), then records that part."""
+        if getattr(self, "osd", None):
+            GLib.idle_add(lambda: self.osd.win.hide() and False)
+        try:
+            r = subprocess.run(
+                [sys.executable, str(HERE / "kuhaku-shot.py"), "pick"], capture_output=True, text=True, timeout=300
+            )
+            x, y, w, h = (int(v) for v in r.stdout.split())
+        except ValueError:  # Esc: nothing chosen
+            return
+        except Exception:
+            report()
+            return
+        w, h = w - w % 2, h - h % 2  # video wants even sizes
+        if w >= 16 and h >= 16:
+            GLib.idle_add(lambda: self.toggle_recording(stamp, (x, y, w, h)) and False)
+
+    def toggle_recording(self, stamp, area=None):
         if self.recording:
             proc, path = self.recording
             self.recording = None
@@ -482,7 +506,14 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             return
         folder = HOME / "Videos" / "Screen Recordings"
         folder.mkdir(parents=True, exist_ok=True)
-        video = "ximagesrc use-damage=false show-pointer=true ! video/x-raw,framerate=24/1 ! queue ! videoconvert ! video/x-raw,format=I420 ! "
+        part = ""
+        if area:  # just a part of the screen (Ctrl+Shift+6); the ends are inclusive
+            x, y, w, h = area
+            part = f"startx={x} starty={y} endx={x + w - 1} endy={y + h - 1} "
+        video = (
+            f"ximagesrc use-damage=false show-pointer=true {part}! video/x-raw,framerate=24/1 ! queue ! "
+            "videoconvert ! video/x-raw,format=I420 ! "
+        )
         sound = "pulsesrc ! audioconvert ! audioresample ! "
         mic = has_microphone()
         # MP4 (H.264) only when the person added those formats themselves (patents cover them in some

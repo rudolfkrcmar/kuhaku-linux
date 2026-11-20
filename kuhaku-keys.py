@@ -79,6 +79,9 @@ for _key, _act in (("numbersign", "full"), ("3", "full"), ("dollar", "area"), ("
 for _key in ("percent", "5"):
     for _mods in ("<Primary><Shift>", "<Super><Shift>"):
         KEYS[_mods + _key] = f"{D}/kuhaku-capture record"
+for _key in ("asciicircum", "6"):  # a part of the screen: drag a crosshair, then it records that
+    for _mods in ("<Primary><Shift>", "<Super><Shift>"):
+        KEYS[_mods + _key] = f"{D}/kuhaku-capture record-area"
 
 # What apps are told. Text size comes from desktop.json ("dpi").
 XSETTINGS = {

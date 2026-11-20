@@ -172,7 +172,7 @@ function renderSettings() {
     ${screensHtml(p.displays)}</div>`;
   h += `<div class="p-label" id="sec-keys"><span>Screenshots</span></div><div class="p-rows">
     ${[['Print', 'Pick a part of the screen'], ['Shift + Print', 'The whole screen'], ['Ctrl + Print', 'Copy a part, without saving'],
-       ['Ctrl + Shift + 5', 'Record the screen, with your microphone; again to stop']].map(([k, v]) => `<div class="srow"><span class="k">${k}</span><span class="grow">${v}</span></div>`).join('')}</div>`;
+       ['Ctrl + Shift + 5', 'Record the screen, with your microphone; again to stop'], ['Ctrl + Shift + 6', 'Record a part of the screen']].map(([k, v]) => `<div class="srow"><span class="k">${k}</span><span class="grow">${v}</span></div>`).join('')}</div>`;
   if (p.trackpad) h += `<div class="p-label" id="sec-trackpad"><span>Trackpad</span></div><div class="p-rows">
     <div class="srow"><span class="k">Tap to click</span>${OPT('tap', [[1, 'On'], [0, 'Off']], p.trackpad.tap)}</div>
     <div class="srow"><span class="k">Scrolling</span>${OPT('natural', [[1, 'Natural, like a Mac'], [0, 'Classic']], p.trackpad.natural)}</div>

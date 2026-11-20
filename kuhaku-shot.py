@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Screenshots the Mac way, in Kūhaku's quiet style.
 
-    kuhaku-shot.py full | area | full-clip | area-clip | edit <file>
+    kuhaku-shot.py full | area | full-clip | area-clip | pick | edit <file>
 
 full   Cmd+Shift+3   the whole screen
 area   Cmd+Shift+4   drag a crosshair over a part; Space picks a window; Esc cancels
@@ -617,6 +617,16 @@ def main():
     clip = how.endswith("-clip")
     time.sleep(0.12)
     shot = grab_screen()
+    if how == "pick":  # only the choosing, for recording a part: prints "x y w h", nothing on Esc
+
+        def picked(rect):
+            if rect and rect[2] > 0 and rect[3] > 0:
+                print(*rect, flush=True)
+            Gtk.main_quit()
+
+        Picker(shot, picked)
+        Gtk.main()
+        return
 
     def done(rect):
         if not rect:
