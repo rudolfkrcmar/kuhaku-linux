@@ -76,6 +76,16 @@ def has_gst(element):
         return False
 
 
+def has_microphone():
+    """Whether there is a microphone to record with (the default source, not a speaker's monitor)."""
+    try:
+        r = subprocess.run(["pactl", "get-default-source"], capture_output=True, text=True, timeout=5)
+        name = r.stdout.strip()
+        return r.returncode == 0 and bool(name) and not name.endswith(".monitor")
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
     def __init__(self):
         STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -472,24 +482,29 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             return
         folder = HOME / "Videos" / "Screen Recordings"
         folder.mkdir(parents=True, exist_ok=True)
-        grab = "ximagesrc use-damage=false show-pointer=true ! video/x-raw,framerate=24/1 ! queue ! videoconvert ! "
+        video = "ximagesrc use-damage=false show-pointer=true ! video/x-raw,framerate=24/1 ! queue ! videoconvert ! video/x-raw,format=I420 ! "
+        sound = "pulsesrc ! audioconvert ! audioresample ! "
+        mic = has_microphone()
         # MP4 (H.264) only when the person added those formats themselves (patents cover them in some
         # countries, so Kūhaku does not ship them); otherwise WebM (VP8), which is free everywhere.
         if has_gst("x264enc") and has_gst("h264parse"):
             path = folder / f"Screen Recording {stamp}.mp4"
-            pipeline = grab + (
-                "video/x-raw,format=I420 ! x264enc speed-preset=ultrafast tune=zerolatency bitrate=8000 key-int-max=48 ! "
-                "h264parse ! queue ! mp4mux ! filesink"
+            video += (
+                "x264enc speed-preset=ultrafast tune=zerolatency bitrate=8000 key-int-max=48 ! h264parse ! queue ! mux."
             )
+            sound += "avenc_aac bitrate=160000 ! queue ! mux." if has_gst("avenc_aac") else ""
+            mux = "mp4mux name=mux ! filesink"
         else:
             path = folder / f"Screen Recording {stamp}.webm"
-            pipeline = grab + (
-                "video/x-raw,format=I420 ! vp8enc deadline=1 cpu-used=16 threads=4 target-bitrate=6000000 "
-                "keyframe-max-dist=48 ! queue ! webmmux ! filesink"
+            video += (
+                "vp8enc deadline=1 cpu-used=16 threads=4 target-bitrate=6000000 keyframe-max-dist=48 ! queue ! mux."
             )
+            sound += "opusenc ! queue ! mux." if has_gst("opusenc") else ""
+            mux = "webmmux name=mux ! filesink"
+        branches = video + (" " + sound if mic and sound.endswith("mux.") else "")
         try:
             proc = subprocess.Popen(
-                ["gst-launch-1.0", "-e", "-q", *pipeline.split(), f"location=\"{path}\""],
+                ["gst-launch-1.0", "-e", "-q", *branches.split(), *mux.split(), f"location=\"{path}\""],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -497,7 +512,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             self.note("Recording", "Not available")
             return
         self.recording = (proc, path)
-        self.note("Recording", "Same keys to stop")
+        self.note("Recording", "With your microphone" if " pulsesrc " in f" {branches} " else "Same keys to stop")
         self.send("setRecording", True)
 
     # --- pictures for Claude: copied into ~/Pictures/ForClaude ------------
@@ -573,6 +588,10 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             spawn(["loginctl", "terminate-session", os.environ.get("XDG_SESSION_ID", "")])
         elif item == "lock":
             spawn(["python3", os.path.join(HERE, "kuhaku-lock.py"), "lock"])
+        elif item == "record":  # a moment for the menu to fade before the first frame
+            GLib.timeout_add(600, self.capture, "record")
+        elif item == "screenshot":
+            GLib.timeout_add(400, self.capture, "area")
         elif item in MENU:
             argv = MENU[item]
             spawn(argv)
