@@ -8,28 +8,32 @@
 </head>
 <body>
 
-<div class="quick" id="quick">
-  <button data-launch="miru.desktop" title="Miru · files" aria-label="Miru"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4"><path d="M4 9h16" stroke="currentColor"/><path class="hot" d="M4 15h16"/></svg></button>
-  <button data-launch="com.anthropic.Claude.desktop" title="Claude" aria-label="Claude"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4"><path d="M12 4v16M4 12h16M6.3 17.7L17.7 6.3" stroke="currentColor"/><path class="hot" d="M6.3 6.3l11.4 11.4"/></svg></button>
-  <button data-launch="mado.desktop" title="Mado" aria-label="Mado"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4"><path d="M7.2 9.2h9.6v9.6H7.2z" stroke="currentColor"/><path class="hot" d="M6.2 5.35h11.6"/></svg></button>
-  <button data-launch="tegami.desktop" title="Tegami" aria-label="Tegami"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linejoin="miter"><path d="M4.5 7.5L12 16.5L19.5 7.5" stroke="currentColor"/><path class="hot" d="M4.5 7.5h15"/></svg></button>
-  <button data-launch="tsukuru.desktop" title="Tsukuru" aria-label="Tsukuru"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4"><path d="M9 4v16" stroke="currentColor"/><path class="hot" d="M15 4v16"/></svg></button>
-</div>
+<nav class="lead" aria-label="Quick start">
+  <button class="menu" id="menu" aria-label="Open menu" title="Menu"><span></span></button>
+  <button class="rundot" id="runDot" title="Open apps" aria-label="Open apps" hidden><span></span></button>
+  <span class="leadsep" aria-hidden="true"></span>
+  <div class="quick" id="quick">
+    <button data-launch="miru.desktop" title="Miru · files" aria-label="Miru"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4"><path d="M4 9h16" stroke="currentColor"/><path class="hot" d="M4 15h16"/></svg></button>
+    <button data-launch="com.anthropic.Claude.desktop" title="Claude" aria-label="Claude"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4"><path d="M12 4v16M4 12h16M6.3 17.7L17.7 6.3" stroke="currentColor"/><path class="hot" d="M6.3 6.3l11.4 11.4"/></svg></button>
+    <button data-launch="mado.desktop" title="Mado" aria-label="Mado"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4"><path d="M7.2 9.2h9.6v9.6H7.2z" stroke="currentColor"/><path class="hot" d="M6.2 5.35h11.6"/></svg></button>
+    <button data-launch="tegami.desktop" title="Tegami" aria-label="Tegami"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linejoin="miter"><path d="M4.5 7.5L12 16.5L19.5 7.5" stroke="currentColor"/><path class="hot" d="M4.5 7.5h15"/></svg></button>
+    <button data-launch="tsukuru.desktop" title="Tsukuru" aria-label="Tsukuru"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.4"><path d="M9 4v16" stroke="currentColor"/><path class="hot" d="M15 4v16"/></svg></button>
+  </div>
+</nav>
 <div class="status">
   <button class="stat rec" id="recBtn" title="Stop recording (Cmd+Shift+5)" hidden><span class="rdot"></span>Recording</button>
-  <button class="stat acct" id="acctBtn" title="Claude account: click to switch" hidden><span id="acctName"></span></button>
-  <button class="stat" id="calBtn" title="Calendar"><span id="date"></span></button>
-  <button class="stat" id="timeBtn" title="Day, night or auto"><span class="time" id="clock"></span></button>
+  <button class="stat acct" id="acctBtn" title="Claude account: click to switch" hidden><span id="acctName" hidden></span><svg class="acctIcon" id="acctHome" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 10.5V19h11v-8.5" stroke="currentColor"/><path class="acc" d="M4 12L12 5l8 7"/></svg><svg class="acctIcon" id="acctWork" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M4.5 8.5h15v10h-15z" stroke="currentColor"/><path d="M9.5 8.5V6h5v2.5" stroke="currentColor"/><path class="acc" d="M4.5 13h15"/></svg></button>
   <span class="icons">
-    <button class="stat vpn" id="vpnBtn" hidden>VPN</button>
-    <button class="stat" id="wifiBtn" title="Wi‑Fi and Bluetooth"><svg id="wifi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="butt"><path class="l3" d="M4.5 6.5h15" stroke="currentColor"/><path class="l2" d="M7.5 11h9" stroke="currentColor"/><path class="l1" d="M10 15.5h4" stroke="currentColor"/><path class="stem" d="M12 15.5v5"/></svg></button>
+    <button class="stat" id="wifiBtn" title="Connections: Wi‑Fi, VPN, Bluetooth"><svg id="wifi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="butt"><path class="l3" d="M4.5 6.5h15" stroke="currentColor"/><path class="l2" d="M7.5 11h9" stroke="currentColor"/><path class="l1" d="M10 15.5h4" stroke="currentColor"/><path class="stem" d="M12 15.5v5"/></svg></button>
     <button class="stat" id="batteryWrap" title="">
       <svg id="batteryBolt" width="6" height="9" viewBox="0 0 6 9" hidden><path d="M3.6 0L0 5h2.4L1.8 9 6 3.8H3.4z" fill="currentColor"/></svg>
       <svg width="18" height="6" viewBox="0 0 18 6"><rect width="18" height="6" fill="currentColor" opacity=".18"/><rect id="batteryFill" width="12" height="6" fill="currentColor"/></svg>
     </button>
   </span>
-  <button class="rundot" id="runDot" title="Open apps" aria-label="Open apps" hidden><span></span></button>
-  <button class="menu" id="menu" aria-label="Open menu" title="Menu"><span></span></button>
+  <span class="datetime">
+    <button class="stat" id="calBtn" title="Calendar"><span id="date"></span></button>
+    <button class="stat" id="timeBtn" title="Day, night or auto"><span class="time" id="clock"></span></button>
+  </span>
 </div>
 
 <main class="stage">

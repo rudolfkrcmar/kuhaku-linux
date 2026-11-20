@@ -13,7 +13,7 @@ body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inte
 .status .time { color:var(--fg); font-weight:400; font-variant-numeric:tabular-nums; }
 /* The Claude account in use: shown only when there is more than one; a click switches. */
 .stat.acct { display:flex; align-items:center; gap:8px; }
-.stat.acct.flip #acctName { animation:rise .35s cubic-bezier(.2,.7,.2,1) both; }
+.stat.acct.flip svg { animation:rise .35s cubic-bezier(.2,.7,.2,1) both; }
 .aigrid { display:grid; grid-template-columns:140px repeat(5, 1fr) auto; column-gap:20px; align-items:center; row-gap:18px; padding:14px 0; font-size:15px; font-weight:300; }
 .aigrid .k { color:var(--muted); }
 .aigrid .aihead { font-size:13px; opacity:.5; }
@@ -56,11 +56,18 @@ body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inte
 .lmark { position:absolute; bottom:9px; height:2px; width:calc(100% / 3 * .5); background:var(--accent);
          left:calc(100% / 3 * var(--i) + 100% / 3 * .25); transition:left .45s cubic-bezier(.2,.7,.2,1); }
 .lnote { margin-top:20px !important; text-align:center; }
-/* Quick start, top left: the apps you open most, as quiet as the status bar. */
+/* Top left, on the status row: the menu line, the red dot of open apps, a hairline, then quick start. */
+.lead { position:fixed; left:28px; top:0; height:34px; display:flex; align-items:center; gap:4px; z-index:5; }
+.leadsep { width:1px; height:18px; background:var(--faint); margin:0 8px; }
+body.paged .leadsep { opacity:0; }
+.stat.acct svg .acc { stroke:var(--accent); }
+.status .datetime { display:flex; align-items:baseline; gap:10px; margin-left:6px; }
+.status .datetime .stat { padding:6px 0; margin:-6px 0; }
+/* Quick start: the apps you open most, as quiet as the status bar. */
 /* Miru's two lines come first, then the apps pinned beside it; open apps follow after a hairline. */
-.quick { position:fixed; left:44px; top:36px; height:44px; display:flex; align-items:center; gap:8px; z-index:4; }
+.quick { height:34px; display:flex; align-items:center; gap:4px; }
 .quick button { border:0; background:none; padding:0; cursor:pointer; display:grid; place-items:center;
-                width:44px; height:44px; border-radius:0;
+                width:34px; height:34px; border-radius:0;
                 font:inherit; font-size:13px; font-weight:300; letter-spacing:.02em; color:var(--muted);
                 transition:color .2s; outline:none; }
 .quick button:hover { color:var(--fg); background:var(--faint); }
@@ -81,7 +88,6 @@ body.paged .quick { opacity:0; pointer-events:none; }
 .stat.open .time, .stat:hover .time { color:var(--fg); }
 .stat.open::after { content:''; position:absolute; }
 .icons .stat { padding:6px; margin:-6px; }
-.stat.vpn { font-size:11px; letter-spacing:.08em; }
 #batteryWrap { gap:5px; }
 
 .rec { color:var(--fg); gap:10px; }
@@ -381,15 +387,15 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .answer .opened a:hover { color:var(--fg); }
 .answer .a a { color:inherit; text-decoration-color:var(--accent); text-underline-offset:3px; }
 
-/* The menu: one red line at the end of the top row, after the red dot, where the bar over apps keeps its line home.
-   On a page it is that line exactly (20 px, 66 px from the edge, the cross after it) and takes you home. */
-.menu { width:34px; height:34px; margin-left:-1px; border:0; background:none; padding:0 6px 0 0; cursor:pointer;
-        display:flex; align-items:center; justify-content:flex-end; outline:none; }
+/* The menu: one red line at the start of the top row, before the red dot and quick start.
+   On a page it takes you home. */
+.menu { width:34px; height:34px; border:0; background:none; padding:0 0 0 6px; cursor:pointer;
+        display:flex; align-items:center; justify-content:flex-start; outline:none; }
 .menu span { width:20px; height:2px; background:var(--accent); transition:width .25s cubic-bezier(.2,.7,.2,1), height .2s; }
 .menu:hover span { width:26px; }
 .menu.open span { width:26px; height:3px; }
 
-.sheet { position:fixed; right:28px; top:46px; display:flex; flex-direction:column; gap:12px; z-index:2; padding:36px 44px 24px;
+.sheet { position:fixed; left:28px; top:46px; display:flex; flex-direction:column; gap:12px; z-index:2; padding:36px 44px 24px;
          background:var(--bg); border-radius:18px; box-shadow:0 0 0 1px var(--faint), 0 24px 60px rgba(0,0,0,.18);
          animation:rise .35s cubic-bezier(.2,.7,.2,1) both; }
 .scrim { background:var(--bg); opacity:.78; }
@@ -403,13 +409,13 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .sheet button:hover svg .hot, .sheet button:focus-visible svg .hot { stroke:var(--accent); }
 .sheet .cap { height:32px; padding:10px 0 0 28px; font-size:24px; font-weight:300; letter-spacing:.02em; color:var(--muted); }
 .scrim { position:fixed; inset:0; z-index:1; }
-/* Open apps: a red dot near the end of the top row, just before the red line (as on the bar over apps). */
-.rundot { width:24px; height:34px; margin:0 -6px 0 -2px; border:0; background:none; padding:0;
+/* Open apps: a red dot just after the red line. */
+.rundot { width:24px; height:34px; margin:0 -4px; border:0; background:none; padding:0;
           cursor:pointer; display:grid; place-items:center; outline:none; }
 .rundot[hidden] { display:none; }
 .rundot span { width:6px; height:6px; border-radius:99px; background:#e5484d; transition:transform .2s; }
 .rundot:hover span, .rundot.open span { transform:scale(1.3); }
-.runs { position:fixed; right:28px; top:46px; min-width:300px; z-index:2; padding:22px 18px 18px;
+.runs { position:fixed; left:28px; top:46px; min-width:300px; z-index:2; padding:22px 18px 18px;
         background:var(--bg); border-radius:18px; box-shadow:0 0 0 1px var(--faint), 0 24px 60px rgba(0,0,0,.18);
         animation:rise .35s cubic-bezier(.2,.7,.2,1) both; }
 .runs h4 { margin:0 0 10px 14px; font-size:11px; font-weight:400; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }

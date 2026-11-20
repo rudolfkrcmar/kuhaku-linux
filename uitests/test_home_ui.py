@@ -323,11 +323,6 @@ class NetworkCard(PageCase):
         self.page.click('.ntab[data-v="vpn"]')
         self.assertIn("Work", self.shown())
 
-    def test_the_vpn_mark_opens_the_vpn_tab(self):
+    def test_the_vpn_is_named_on_the_connections_mark(self):
         self.page.js("closePanel(); setStatus({wifi: 'on', signal: 80, vpn: {name: 'Work', app: ''}}); return true;")
-        self.page.click("#vpnBtn")
-        self.page.js(
-            f"panelData({json.dumps({'action': 'vpn', 'data': {'vpns': [{'id': 'nm:x', 'name': 'Work', 'on': True, 'kind': 'nm', 'note': ''}]}})}); return true;"
-        )
-        self.page.wait(150)
-        self.assertEqual(self.page.js("return document.querySelector('.ntab.on').dataset.v;"), "vpn")
+        self.assertIn("VPN Work", self.page.js("return document.getElementById('wifiBtn').title;"))

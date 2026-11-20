@@ -275,21 +275,19 @@ $('panel').addEventListener('click', (e) => {
 });
 
 window.setAccount = ({ name, many }) => {
+  // The account as a mark: a house for a private one, a case for work; the name is in the tooltip.
   const b = $('acctBtn'), changed = $('acctName').textContent && $('acctName').textContent !== name;
+  const work = !/priv|person|home|own/i.test(name || '') && /work|team|company|office|job|org/i.test(name || '');
   b.hidden = !many; $('acctName').textContent = name;
+  $('acctHome').hidden = work; $('acctWork').hidden = !work;
+  b.title = `${name} account: click to switch`; b.setAttribute('aria-label', `Claude account: ${name}`);
   if (changed) { b.classList.remove('flip'); void b.offsetWidth; b.classList.add('flip'); }
 };
-$('vpnBtn').addEventListener('click', () => {
-  const app = $('vpnBtn').dataset.app;
-  if (app) return native({ type: 'panel', action: 'launch', id: app });
-  wifi.tab = 'vpn'; openPanel('wifi');
-});
 $('acctBtn').addEventListener('click', () => native({ type: 'panel', action: 'account-cycle' }));
 window.setTablet = () => {};
 window.setStatus = ({ battery, wifi, bt: btIcon, signal, vpn }) => {
-  // A VPN in use: named beside Wi‑Fi; a click opens the app that runs it (Defguard), or the network panel.
-  $('vpnBtn').hidden = !vpn;
-  if (vpn) { $('vpnBtn').title = 'VPN: ' + vpn.name; $('vpnBtn').dataset.app = vpn.app || ''; }
+  // A VPN in use: named in the connections mark's tooltip; the panel shows and switches it.
+  $('wifiBtn').title = 'Connections: Wi‑Fi, VPN, Bluetooth' + (vpn ? ` · VPN ${vpn.name}` : '');
   const bars = wifi === 'on' ? (signal >= 67 ? 3 : signal >= 34 ? 2 : 1) : 0;
   ['l1', 'l2', 'l3'].forEach((c, i) => $('wifi').querySelector('.' + c).classList.toggle('dim', i >= bars));
   // Bluetooth: dim when off or missing, full when on; a connected device keeps it full too.
