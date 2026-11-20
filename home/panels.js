@@ -1,5 +1,5 @@
 // Panels from the top bar: calendar, Claude usage, Wi-Fi, Bluetooth, battery, notifications.
-// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, pictures.
+// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, settings, pictures.
 // ---- Panels: calendar, Wi-Fi, battery -----------------------------------
 let panel = null, panelTimer;
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -69,6 +69,7 @@ window.panelData = ({ action, data }) => {
   if (panel === 'wifi' && action.startsWith('wifi')) renderWifi();
   if (action === 'notices') { notices = data || []; if (panel === 'notices') renderNotices(); }
   if (panel === 'battery' && (action === 'battery' || action === 'power-profile')) renderBattery();
+  if (page === 'settings' && !dragging && ['battery', 'power-profile', 'wifi', 'wifi-radio'].includes(action)) renderSettings();
 };
 
 $('panel').addEventListener('keydown', (e) => {
@@ -109,7 +110,7 @@ $('panel').addEventListener('click', (e) => {
   if (a === 'wifi-forget') { if (wifi.open === v) wifi.open = null; native({ type: 'panel', action: 'wifi-forget', ssid: v }); }
   if (a === 'care') { battery.care = v; renderBattery(); native({ type: 'panel', action: 'charge', care: v }); }
   if (a === 'profile') { battery.profile = v; renderBattery(); native({ type: 'panel', action: 'power-profile', profile: v }); }
-  if (a === 'settings') { if (v === 'power') onlySection = 'power'; closePanel(); return openPage('settings', v); }
+  if (a === 'settings') { closePanel(); return openPage('settings', v); }
 });
 $('panel').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches('.pw input') && e.target.value) connect(wifi.open, e.target.value);

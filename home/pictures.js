@@ -1,6 +1,6 @@
 // Files for Claude: the Kūhaku picker (pick/picker.js) over the home screen, any kind of file.
 // Chosen pictures are copied into ~/Pictures/ForClaude, other files named where they are, in the line (core.js).
-// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, pictures.
+// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, settings, pictures.
 const pictures = makePicker({
   root: $('picks'),
   peek: $('peek'),

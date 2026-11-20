@@ -1,5 +1,5 @@
 // Jobs as tabs, the activity list, the red dot, the safety net's four dots, day and night.
-// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, pictures.
+// Classic scripts sharing one page, loaded in order by index.html: core, tabs, panels, pages, settings, pictures.
 // ---- Jobs as tabs -------------------------------------------------------
 let jobs = { tabs: [], current: null, agents: [] }, renaming = null;
 const agentName = (id) => (jobs.agents.find((a) => a.id === (id || '')) || { name: 'Claude' }).name;
