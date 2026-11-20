@@ -1,5 +1,5 @@
-/* Kūhaku: apps' GTK message boxes ("Do you want to…?") in the home screen's language:
-   the night colours, Inter in light weights, the red line, words instead of buttons. */
+/* Kūhaku: apps' GTK message boxes ("Do you want to…?") in the home screen's language.
+   Drawn in the night colours; kuhaku_gtk.py swaps them for the day ones by day. Then: Inter in light weights, the red line, words instead of buttons. */
 messagedialog.background, messagedialog .dialog-vbox, messagedialog .dialog-action-area,
 messagedialog box, messagedialog buttonbox {
   background: #121212; background-image: none; color: #ececec; border: none; box-shadow: none;
@@ -30,7 +30,7 @@ messagedialog button:focus label { color: #ececec; }
 messagedialog selection { background: rgba(240,112,90,.35); color: #ececec; }
 
 /* Apps' "Save as" and "Open" windows (the GTK file chooser, like the Claude app's Export):
-   night paper, the name to write on a hairline, places and the path as words with where you are
+   paper, the name to write on a hairline, places and the path as words with where you are
    in ink, files in light type, and two words to answer. The one red is the caret: where you write.
    Icons are grey glyphs, never a colour of their own. */
 filechooser, filechooser ~ .dialog-action-box, filechooser ~ .dialog-action-box buttonbox,

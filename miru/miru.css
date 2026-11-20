@@ -1,6 +1,6 @@
 /* Miru: the folder list, places, previews, the cloud pages. */
-:root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.07); --accent:#e0301e; --sheet:#ffffff; }
-body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.07); --accent:#f0705a; --sheet:#1b1b1b; }
+:root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.08); --accent:#e0301e; --sheet:#ffffff; }
+body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.08); --accent:#f0705a; --sheet:#1b1b1b; }
 html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
              font-family:'Inter Variable','Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
 .bar { position:fixed; top:0; left:0; right:0; height:52px; display:flex; align-items:center; gap:14px;
@@ -11,8 +11,9 @@ html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); overf
 .count { font-size:13px; font-weight:300; color:var(--muted); white-space:nowrap; }
 .grow { flex:1; }
 .bar button { border:0; background:none; color:var(--muted); font:inherit; font-size:13px; font-weight:300;
-              cursor:pointer; padding:6px 10px; border-radius:0; transition:color .15s, background .15s; outline:none; }
-.bar button:hover { color:var(--fg); background:var(--faint); }
+              cursor:pointer; padding:6px 10px; border-radius:0; transition:color .25s cubic-bezier(.2,.7,.2,1); outline:none; }
+.bar button:hover { color:var(--fg); }
+.bar button:focus-visible { outline:1px solid var(--accent); }
 .bar button.icon { width:32px; height:32px; padding:0; display:grid; place-items:center; }
 .stage { position:fixed; top:53px; left:0; right:0; bottom:0; overflow:auto; }
 /* A quiet scroll bar to grab for long folders: thin until the pointer is near. */
@@ -42,16 +43,18 @@ pre .l::before { counter-increment:ln; content:counter(ln); position:absolute; l
 .other { text-align:center; }
 .other .big { font-size:30px; font-weight:200; letter-spacing:-.01em; margin:0 0 12px; }
 .other .sub { font-size:14px; font-weight:300; color:var(--muted); margin-bottom:36px; }
-.other button { border:0; background:none; font:inherit; font-size:15px; font-weight:300; color:var(--fg); cursor:pointer;
-                padding:0; border-bottom:1.5px solid var(--accent); padding-bottom:3px; }
-.mark { width:72px; height:72px; margin:0 auto 32px; position:relative; }
-.mark i { position:absolute; left:4px; right:4px; top:0; height:3px; background:var(--accent); }
-.mark b { position:absolute; left:8px; right:8px; top:16px; bottom:0; border:2.5px solid var(--fg); }
+/* The one action of this screen: a word on an ink block. */
+.other button { border:0; background:var(--fg); font:inherit; font-size:15px; font-weight:300; color:var(--bg); cursor:pointer;
+                height:34px; padding:0 16px; border-radius:0; outline:none; }
+.other button:active { opacity:.8; }
+.other button:focus-visible { outline:1px solid var(--accent); outline-offset:2px; }
+.mark { width:40px; height:40px; margin:0 auto 32px; color:var(--muted); }
+.mark svg { display:block; }
 .meta { position:fixed; left:0; right:0; bottom:18px; text-align:center; font-size:12px; font-weight:300; color:var(--muted);
         letter-spacing:.02em; pointer-events:none; opacity:.9; z-index:2; }
 .meta span { background:var(--bg); padding:4px 10px; }
 .edge { position:fixed; top:53px; bottom:0; width:80px; z-index:2; cursor:pointer; display:grid; place-items:center;
-        color:var(--muted); opacity:0; transition:opacity .2s; }
+        color:var(--muted); opacity:0; transition:opacity .25s cubic-bezier(.2,.7,.2,1); }
 .edge:hover { opacity:1; }
 .edge.l { left:0; } .edge.r { right:0; }
 /* Files: places on the left, the folder as a calm list. */
@@ -69,18 +72,20 @@ body.folder #newf, body.folder #hid { display:inline-block; }
 .side a.on::before { content:''; position:absolute; left:0; top:9px; bottom:9px; width:2px; background:var(--accent); }
 .side .gap { height:18px; }
 .side a.off { opacity:.62; }
-.side .drives { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); opacity:.7; margin:0 0 6px; }
+.side .drives { font-size:12.5px; color:var(--muted); margin:0 0 6px; }
 .side a.drv { display:flex; align-items:center; gap:10px; padding:8px 8px 8px 14px; white-space:normal; }
-.side .dico { width:22px; height:22px; flex-shrink:0; color:var(--fg); opacity:.8; }
-.side a.on .dico, .side a.drv:hover .dico { color:var(--accent); opacity:1; }
-.side .dico svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.3; stroke-linejoin:round; }
+/* Glyphs in one ink: grey at rest, ink where you are or pointed at. The red line beside the place says here. */
+.side .dico { width:18px; height:18px; flex-shrink:0; color:var(--muted); }
+.side a.on .dico, .side a.drv:hover .dico { color:var(--fg); }
+.side .dico svg { display:block; width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.33; }
 .side .dtx { display:flex; flex-direction:column; min-width:0; flex:1; }
 .side .dnm { color:var(--fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .side .dsub { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
 .side .dbar { display:block; height:2px; background:var(--faint); margin-top:6px; }
-.side .dbar i { display:block; height:2px; background:var(--accent); }
-.side a .ej { font-weight:300; font-size:12px; margin-left:10px; opacity:.55; }
-.side a .ej:hover { opacity:1; color:var(--accent); }
+.side .dbar i { display:block; height:2px; background:var(--fg); }
+.side a .ej { display:grid; place-items:center; width:24px; height:24px; margin-left:4px; color:var(--muted); flex-shrink:0; }
+.side a .ej:hover { color:var(--fg); }
+.side a .ej svg { display:block; }
 .crumbs { display:flex; align-items:center; gap:6px; font-size:14px; min-width:0; overflow:hidden; white-space:nowrap; }
 .crumbs span { color:var(--muted); font-weight:300; cursor:pointer; }
 .crumbs span:hover { color:var(--fg); }
@@ -101,18 +106,17 @@ body.folder #newf, body.folder #hid { display:inline-block; }
 .row input { font:inherit; color:var(--fg); background:var(--bg); border:0; outline:none; padding:4px 0; width:100%;
              box-shadow:inset 0 -1.5px 0 var(--accent); caret-color:var(--accent); }
 .head { display:grid; grid-template-columns:30px minmax(0,1fr) 190px 100px 130px; gap:14px; padding:0 14px 8px;
-        font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:400; }
+        font-size:12.5px; color:var(--muted); font-weight:300; }
 .head .z { text-align:right; }
 .empty { padding:120px 0; text-align:center; color:var(--muted); font-size:15px; font-weight:300; }
 .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--fg); color:var(--bg);
-         font-size:13px; font-weight:300; padding:9px 16px; z-index:9; opacity:0; transition:opacity .25s; pointer-events:none; }
-.toast.show { opacity:1; }
+         font-size:13px; font-weight:300; padding:9px 16px; z-index:9; opacity:0; transition:opacity .25s cubic-bezier(.2,.7,.2,1), transform .25s cubic-bezier(.2,.7,.2,1); pointer-events:none; }
+.toast.show { opacity:1; transform:translate(-50%, -4px); }
 /* Right click: a small card of what you can do here. */
-.ctx { position:fixed; z-index:9; min-width:210px; padding:8px; background:var(--sheet); border-radius:12px;
+.ctx { position:fixed; z-index:9; min-width:210px; padding:8px; background:var(--sheet); border-radius:18px;
        box-shadow:0 0 0 1px var(--faint), 0 18px 48px rgba(0,0,0,.18); font-size:14px; font-weight:300; }
 .ctx a { display:block; padding:7px 12px; border-radius:8px; cursor:pointer; color:var(--fg); white-space:nowrap; }
 .ctx a:hover { background:var(--faint); }
-.ctx a.bad:hover { color:#e5484d; }
 .ctx hr { border:0; height:1px; background:var(--faint); margin:6px 4px; }
 /* Dropbox and Google Drive: sign in, then choose the folders that live here. */
 #cfold, #cnow { display:none; }
@@ -121,11 +125,14 @@ body.cloudpage #newf, body.cloudpage #hid { display:none; }
 .cpage { max-width:680px; padding:56px 48px 120px; }
 .cpage .ctitle { font-size:30px; font-weight:200; letter-spacing:-.01em; margin-bottom:12px; }
 .cpage .csub { font-size:14px; font-weight:300; color:var(--muted); line-height:1.6; margin-bottom:36px; max-width:520px; }
-.cpage .cerr { font-size:13px; color:var(--accent); margin:-20px 0 28px; }
-.cpage .go { border:0; background:none; font:inherit; font-size:15px; font-weight:300; color:var(--fg); cursor:pointer;
-             padding:0 0 3px; border-bottom:1.5px solid var(--accent); }
-.cpage .go[disabled] { opacity:.4; cursor:default; }
-.cpage .quiet { border:0; background:none; font:inherit; font-size:13px; font-weight:300; color:var(--muted); cursor:pointer; padding:0; margin-left:28px; }
+.cpage .cerr { font-size:13px; color:var(--fg); margin:-20px 0 28px; }
+/* The one action of the cloud page: a word on an ink block. */
+.cpage .go { border:0; background:var(--fg); font:inherit; font-size:15px; font-weight:300; color:var(--bg); cursor:pointer;
+             height:34px; padding:0 16px; border-radius:0; outline:none; }
+.cpage .go:active { opacity:.8; }
+.cpage .go:focus-visible { outline:1px solid var(--accent); outline-offset:2px; }
+.cpage .go[disabled] { opacity:.3; cursor:default; }
+.cpage .quiet { border:0; background:none; font:inherit; font-size:15px; font-weight:300; color:var(--muted); cursor:pointer; padding:0; margin-left:22px; height:34px; transition:color .25s cubic-bezier(.2,.7,.2,1); }
 .cpage .quiet:hover { color:var(--fg); }
 .cpage .cname { display:block; width:320px; border:0; border-bottom:1px solid var(--faint); background:none; font:inherit;
                 font-size:17px; font-weight:300; color:var(--fg); padding:6px 0; margin:-12px 0 36px; outline:none; }
@@ -140,11 +147,11 @@ body.cloudpage #newf, body.cloudpage #hid { display:none; }
         cursor:pointer; user-select:none; }
 .crow:hover { background:var(--faint); }
 .crow .car { width:18px; height:18px; display:grid; place-items:center; color:var(--muted); flex-shrink:0; }
-.crow .car svg { transition:transform .15s; }
+.crow .car svg { display:block; transition:transform .25s cubic-bezier(.2,.7,.2,1); }
 .crow.open .car svg { transform:rotate(90deg); }
-.crow .box { width:14px; height:14px; border:1.3px solid var(--muted); flex-shrink:0; display:grid; place-items:center; }
-.crow.on .box { border-color:var(--accent); background:var(--accent); }
-.crow.on .box::after { content:''; width:6px; height:3px; border:solid var(--bg); border-width:0 0 1.5px 1.5px; transform:translateY(-1px) rotate(-45deg); }
+/* The switch: a square of 12, empty when off, filled with ink when on. Never red. */
+.crow .box { width:12px; height:12px; box-sizing:border-box; border:1px solid var(--muted); flex-shrink:0; }
+.crow.on .box { border-color:var(--fg); background:var(--fg); }
 .crow.implied { cursor:default; }
 .crow.implied .box { opacity:.45; }
 .crow .cn { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

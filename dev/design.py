@@ -42,13 +42,13 @@ NAMES = {"acctHome": "Account · home", "acctWork": "Account · work", "batteryW
 SIGNS = """
 <figure class="card"><div class="pair"><div class="tile on"><i class="s-line"></i></div><div class="tile on"><i class="s-line open"></i></div></div>
 <figcaption><b>Menu</b><span class="kind">Sign · one red line, 20 by 2; longer on hover, heavier when open</span></figcaption></figure>
-<figure class="card"><div class="pair"><div class="tile on"><i class="s-dot"></i></div><div class="tile on"><i class="s-line"></i><i class="s-dot" style="margin-left:10px"></i></div></div>
-<figcaption><b>Open apps</b><span class="kind">Sign · a red dot after the line, only while apps are open</span></figcaption></figure>
-<figure class="card"><div class="pair"><div class="tile on"><i class="s-bar"></i><i class="s-dot" style="margin-left:-3px"></i></div><div class="tile on"><i class="s-bar"></i></div></div>
-<figcaption><b>Line and dot</b><span class="kind">Sign · the composer: where you speak to Claude</span></figcaption></figure>
+<figure class="card"><div class="pair"><div class="tile on"><i class="s-line"></i><i class="s-dot" style="margin-left:10px;background:var(--fg)"></i></div><div class="tile"></div></div>
+<figcaption><b>Open apps</b><span class="kind">Sign · an ink dot after the line, only while apps are open; the strokes of the marks say which</span></figcaption></figure>
+<figure class="card"><div class="pair"><div class="tile on"><i class="s-bar"></i></div><div class="tile"></div></div>
+<figcaption><b>Composer</b><span class="kind">Sign · one upright red line, the caret: where you write. No dot</span></figcaption></figure>
 <figure class="card"><div class="pair"><div class="tile on"><i class="s-batt"><b style="width:66%"></b></i></div><div class="tile on"><i class="s-batt"><b style="width:12%;background:var(--accent)"></b></i></div></div>
-<div class="pair" style="margin-top:6px"><div class="tile on"><i class="s-batt"><b style="width:66%;background:#2f9d62"></b></i></div><div class="tile"></div></div>
-<figcaption><b>Battery</b><span class="kind">Sign · a bar, 18 by 6: at rest, low (red), charging (green, under review)</span></figcaption></figure>
+<div class="pair" style="margin-top:6px"><div class="tile on"><i class="s-batt"><b style="width:50%"></b><u style="position:absolute;left:79%;top:0;width:1px;height:100%;background:var(--muted)"></u></i></div><div class="tile"></div></div>
+<figcaption><b>Battery</b><span class="kind">Sign · a bar, 18 by 6: at rest, low (red), plugged in (a tick where charging stops)</span></figcaption></figure>
 """
 
 
@@ -230,7 +230,7 @@ svg [class]:not([stroke]) {{ stroke:currentColor; }}
 .s-bar {{ width:3px; height:60px; background:var(--accent); }}
 .tile i {{ display:inline-block; }}
 .tile:has(i + i) {{ display:flex; justify-content:center; align-items:center; }}
-.s-batt {{ width:72px; height:24px; background:rgba(17,17,17,.18); display:flex !important; }}
+.s-batt {{ width:72px; height:24px; background:rgba(17,17,17,.18); display:flex !important; position:relative; }}
 .s-batt b {{ display:block; height:100%; background:var(--fg); }}
 figcaption {{ display:flex; flex-direction:column; gap:3px; margin-top:12px; font-size:13px; }}
 figcaption b {{ font-weight:400; }}

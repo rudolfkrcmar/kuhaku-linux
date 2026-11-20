@@ -1,6 +1,6 @@
 /* Kūhaku's home screen: day and night colours, the line, answers, tabs, panels and pages. */
-:root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.08); --accent:#e0301e; --charge:#2f9d62; }
-body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.08); --accent:#f0705a; --charge:#5cc98a; }
+:root { --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.08); --accent:#e0301e; }
+body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.08); --accent:#f0705a; }
 * { box-sizing:border-box; }
 html, body { margin:0; height:100%; }
 body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inter',system-ui,sans-serif;
@@ -18,7 +18,7 @@ body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inte
 .aigrid .k { color:var(--muted); }
 .aigrid .aihead { font-size:13px; opacity:.5; }
 .aigrid .aiok { display:inline-flex; align-items:center; gap:8px; }
-.aigrid .aiok::before { content:''; width:5px; height:5px; border-radius:9px; background:var(--accent); }
+.aigrid .aiok::before { content:''; width:5px; height:5px; border-radius:9px; background:currentColor; }
 .aigrid .aiwait { opacity:.55; }
 .aigrid .aidel { opacity:.45; }
 .acctadd { display:flex; gap:12px; align-items:stretch; margin-top:10px; }
@@ -26,13 +26,13 @@ body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inte
 .acctadd input { border:0; outline:none; background:none; font:inherit; font-size:14px; font-weight:300; color:var(--fg); caret-color:var(--accent); width:220px; }
 .status .icons { display:flex; align-items:center; gap:18px; }
 .status .off { opacity:.35; }
-/* Connections mark: lines light up with Wi-Fi strength; the stem turns red while a Bluetooth device is connected. */
+/* Connections sign: the bars light up with Wi-Fi strength; the tall one turns red while a Bluetooth device is connected. */
 #wifi path { transition:opacity .3s, stroke .3s; }
 #wifi path.dim { opacity:.25; }
-#wifi .stem { stroke:none; }
-#wifi.bt .stem { stroke:var(--accent); }
+#wifi .hot { stroke:currentColor; }
+#wifi.bt .hot { stroke:var(--accent); }
 .status { z-index:4; }
-.day.ev b::before { content:''; position:absolute; top:4px; left:50%; width:10px; height:1.5px; margin-left:-5px; background:var(--accent); }
+.day.ev b::before { content:''; position:absolute; top:4px; left:50%; width:10px; height:1.5px; margin-left:-5px; background:currentColor; }
 .day b { position:relative; }
 .evs { list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:12px; }
 .evs li { display:grid; grid-template-columns:62px 1fr; gap:12px; font-size:14px; font-weight:300; }
@@ -43,24 +43,15 @@ body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inte
 .calform { margin-top:10px; }
 .calform .pw { display:flex; gap:12px; align-items:stretch; margin:14px 0 6px; }
 .calform input { flex:1; border:0; outline:none; background:transparent; font:inherit; font-size:14px; font-weight:300; color:var(--fg); caret-color:var(--accent); }
-/* Light switch: three marks on one hairline; a red line slides under the chosen one. */
-.light .p-title { margin:0 0 30px; font-size:11px; font-weight:400; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
-.lsw { position:relative; display:grid; grid-template-columns:repeat(3,1fr); padding-bottom:22px; }
-.lopt { border:0; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:14px; padding:6px 0 10px;
-        color:var(--muted); font:inherit; font-size:14px; font-weight:300; letter-spacing:.02em; transition:color .3s; outline:none; }
-.lopt svg .hot { stroke:currentColor; transition:stroke .35s; }
-.lopt:hover { color:var(--fg); }
-.lopt.on { color:var(--fg); }
-.lopt.on svg .hot { stroke:var(--accent); }
-.ltrack { position:absolute; left:0; right:0; bottom:10px; height:1px; background:var(--faint); }
-.lmark { position:absolute; bottom:9px; height:2px; width:calc(100% / 3 * .5); background:var(--accent);
-         left:calc(100% / 3 * var(--i) + 100% / 3 * .25); transition:left .45s cubic-bezier(.2,.7,.2,1); }
-.lnote { margin-top:20px !important; text-align:center; }
+/* Day, night or auto: a choice, each word followed by its square, the chosen one filled. */
+.light .opts { gap:28px; }
+.lopt { border:0; background:none; padding:8px 0; font:inherit; outline:none; }
 /* Top left, on the status row: the menu line, the red dot of open apps, a hairline, then quick start. */
 .lead { position:fixed; left:28px; top:0; height:34px; display:flex; align-items:center; gap:4px; z-index:5; }
 .leadsep { width:1px; height:18px; background:var(--faint); margin:0 8px; }
 body.paged .leadsep { opacity:0; }
-.stat.acct svg .acc { stroke:var(--accent); }
+.stat.acct svg .acc { stroke:currentColor; transition:stroke .2s; }
+.stat.acct:hover svg .acc { stroke:var(--accent); }
 .status .datetime { display:flex; align-items:baseline; gap:10px; margin-left:6px; }
 .status .datetime .stat { padding:6px 0; margin:-6px 0; }
 /* Quick start: the apps you open most, as quiet as the status bar. */
@@ -92,7 +83,7 @@ body.paged .quick { opacity:0; pointer-events:none; }
 
 .rec { color:var(--fg); gap:10px; }
 .rdot { width:7px; height:7px; border-radius:9px; background:var(--accent); animation:pulse 1.6s ease-in-out infinite; }
-.rec:hover { color:var(--accent); }
+.rec:hover { color:var(--fg); }
 .recmic { gap:8px; }
 .recmic .strike { display:none; }
 .recmic.off { opacity:.55; }
@@ -111,7 +102,7 @@ body.dim .stage { opacity:.08; filter:blur(3px); pointer-events:none; }
         color:inherit; cursor:pointer; transition:color .15s; }
 .ntab:hover, .ntab.on { color:var(--fg); }
 .ntab.on::after { content:''; position:absolute; left:0; bottom:-3px; width:14px; height:1.5px; background:var(--accent); }
-.ntab .cdot { width:5px; height:5px; border-radius:5px; background:var(--accent); }
+.ntab .cdot { width:5px; height:5px; border-radius:5px; background:currentColor; }
 .p-sub { margin:6px 0 0; font-size:13px; font-weight:300; color:var(--muted); letter-spacing:.01em; }
 .p-label { display:flex; justify-content:space-between; align-items:baseline; margin:34px 0 10px;
            font-size:11px; font-weight:400; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
@@ -131,20 +122,21 @@ body.dim .stage { opacity:.08; filter:blur(3px); pointer-events:none; }
 .notice { padding:14px 0; border-top:1px solid var(--faint); }
 .notice:first-child { border-top:0; }
 .notice .nh { display:flex; justify-content:space-between; gap:16px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
-.notice .nh .ndot { display:inline-block; width:6px; height:6px; border-radius:9px; background:var(--accent); margin-right:8px; vertical-align:1px; }
+.notice .nh .ndot { display:inline-block; width:6px; height:6px; border-radius:9px; background:var(--fg); margin-right:8px; vertical-align:1px; }
 .notice .nt { margin-top:6px; font-size:15px; font-weight:300; }
 .notice .nb { margin-top:3px; font-size:13px; font-weight:300; color:var(--muted); line-height:1.45; overflow-wrap:anywhere; }
 
-.switch { width:32px; height:18px; border-radius:99px; border:1px solid var(--muted); position:relative; cursor:pointer;
-          background:none; padding:0; flex-shrink:0; transition:border-color .25s; align-self:center; }
-.switch::after { content:''; position:absolute; top:3px; left:3px; width:10px; height:10px; border-radius:99px;
-                 background:var(--muted); transition:left .25s cubic-bezier(.2,.7,.2,1), background .25s; }
-.switch.on { border-color:var(--accent); }
-.switch.on::after { left:17px; background:var(--accent); }
+/* A switch: a square of 12, empty when off, filled with ink when on; never red. Pressable across 34. */
+.switch { width:34px; height:34px; margin:-8px -11px -8px 0; border:0; background:none; padding:0; cursor:pointer; outline:none;
+          display:grid; place-items:center; flex-shrink:0; align-self:center; }
+.switch::after { content:''; width:12px; height:12px; box-sizing:border-box; border:1.5px solid var(--muted);
+                 transition:background .25s cubic-bezier(.2,.7,.2,1), border-color .25s cubic-bezier(.2,.7,.2,1); }
+.switch:hover::after { border-color:var(--fg); }
+.switch.on::after { background:var(--fg); border-color:var(--fg); }
 
 /* Wi-Fi */
 .current { display:flex; gap:14px; align-items:flex-start; margin-top:26px; }
-.current .cdot { width:7px; height:7px; border-radius:9px; background:var(--accent); margin-top:9px; flex-shrink:0; }
+.current .cdot { width:7px; height:7px; border-radius:9px; background:var(--fg); margin-top:9px; flex-shrink:0; }
 .current .name { font-size:19px; font-weight:300; letter-spacing:-.01em; overflow-wrap:anywhere; }
 .current .p-sub { margin-top:4px; }
 .current .p-link { margin-left:auto; margin-top:5px; opacity:0; transition:opacity .2s, color .15s; }
@@ -158,8 +150,8 @@ body.dim .stage { opacity:.08; filter:blur(3px); pointer-events:none; }
 .net .top svg { color:var(--muted); flex-shrink:0; }
 .net .note { font-size:12px; color:var(--muted); margin-top:4px; font-weight:300; }
 .net .note.err { color:var(--accent); }
-/* Connected (a VPN, a Bluetooth device): the red dot at the end of its row. */
-.net .top .cdot { width:6px; height:6px; border-radius:6px; background:var(--accent); flex-shrink:0; }
+/* Connected (a VPN, a Bluetooth device): an ink dot at the end of its row; the panel's one red is its tab. */
+.net .top .cdot { width:6px; height:6px; border-radius:6px; background:var(--fg); flex-shrink:0; }
 .ntabs + .p-head + .nets { margin-top:18px; }
 .pw { display:flex; align-items:stretch; gap:12px; margin:12px 0 4px; }
 .pw .line { height:auto; margin:2px 0; }
@@ -172,16 +164,32 @@ body.dim .stage { opacity:.08; filter:blur(3px); pointer-events:none; }
 /* Battery */
 .big { font-size:72px; font-weight:200; letter-spacing:-.04em; line-height:1; font-variant-numeric:tabular-nums; }
 .big span { font-size:28px; color:var(--muted); letter-spacing:0; margin-left:4px; }
-.meter { height:2px; background:var(--faint); margin:26px 0 0; border-radius:2px; overflow:hidden; }
-.meter i { display:block; height:100%; background:var(--accent); border-radius:2px; transition:width .6s; }
+/* An amount: the battery's bar of 6, filling with ink. While charging, a 1px tick stands where it will stop. */
+.meter { position:relative; height:6px; background:color-mix(in srgb, var(--fg) 18%, transparent); margin:26px 0 0; }
+.meter i { display:block; height:100%; background:var(--fg); transition:width .6s cubic-bezier(.2,.7,.2,1); }
+.meter b { position:absolute; top:0; width:1px; height:100%; margin-left:-1px; background:var(--fg); }
 .chart { display:block; width:100%; height:96px; overflow:visible; }
 .axis { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:8px; letter-spacing:.02em; }
-/* Choices: the chosen one in full colour with a small red dot before it, on the text's own line. */
+/* Words to press: grey, ink when pointed at. A choice (.choice) follows each word with its square;
+   exactly one is filled, in ink, never red. Five or more options are a list: the value and a chevron,
+   opening the same choice set upright. */
 .opts { display:flex; gap:36px; }
 .opt { font-size:15px; font-weight:300; color:var(--muted); cursor:pointer; transition:color .15s; position:relative; line-height:24px; }
 .opt:hover, .opt.sel { color:var(--fg); }
-.opt.sel::before { content:''; position:absolute; left:-14px; top:50%; width:5px; height:5px; margin-top:-2.5px;
-                   border-radius:9px; background:var(--accent); }
+.choice { gap:22px; }
+.choice .opt { display:inline-flex; align-items:center; gap:.55em; }
+.choice .opt::after { content:''; width:12px; height:12px; box-sizing:border-box; flex-shrink:0; border:1.5px solid var(--muted);
+                      transition:background .2s, border-color .2s; }
+.choice .opt:hover::after { border-color:var(--fg); }
+.choice .opt.sel::after { background:var(--fg); border-color:var(--fg); }
+.list { position:relative; }
+.list .lsb { border:0; background:none; padding:0; font:inherit; font-size:15px; font-weight:300; line-height:24px; color:var(--fg);
+             cursor:pointer; display:inline-flex; align-items:center; gap:8px; outline:none; }
+.list .lsb svg { color:var(--muted); transition:transform .25s cubic-bezier(.2,.7,.2,1); }
+.list.open .lsb svg { transform:rotate(180deg); }
+.list .choice.up { display:none; flex-direction:column; align-items:flex-start; gap:4px; margin-top:10px; }
+.list.open .choice.up { display:flex; animation:rise .3s cubic-bezier(.2,.7,.2,1) both; }
+.list .choice.up .opt { justify-content:space-between; gap:22px; min-width:220px; }
 
 /* Calendar */
 .cal-title { border:0; background:none; padding:0; font-family:inherit; color:inherit; cursor:pointer; text-align:left; }
@@ -210,7 +218,7 @@ body.dim .stage { opacity:.08; filter:blur(3px); pointer-events:none; }
 .years { display:grid; grid-template-columns:repeat(3, 1fr); gap:22px 18px; margin-top:26px; }
 .mini { cursor:pointer; border-radius:6px; transition:opacity .15s; }
 .mini .mn { font-size:12px; font-weight:400; margin-bottom:6px; letter-spacing:.02em; }
-.mini.now .mn { color:var(--accent); }
+.mini.now .mn { color:var(--fg); }
 .mini .mg { display:grid; grid-template-columns:repeat(7, 1fr); font-size:8.5px; line-height:13px; color:var(--muted);
             text-align:center; font-variant-numeric:tabular-nums; }
 .mini .mg i { font-style:normal; border-radius:9px; }
@@ -260,12 +268,14 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .jobtab { position:relative; flex-shrink:0; display:flex; align-items:center; gap:9px; cursor:pointer; transition:color .15s; max-width:260px; }
 .jobtab b { font-weight:inherit; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .jobtab:hover, .jobtab.on { color:var(--fg); }
+/* Tabs say where you are: the open one is ink, with a red line of 14 by 1.5 beneath it. */
+.jobtab.on::after { content:''; position:absolute; left:0; bottom:-5px; width:14px; height:1.5px; background:var(--accent); }
 .jobtab i { width:5px; height:5px; border-radius:9px; flex-shrink:0; box-sizing:border-box; }
-.jobtab i.run { background:var(--accent); }
+.jobtab i.run { background:currentColor; }
 .jobtab i.queued { border:1px solid var(--muted); }
 .jobtab i.unseen { background:var(--accent); }
 .jobtab i.idle { display:none; }
-.jobtab .x { position:absolute; right:-16px; border:0; background:none; padding:0; color:var(--muted); cursor:pointer; opacity:0; font:inherit; line-height:1; transition:opacity .15s; }
+.jobtab .x { position:absolute; right:-18px; border:0; background:none; padding:0; color:var(--muted); cursor:pointer; opacity:0; display:grid; place-items:center; transition:opacity .15s; }
 .jobtab:hover .x { opacity:.8; }
 .jobtab.busy .x { opacity:.45; }
 .jobtab .x:hover { color:var(--fg); }
@@ -288,7 +298,7 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .queuerow { margin:-40px 0 0 23px; display:flex; gap:24px; align-items:baseline; font-size:14px; font-weight:300; color:var(--muted); }
 .queuerow button { border:0; background:none; padding:0 0 2px; cursor:pointer; font:inherit; color:var(--muted); }
 .queuerow button:hover { color:var(--fg); }
-.queuerow button.on { color:var(--fg); border-bottom:1.5px solid var(--accent); }
+.queuerow button.on { color:var(--fg); }
 #working.waiting .dot { animation:none; background:none; box-shadow:inset 0 0 0 1.2px var(--muted); }
 .next { display:flex; align-items:flex-start; gap:16px; margin-bottom:-40px; flex-shrink:0; }
 .next .plus { width:31px; height:36px; margin:0 -12px; padding:0; border:0; background:none; cursor:pointer; outline:none;
@@ -307,17 +317,18 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .activity li:first-child { margin-top:28px; }
 .activity li.thought { font-style:italic; }
 .stoprow { margin:-40px 0 0 23px; animation:rise .35s both; }
-/* Stop: a red square; the word appears only when pointed at. */
+/* Stop: an ink square; the word appears only when pointed at. */
 .stoprow button { border:0; background:none; padding:4px 0; cursor:pointer; font:inherit; font-size:14px; font-weight:300;
                   color:var(--muted); display:flex; align-items:center; gap:12px; outline:none; }
-.stoprow button i { width:10px; height:10px; background:var(--accent); flex-shrink:0; transition:transform .2s; }
+.stoprow button i { width:10px; height:10px; background:currentColor; flex-shrink:0; transition:transform .2s; }
 .stoprow button span { opacity:0; transform:translateX(-4px); transition:opacity .2s, transform .2s; }
-.stoprow button:hover span { opacity:1; transform:none; color:var(--fg); }
+.stoprow button:hover { color:var(--fg); }
+.stoprow button:hover span { opacity:1; transform:none; }
 .stoprow button:hover i { transform:scale(1.15); }
 .tokens { margin:-38px 0 0 23px; font-size:12px; font-weight:300; color:var(--muted); letter-spacing:.02em;
           font-variant-numeric:tabular-nums; animation:rise .35s both; }
 .day i { position:absolute; bottom:3px; left:50%; width:3px; height:3px; margin-left:-1.5px; border-radius:9px;
-         background:var(--accent); }
+         background:currentColor; }
 .limit { margin:14px 0 0; }
 .limit .top { display:flex; justify-content:space-between; font-size:14px; font-weight:300; }
 .limit .top span:last-child { color:var(--muted); font-size:12px; }
@@ -328,9 +339,10 @@ textarea::placeholder { color:currentColor; opacity:.5; }
        color:var(--muted); opacity:.55; transition:opacity .2s, color .2s; flex-shrink:0; align-self:flex-start;
        display:flex; align-items:center; justify-content:center; }
 .mic:hover { opacity:1; }
-.mic.rec { color:var(--accent); opacity:1; animation:pulse 1.4s ease-in-out infinite; }
-.mic.busy { color:var(--accent); opacity:.6; cursor:default; }
-.mic.voice { color:var(--accent); opacity:1; }
+/* Glyphs are one ink: while the mic is live it is ink and breathes; it is never red. */
+.mic.rec { color:var(--fg); opacity:1; animation:pulse 1.4s ease-in-out infinite; }
+.mic.busy { color:var(--fg); opacity:.6; cursor:default; }
+.mic.voice { color:var(--fg); opacity:1; }
 .mic.voice.listening { animation:pulse 1.4s ease-in-out infinite; }
 .mic.voice.thinking { opacity:.6; }
 .tools { display:flex; flex-direction:column; align-self:flex-start; margin:0 -8px 0 4px; flex-shrink:0; }
@@ -389,7 +401,7 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .answer .opened { display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:22px; flex-shrink:0; font-size:14px; font-weight:300; }
 .answer .opened.off { display:none; }
 .answer .opened a { color:var(--muted); text-decoration:none; display:inline-flex; align-items:center; gap:9px; }
-.answer .opened a::before { content:''; width:12px; height:1.4px; background:var(--accent); flex-shrink:0; }
+.answer .opened a::before { content:''; width:12px; height:1.5px; background:currentColor; flex-shrink:0; }
 .answer .opened a:hover { color:var(--fg); }
 .answer .a a { color:inherit; text-decoration-color:var(--accent); text-underline-offset:3px; }
 
@@ -410,16 +422,17 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .sheet .srow3 + .srow3 { border-top:1px solid var(--faint); padding-top:12px; }
 .sheet button { width:96px; height:96px; border:0; background:none; padding:0; cursor:pointer; outline:none; border-radius:20px;
                 display:grid; place-items:center; color:var(--muted); transition:color .15s, background .15s; }
-.sheet button svg .hot { transition:stroke .15s; }
+.sheet button svg .hot { transition:stroke .15s, fill .15s; }
 .sheet button:hover, .sheet button:focus-visible { color:var(--fg); }
 .sheet button:hover svg .hot, .sheet button:focus-visible svg .hot { stroke:var(--accent); }
+.sheet button:hover svg .dot.hot, .sheet button:focus-visible svg .dot.hot { stroke:none; fill:var(--accent); }
 .sheet .cap { height:32px; padding:10px 0 0 28px; font-size:24px; font-weight:300; letter-spacing:.02em; color:var(--muted); }
 .scrim { position:fixed; inset:0; z-index:1; }
-/* Open apps: a red dot just after the red line. */
+/* Open apps: an ink dot just after the red line. The line is the seal; the marks' strokes say what is open. */
 .rundot { width:24px; height:34px; margin:0 -4px; border:0; background:none; padding:0;
           cursor:pointer; display:grid; place-items:center; outline:none; }
 .rundot[hidden] { display:none; }
-.rundot span { width:6px; height:6px; border-radius:99px; background:#e5484d; transition:transform .2s; }
+.rundot span { width:6px; height:6px; border-radius:99px; background:var(--fg); transition:transform .2s; }
 .rundot:hover span, .rundot.open span { transform:scale(1.3); }
 .runs { position:fixed; left:28px; top:46px; min-width:300px; z-index:2; padding:22px 18px 18px;
         background:var(--bg); border-radius:18px; box-shadow:0 0 0 1px var(--faint), 0 24px 60px rgba(0,0,0,.18);
@@ -432,9 +445,9 @@ textarea::placeholder { color:currentColor; opacity:.5; }
 .runs .row .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .runs .row .x { width:28px; height:28px; border:0; background:none; border-radius:99px; color:var(--muted); cursor:pointer;
                 display:grid; place-items:center; opacity:.6; }
-.runs .row .x:hover { opacity:1; color:#e5484d; background:var(--faint); }
+.runs .row .x:hover { opacity:1; color:var(--fg); background:var(--faint); }
 .runs .all { margin:10px 14px 0; font-size:13px; font-weight:300; color:var(--muted); cursor:pointer; border:0; background:none; padding:0; }
-.runs .all:hover { color:#e5484d; }
+.runs .all:hover { color:var(--fg); }
 
 .hint { position:fixed; left:50%; bottom:44px; transform:translateX(-50%); font-size:12px; font-weight:300;
         color:var(--muted); opacity:0; transition:opacity .4s; letter-spacing:.02em; }
@@ -461,8 +474,8 @@ body.paged .status { right:60px; z-index:5; }
 .snav { position:sticky; top:0; width:200px; flex-shrink:0; display:flex; flex-direction:column; }
 .snav span { position:relative; padding:9px 0; font-size:15px; font-weight:300; color:var(--muted); cursor:pointer; transition:color .15s; }
 .snav span:hover, .snav span.sel { color:var(--fg); }
-.snav span.sel::before { content:''; position:absolute; left:-16px; top:50%; width:5px; height:5px; margin-top:-2.5px;
-                         border-radius:9px; background:var(--accent); }
+/* The category you are on: ink, with the tabs' red line of 14 by 1.5 beneath it. */
+.snav span.sel::after { content:''; position:absolute; left:0; bottom:4px; width:14px; height:1.5px; background:var(--accent); }
 .sbody { flex:1; min-width:0; }
 .sbody h2 { margin:4px 0 10px; font-size:22px; font-weight:200; letter-spacing:-.01em; }
 .sbody .p-label:first-of-type { margin-top:18px; }
@@ -487,12 +500,12 @@ body.paged .status { right:60px; z-index:5; }
 .srow .val { width:44px; text-align:right; font-variant-numeric:tabular-nums; flex-shrink:0; }
 .srow .opts { flex-wrap:wrap; row-gap:14px; }
 .srow .grow { flex:1; min-width:0; }
-.slider { flex:1; height:26px; position:relative; cursor:pointer; touch-action:none; }
-.slider::before { content:''; position:absolute; left:0; right:0; top:12px; height:2px; background:var(--faint); border-radius:2px; }
-.slider i { position:absolute; left:0; top:12px; height:2px; background:var(--accent); border-radius:2px; }
-.slider b { position:absolute; top:8.5px; width:9px; height:9px; margin-left:-4.5px; border-radius:9px; background:var(--accent);
-            transition:transform .15s; }
-.slider:hover b, .slider.drag b { transform:scale(1.35); }
+/* A level: the battery's bar of 6, made pressable. Press or drag anywhere; the end of the fill follows.
+   No knob, no red; it thickens to 8 while pointed at, and the number beside it is exact. */
+.slider { flex:1; height:26px; display:grid; align-items:center; cursor:pointer; touch-action:none; }
+.slider::before { content:''; grid-area:1/1; height:6px; background:color-mix(in srgb, var(--fg) 18%, transparent); transition:height .15s; }
+.slider i { grid-area:1/1; height:6px; background:var(--fg); transition:height .15s; }
+.slider:hover::before, .slider.drag::before, .slider:hover i, .slider.drag i { height:8px; }
 .tools { display:flex; flex-wrap:wrap; gap:12px 26px; padding-top:6px; }
 .tools span { font-size:14px; font-weight:300; color:var(--muted); cursor:pointer; transition:color .15s; }
 .tools span:hover { color:var(--fg); }
@@ -504,3 +517,6 @@ body.paged .status { right:60px; z-index:5; }
 
 /* Pictures for Claude: the picker itself is pick/picker.css; the home screen steps back behind it. */
 body.picking .stage, body.picking .hint, body.picking .menu, body.picking #quick, body.picking .filesmark, body.picking .runs { opacity:0; pointer-events:none; }
+
+/* Marks and glyphs: the dot is the only fill. */
+svg .dot { fill:currentColor; stroke:none; }

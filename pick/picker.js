@@ -1,5 +1,5 @@
 // Kūhaku's file picker: a calm grid instead of the system's file dialog. One core, two homes:
-// the home screen's "Add a picture" (home/pictures.js) and the window other apps open for a file
+// the home screen's "Add a file" (home/pictures.js) and the window other apps open for a file
 // (pick/pick.html: Tegami's attachments, Mado's uploads).
 // Tabs of folders, newest first, and "Other" to walk the home folder. Click chooses, Space looks
 // closer (also the corner mark on a picture), Enter adds, Esc steps back.
@@ -10,8 +10,8 @@
 function makePicker({ root, peek, title = 'Add a picture', verb = 'Add', multiple = true, start = '', send, onClose }) {
   const s = { open: false, folder: start, path: '', crumbs: [], folders: [], items: [], at: 0, chosen: new Map(), peek: false, extra: null };
   const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const FOLDER = '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5a2 2 0 0 1 2-2h3.6l2 2h7.4a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>';
-  const LOOK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-6.5 6.5"/><path d="M4 20l6.5-6.5"/></svg>';
+  const FOLDER = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M4 6h6l2 2h8v11H4z"/></svg>';
+  const LOOK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 4h6v6M20 4l-6 6M10 20H4v-6M4 20l6-6"/></svg>';
 
   function when(t) {
     const d = new Date(t * 1000), now = new Date();

@@ -17,9 +17,9 @@ function drawTabs() {
     const who = [t.agent ? agentName(t.agent) : '', t.anon ? 'anonymous' : ''].filter(Boolean).join(' · ');
     const busy = t.status === 'running' || t.status === 'queued' ? ' busy' : '';
     return `<span class="jobtab${t.id === jobs.current ? ' on' : ''}${busy}" data-tab="${t.id}" title="${escT(t.note || [t.title || 'New', who].filter(Boolean).join(' · '))}">` +
-      `<i class="${mark}"></i><b>${escT(t.title || 'New')}</b>${who ? `<small>${escT(who)}</small>` : ''}${extra}<button class="x" data-close="${t.id}" title="${t.anon ? 'Close and erase (Ctrl+W)' : busy ? 'Stop and close (Ctrl+W) · kept in Kiroku' : 'Close (Ctrl+W)'}">×</button></span>`;
+      `<i class="${mark}"></i><b>${escT(t.title || 'New')}</b>${who ? `<small>${escT(who)}</small>` : ''}${extra}<button class="x" data-close="${t.id}" title="${t.anon ? 'Close and erase (Ctrl+W)' : busy ? 'Stop and close (Ctrl+W) · kept in Kiroku' : 'Close (Ctrl+W)'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>`;
   }).join('') : '') + '</div>' +
-    '<button class="jobplus" id="jobPlus" title="Another job, side by side (Ctrl+T)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>';
+    '<button class="jobplus" id="jobPlus" title="Another job, side by side (Ctrl+T)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>';
   const on = nav.querySelector('.jobtab.on');
   if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   tabFades();
@@ -211,7 +211,7 @@ $('menu').addEventListener('click', () => page ? closePage() : $('sheet').hidden
 $('scrim').addEventListener('click', () => { closeMenu(); closeRuns(); });
 
 // The red dot: what is open, and a way to close it.
-const X_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const X_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 function renderRuns() {
   $('runDot').hidden = !windows.length;
   document.body.classList.toggle('running', !!windows.length);
@@ -254,18 +254,11 @@ window.setTheme = (t) => {
   document.body.classList.toggle('night', light.theme === 'night');
   if (panel === 'light') renderLight();
 };
-const LIGHT = [
-  ['day', 'Day', '<circle cx="12" cy="12" r="6.5"/>', '<path class="hot" d="M12 2.5v3"/>'],
-  ['night', 'Night', '<path d="M5.5 14.5a6.5 6.5 0 0 1 13 0"/>', '<path class="hot" d="M3.5 14.5h17"/>'],
-  ['auto', 'Auto', '<circle cx="12" cy="12" r="6.5"/>', '<path class="hot" d="M12 5.5v13"/>'],
-];
+// A choice (the guide's Controls): each word followed by its square, the chosen one filled with ink.
+const LIGHT = [['day', 'Day'], ['night', 'Night'], ['auto', 'Auto']];
 function renderLight() {
-  const i = LIGHT.findIndex((x) => x[0] === light.choice);
-  $('panel').innerHTML = `<div class="light">
-    <div class="lsw" style="--i:${Math.max(0, i)}">${LIGHT.map(([k, label, base, hot]) =>
-      `<button class="lopt${k === light.choice ? ' on' : ''}" data-light="${k}"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.2">` +
-      `<g stroke="currentColor">${base}</g>${hot}</svg><span>${label}</span></button>`).join('')}
-      <i class="ltrack"></i><i class="lmark"></i></div></div>`;
+  $('panel').innerHTML = `<div class="light"><div class="opts choice">${LIGHT.map(([k, label]) =>
+    `<button class="opt lopt${k === light.choice ? ' sel' : ''}" data-light="${k}" aria-pressed="${k === light.choice}">${label}</button>`).join('')}</div></div>`;
 }
 $('panel').addEventListener('click', (e) => {
   const b = e.target.closest('[data-light]'); if (!b) return;
@@ -275,7 +268,7 @@ $('panel').addEventListener('click', (e) => {
 });
 
 window.setAccount = ({ name, many }) => {
-  // The account as a mark: a house for a private one, a case for work; the name is in the tooltip.
+  // The account as a mark: a house for a private one, a desk for work; the name is in the tooltip.
   const b = $('acctBtn'), changed = $('acctName').textContent && $('acctName').textContent !== name;
   const work = !/priv|person|home|own/i.test(name || '') && /work|team|company|office|job|org/i.test(name || '');
   b.hidden = !many; $('acctName').textContent = name;
@@ -297,10 +290,15 @@ window.setStatus = ({ battery, wifi, bt: btIcon, signal, vpn }) => {
   if (!battery) { $('batteryWrap').hidden = true; return; }
   $('batteryWrap').hidden = false;
   $('batteryFill').setAttribute('width', Math.max(1.5, 18 * battery.level / 100).toFixed(1));
-  // Charging: the bar itself turns green (no separate bolt); low and not charging: red.
-  $('batteryFill').style.fill = battery.charging ? 'var(--charge)' : battery.level <= 15 ? 'var(--accent)' : '';
+  // Charging earns no colour and no symbol: a 1px tick stands where charging will stop (the limit, 80%
+  // normally) and the fill grows toward it; when they meet the bar looks as it does at rest.
+  // Low and not charging: red, because then it needs you.
+  const limit = Math.min(100, battery.limit || 100);
+  $('batteryTick').setAttribute('x', Math.min(17, Math.round(18 * limit / 100)));
+  $('batteryTick').setAttribute('visibility', battery.charging && battery.level < limit ? 'visible' : 'hidden');
+  $('batteryFill').style.fill = !battery.charging && battery.level <= 15 ? 'var(--accent)' : '';
   // An <svg> has no .hidden property: setting it does nothing, so change the attribute itself.
-  $('batteryWrap').title = battery.level + '%' + (battery.charging ? ', charging' : '');
+  $('batteryWrap').title = battery.level + '%' + (battery.charging ? (battery.level < limit ? `, charging to ${limit}%` : ', plugged in') : '');
 };
 
 function tick() {

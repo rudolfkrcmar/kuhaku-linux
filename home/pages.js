@@ -139,10 +139,26 @@ $('page').addEventListener('click', (e) => {
 }, true);
 function launch(id) { native({ type: 'panel', action: 'launch', id }); closePage(); }
 
-const OPT = (key, options, current) => '<div class="opts grow">' + options.map(([v, label]) =>
-  `<span class="opt${String(v) === String(current) ? ' sel' : ''}" data-pref="${key}" data-v="${esc(v)}">${label}</span>`).join('') + '</div>';
+// A choice: each word followed by its square, exactly one filled with ink. Five or more options are a
+// list instead: the value and a small chevron, opening the same choice set upright.
+const DOWN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l7 7 7-7"/></svg>';
+const CHOICE = (items) => {
+  const opts = (up) => `<div class="opts choice${up ? ' up' : ' grow'}">` +
+    items.map((x) => `<span class="opt${x.sel ? ' sel' : ''}" ${x.attrs}>${x.label}</span>`).join('') + '</div>';
+  if (items.length <= 4) return opts(false);
+  const cur = items.find((x) => x.sel);
+  return `<div class="list grow"><button class="lsb" data-list><span class="lv">${cur ? cur.label : 'Choose'}</span>${DOWN}</button>${opts(true)}</div>`;
+};
+const OPT = (key, options, current) => CHOICE(options.map(([v, label]) =>
+  ({ label, sel: String(v) === String(current), attrs: `data-pref="${key}" data-v="${esc(v)}"` })));
+// A choice was made: one square filled; a list shows the new value and closes.
+function chose(o) {
+  o.parentElement.querySelectorAll('.opt').forEach((x) => x.classList.toggle('sel', x === o));
+  const l = o.closest('.list');
+  if (l) { l.querySelector('.lv').innerHTML = o.innerHTML; l.classList.remove('open'); }
+}
 const SLIDE = (key, label, value) => value == null ? '' : `<div class="srow"><span class="k">${label}</span>
-    <div class="slider" data-slide="${key}"><i style="width:${value}%"></i><b style="left:${value}%"></b></div>
+    <div class="slider" data-slide="${key}"><i style="width:${value}%"></i></div>
     <span class="val" id="val-${key}">${value}%</span></div>`;
 let acctAdding = false, onlySection = null, unlockForget = null, settingsCat = 'general';
 // Settings in categories: a quiet list on the left, one category at a time on the right.
@@ -294,21 +310,24 @@ function screensHtml(d) {
   const outs = d.outputs || [];
   const nice = (o) => o.builtin ? 'Built-in display' : o.name.replace(/-\d+$/, '').replace('HDMI', 'HDMI display').replace(/^DP$/, 'DisplayPort display');
   let h = outs.map((o) => `<div class="srow"><span class="k">${outs.length > 1 ? esc(nice(o)) : 'Resolution'}</span>` +
-    '<div class="opts grow">' + o.modes.map((m) =>
-      `<span class="opt${m === o.current ? ' sel' : ''}" data-disp='${JSON.stringify({ output: o.name, mode: m })}'>${m.replace('x', ' × ')}</span>`).join('') + '</div></div>').join('');
+    CHOICE(o.modes.map((m) => ({ label: m.replace('x', ' × '), sel: m === o.current, attrs: `data-disp='${JSON.stringify({ output: o.name, mode: m })}'` }))) + '</div>').join('');
   if (outs.length > 1) h += `<div class="srow"><span class="k">Arrangement</span><div class="opts grow">` +
     [['left', 'Left of laptop'], ['right', 'Right of laptop'], ['mirror', 'Mirror'], ['outer', 'Only external'], ['inner', 'Only laptop']]
       .map(([v, l]) => `<span class="opt" data-disp='${JSON.stringify({ arrange: v })}'>${l}</span>`).join('') + '</div></div>';
-  h += `<div class="srow"><span class="k">Text size</span><div class="opts grow">` +
-    [[84, 'Smaller'], [96, 'Default'], [120, 'Larger'], [144, 'Largest']]
-      .map(([v, l]) => `<span class="opt${v === d.dpi ? ' sel' : ''}" data-disp='${JSON.stringify({ dpi: v })}'>${l}</span>`).join('') + '</div></div>';
+  h += `<div class="srow"><span class="k">Text size</span>` +
+    CHOICE([[84, 'Smaller'], [96, 'Default'], [120, 'Larger'], [144, 'Largest']]
+      .map(([v, l]) => ({ label: l, sel: v === d.dpi, attrs: `data-disp='${JSON.stringify({ dpi: v })}'` }))) + '</div>';
   return h;
 }
 
 $('page').addEventListener('click', (e) => {
+  const list = e.target.closest('[data-list]');
+  if (list) { const l = list.parentElement, was = l.classList.contains('open');
+    $('page').querySelectorAll('.list.open').forEach((x) => x.classList.remove('open'));
+    l.classList.toggle('open', !was); return; }
   const disp = e.target.closest('[data-disp]');
   if (disp) {
-    disp.parentElement.querySelectorAll('.opt').forEach((x) => x.classList.toggle('sel', x === disp));
+    if (disp.parentElement.classList.contains('choice')) chose(disp);
     return native({ type: 'panel', action: 'pref', key: 'display', value: JSON.parse(disp.dataset.disp) });
   }
   const app = e.target.closest('[data-app]'); if (app) return launch(app.dataset.app);
@@ -318,7 +337,7 @@ $('page').addEventListener('click', (e) => {
   if (o) {
     // A set whose Claude is not signed in yet is not chosen by a click; it opens its sign-in.
     if (!(o.dataset.pref === 'home_set' && !(((prefs.ai_sets || []).find((x) => x.name === o.dataset.v) || {}).slots || {}).claude?.signedIn))
-      o.parentElement.querySelectorAll('.opt').forEach((x) => x.classList.toggle('sel', x === o));
+      chose(o);
     return native({ type: 'panel', action: 'pref', key: o.dataset.pref, value: o.dataset.v });
   }
   const ub = e.target.closest('[data-pref-btn]');
@@ -346,7 +365,7 @@ let slideTimer = 0;
 function slideTo(el, x) {
   const r = el.getBoundingClientRect(), key = el.dataset.slide;
   const v = Math.round(Math.max(key === 'brightness' ? 5 : 0, Math.min(100, (x - r.left) / r.width * 100)));
-  el.querySelector('i').style.width = v + '%'; el.querySelector('b').style.left = v + '%';
+  el.querySelector('i').style.width = v + '%';
   $('val-' + key).textContent = v + '%';
   if (prefs) prefs[key] = v;
   const now = Date.now();

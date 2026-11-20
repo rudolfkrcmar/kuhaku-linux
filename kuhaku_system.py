@@ -110,10 +110,20 @@ def read_battery():
             cap = min(100, cap)
             status = (bat / "status").read_text().strip()
             # Plugged in counts too: a battery held at a charge limit says "Not charging".
-            return {"level": cap, "charging": status in ("Charging", "Full") or on_mains()}
+            # "limit": where charging will stop (the firmware's threshold, else full); the battery sign
+            # shows it as a tick while plugged in, and the fill grows toward it.
+            return {"level": cap, "charging": status in ("Charging", "Full") or on_mains(), "limit": _limit_of(bat)}
         except Exception:
             report()
     return None
+
+
+def _limit_of(bat):
+    """Where this battery stops charging: its firmware threshold, else full."""
+    try:
+        return int((bat / "charge_control_end_threshold").read_text())
+    except (OSError, ValueError):
+        return 100
 
 
 def read_wifi():

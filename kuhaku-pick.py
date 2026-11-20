@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Kūhaku's file picker as its own window, for apps that need a file: Tegami's attachments,
-Mado's uploads. The same calm grid as the home screen's "Add a picture" (pick/picker.js).
+Mado's uploads. The same calm grid as the home screen's "Add a file" (pick/picker.js).
 
     kuhaku-pick.py [--title T] [--verb V] [--single] [--images] [--accept "image/*,.pdf"]
 
@@ -8,9 +8,7 @@ Prints the chosen paths as a JSON list on stdout ([] when closed without a choic
 
 import argparse
 import json
-import subprocess
 import sys
-import tempfile
 import threading
 import urllib.parse
 from pathlib import Path
@@ -21,37 +19,6 @@ sys.path.insert(0, str(HERE))
 import kuhaku_pick
 from kuhaku_log import report
 from kuhaku_webapp import GTK, WebApp
-
-TEXT_SHOWN = 8000  # characters of a text file shown when looking closer
-PAGES = tempfile.TemporaryDirectory(prefix="kuhaku-pick-")  # first pages of PDFs, gone when the picker closes
-
-
-def peek(path):
-    """A closer look at a file that is not a picture: its first lines, or a PDF's first page."""
-    import miru_files
-
-    p = Path(path)
-    out = {"path": path}
-    try:
-        mime, _ = miru_files.mime_of(p)
-        kind = miru_files.kind_of(p, mime)
-        if kind == "text":
-            with open(p, encoding="utf-8", errors="replace") as f:
-                out["text"] = f.read(TEXT_SHOWN)
-        elif kind == "pdf":
-            dest = Path(PAGES.name) / f"page{abs(hash(path))}"
-            subprocess.run(
-                ["pdftoppm", "-png", "-f", "1", "-l", "1", "-scale-to", "1400", "-singlefile", str(p), str(dest)],
-                capture_output=True,
-                timeout=20,
-            )
-            if dest.with_suffix(".png").exists():
-                out["image"] = dest.with_suffix(".png").as_uri()
-    except FileNotFoundError:
-        pass  # no pdftoppm: the file's card is shown instead
-    except Exception:
-        report()
-    return out
 
 
 def main():
@@ -87,7 +54,7 @@ def main():
                 )
             )
         elif action == "peek":
-            work(lambda: app.later(app.js, "setPeek", peek(m.get("path") or "")))
+            work(lambda: app.later(app.js, "setPeek", kuhaku_pick.peek(m.get("path") or "")))
         elif action == "add":
             chosen[:] = [p for p in m.get("paths") or [] if Path(p).is_file()]
         elif action == "close":

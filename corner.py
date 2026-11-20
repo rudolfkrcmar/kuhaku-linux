@@ -2,7 +2,7 @@
 
 When an app is in front, a 34 px strip sits at the top of the screen (apps are kept
 below it), laid out as the home screen's top row. On the left: the red line, which takes you home to Kūhaku
-(the app stays open), and the red dot (the open apps, as cards). On the right: Wi‑Fi, battery, date and time,
+(the app stays open), and the dot (the open apps, as cards). On the right: Wi‑Fi, battery, date and time,
 then a cross that closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku
 in front, or a fullscreen app (a game), the bar steps away. While the screen is recorded, the left side says so
 after the dot: a red dot and "Stop" (a click stops it), then a microphone, struck through when off (a click
@@ -45,14 +45,12 @@ DAY = {
     "fg": (0.067, 0.067, 0.067),
     "muted": (0.4, 0.4, 0.4),
     "accent": (0.878, 0.188, 0.118),
-    "charge": (0.184, 0.616, 0.384),
 }
 NIGHT = {
     "bg": (0.071, 0.071, 0.071),
     "fg": (0.925, 0.925, 0.925),
     "muted": (0.6, 0.6, 0.6),
     "accent": (0.941, 0.439, 0.353),
-    "charge": (0.361, 0.788, 0.541),
 }
 
 
@@ -275,16 +273,17 @@ class Corner:
         cr.set_source_rgb(*c["accent"])
         cr.rectangle(34, mid - 1, lw, 2)
         cr.fill()
-        # Open apps: the red dot just after it, where the home screen has it; it opens the cards of what is open.
-        cr.set_source_rgb(0.898, 0.282, 0.302)
+        # Open apps: the dot just after it, in ink (the line is the one red), where the home screen has it;
+        # it opens the cards of what is open.
+        cr.set_source_rgb(*(c["fg"] if self.hover == "apps" else c["muted"]))
         cr.arc(74, mid, 3.9 if self.hover == "apps" else 3, 0, 6.2832)
         cr.fill()
-        # Close: a thin cross at the very end.
+        # Close: the guide's cross at 12 (one pixel, square ends) at the very end.
         x = width - 15
         cr.set_source_rgb(*(c["fg"] if self.hover == "close" else c["muted"]))
-        cr.set_line_width(1.4)
-        cr.set_line_cap(1)
-        r = 4.5
+        cr.set_line_width(1)
+        cr.set_line_cap(0)
+        r = 3
         cr.move_to(x - r, mid - r)
         cr.line_to(x + r, mid + r)
         cr.move_to(x + r, mid - r)
@@ -301,25 +300,31 @@ class Corner:
         dw = self.text(cr, time.strftime("%a %-d %b", now), x, 9.5, hot("calendar", c["muted"]), right=True)
         zones.append((x - dw - 9, x + 5, "calendar"))
         x -= dw + 24
-        # Battery: a flat bar, its track faint.
+        # Battery: a flat bar, its track faint. Low and not charging: red, the only time it needs you.
+        # Plugged in: a one-pixel tick where charging will stop, and the fill grows toward it;
+        # when they meet there is nothing left to say, so the tick goes.
         b = self.battery
         if b:
             cr.set_source_rgba(*c["muted"], 0.18)
             cr.rectangle(x - 18, mid - 3, 18, 6)
             cr.fill()
-            # Charging: the bar itself turns green, as on the home screen; low and not charging: red.
-            fill = c["charge"] if b["charging"] else c["accent"] if b["level"] <= 15 else hot("battery", c["muted"])
-            cr.set_source_rgb(*fill)
+            low = not b["charging"] and b["level"] <= 15
+            cr.set_source_rgb(*(c["accent"] if low else hot("battery", c["muted"])))
             cr.rectangle(x - 18, mid - 3, max(1.5, 18 * b["level"] / 100), 6)
             cr.fill()
+            limit = b.get("limit") or 100
+            if b["charging"] and b["level"] < limit:
+                cr.set_source_rgb(*hot("battery", c["muted"]))
+                cr.rectangle(x - 18 + round(18 * limit / 100) - 1, mid - 3, 1, 6)
+                cr.fill()
             zones.append((x - 22, x + 9, "battery"))
             x -= 34
-        # Wi‑Fi: three flat lines, as on the home screen.
+        # Wi‑Fi: the guide's mark at 16 px, three upright lines rising (units 6, 12, 18; heights 4, 9, 14).
         on = self.wifi in ("on", "wired")
         cr.set_source_rgba(*hot("wifi", c["muted"]), 1 if on else 0.3)
-        # The home screen's mark exactly (its 24-unit drawing at 16 px): lines 10, 6 and 2.7 px wide.
-        for i, half in enumerate((5, 3, 1.35)):
-            cr.rectangle(x - 8 - half, mid - 8 + 4.33 + i * 3, half * 2, 1)
+        k = 16 / 24
+        for ux, top in ((6, 15), (12, 10), (18, 5)):
+            cr.rectangle(x - 16 + round(ux * k) - 0.5, mid - 8 + top * k, 1, (19 - top) * k)
         cr.fill()
         zones.append((x - 22, x + 6, "wifi"))
         x -= 34
@@ -336,7 +341,7 @@ class Corner:
             return
         mid, x = H / 2, 104
         on = int(time.time() * 1.25) % 2 == 0  # the dot breathes slowly, as long as it records
-        cr.set_source_rgba(0.898, 0.282, 0.302, 1 if on else 0.45)
+        cr.set_source_rgba(*c["accent"], 1 if on else 0.45)
         cr.arc(x + 3.5, mid, 3.5, 0, 6.2832)
         cr.fill()
         tw = self.text(
@@ -351,24 +356,23 @@ class Corner:
         x += 14 + tw + 26
         mic = rec.get("mic")
         color = c["fg"] if self.hover == "rec-mic" and mic is not None else c["muted"]
-        # A small microphone: a capsule and its stand; struck through when off.
+        # The guide's microphone at 16 px: a square capsule, its cradle and stand; struck through when off.
         cr.set_source_rgba(*color, 1 if mic else 0.55)
-        cr.set_line_width(1.2)
-        cr.set_line_cap(1)
+        cr.set_line_width(1)
+        cr.set_line_cap(0)
         cr.new_path()  # the text leaves a current point behind
-        cr.arc(x + 4, mid - 3, 2, 3.1416, 0)
-        cr.line_to(x + 6, mid + 0.5)
-        cr.arc(x + 4, mid + 0.5, 2, 0, 3.1416)
-        cr.close_path()
+        k, x0, y0 = 16 / 24, x - 4, mid - 8
+        P = lambda ux, uy: (x0 + ux * k, y0 + uy * k)
+        cr.rectangle(*P(10, 4), 4 * k, 9 * k)
         cr.stroke()
-        cr.arc(x + 4, mid + 0.5, 4, 0, 3.1416)
-        cr.move_to(x + 4, mid + 4.5)
-        cr.line_to(x + 4, mid + 6.5)
+        cr.arc(*P(12, 10.5), 5.5 * k, 0, 3.1416)
         cr.stroke()
+        cr.move_to(*P(12, 16))
+        cr.line_to(*P(12, 20))
         if not mic:
-            cr.move_to(x - 1, mid - 6)
-            cr.line_to(x + 9, mid + 6)
-            cr.stroke()
+            cr.move_to(*P(4, 20))
+            cr.line_to(*P(20, 4))
+        cr.stroke()
         if mic is not None:  # the icon alone says it: struck through when off
             zones.append((x - 8, x + 16, "rec-mic"))
 

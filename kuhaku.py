@@ -31,6 +31,7 @@ from gi.repository import Gdk, GLib, Gtk, WebKit2
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_accounts as accounts
 import jobs
+import kuhaku_gtk
 import kuhaku_pick
 from kuhaku_claude import ClaudeJobs
 from kuhaku_config import (
@@ -307,6 +308,10 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         theme = self.current_theme()
         bg = (0.071, 0.071, 0.071) if theme == "night" else (0.969, 0.957, 0.945)
         self.view.set_background_color(Gdk.RGBA(*bg, 1))
+        try:
+            kuhaku_gtk.apply(theme)  # apps' Save, Open and message boxes follow day and night too
+        except Exception:
+            report()
         self.send(
             "setTheme",
             {
@@ -597,21 +602,33 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         )
         self.rec_changed()
 
-    # --- pictures for Claude: copied into ~/Pictures/ForClaude ------------
-    # The page shows its own calm picker (home/pictures.js): recent pictures from a few folders,
+    # --- files for Claude: pictures copied into ~/Pictures/ForClaude, other files named where they are
+    # The page shows its own calm picker (home/pictures.js): recent files from a few folders,
     # Space for a closer look; "Other" walks the home folder in the same picker.
     def pictures(self, m):
         action = m.get("action")
         if action == "list":
-            folder = m.get("folder") or "Screenshots"
+            folder = m.get("folder") or "Recent"
             args = (folder, m.get("path") or "")
             threading.Thread(target=self.list_pictures, args=args, daemon=True).start()
+        elif action == "peek":
+            threading.Thread(target=self.peek_file, args=(m.get("path") or "",), daemon=True).start()
         elif action == "add":
-            self.send("picturesAdded", {"files": self.copy_for_claude(m.get("paths") or [])})
+            paths = [p for p in m.get("paths") or [] if Path(p).is_file()]
+            pictures = all(Path(p).suffix.lower() in kuhaku_pick.PICTURE_TYPES for p in paths)
+            self.send("picturesAdded", {"files": self.copy_for_claude(paths), "pictures": pictures})
 
     def list_pictures(self, name, path=""):
-        payload = kuhaku_pick.listing(name, path, images=True)
+        payload = kuhaku_pick.listing(name, path)
         GLib.idle_add(lambda: (self.send("setPictures", payload), False)[1])
+
+    def peek_file(self, path):
+        try:
+            payload = kuhaku_pick.peek(path)
+        except Exception:
+            report()
+            return
+        GLib.idle_add(lambda: (self.send("setPicturePeek", payload), False)[1])
 
     def copy_for_claude(self, paths):
         inbox = Path.home() / "Pictures" / "ForClaude"
@@ -619,9 +636,9 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         files = []
         for name in paths:
             src = Path(name)
-            if not src.is_file() or src.suffix.lower() not in kuhaku_pick.PICTURE_TYPES:
+            if not src.is_file():
                 continue
-            if src.parent == inbox:
+            if src.suffix.lower() not in kuhaku_pick.PICTURE_TYPES or src.parent == inbox:
                 files.append(str(src).replace(str(Path.home()), "~", 1))
                 continue
             dest, n = inbox / src.name, 2

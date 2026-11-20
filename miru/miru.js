@@ -3,8 +3,8 @@ const $ = (id) => document.getElementById(id);
 const send = (m) => window.webkit.messageHandlers.miru.postMessage(JSON.stringify(m));
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let item = null, zoom = 1, mode = 'file', dir = null, sel = 0, picked = new Set(), anchor = 0, renaming = false, renameNext = false, find = '', findT;
-const FOLDER = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3.5 6.5h6l2 2h9v10h-17z"/></svg>';
-const FILE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 3.5h7.5l4 4v13h-11.5z"/><path d="M14 3.5v4h4"/></svg>';
+const FOLDER = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.33"><path d="M4 6h6l2 2h8v11H4z"/></svg>';
+const FILE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.33"><path d="M6 4h8l4 4v12H6z"/></svg>';
 
 function toast(text) {
   const t = $('toast'); t.textContent = text; t.classList.add('show');
@@ -52,7 +52,7 @@ function paintSide(places, here) {
         `<span class="dico">${DRIVE_ICONS[p.drive] || DRIVE_ICONS.stick}</span><span class="dtx"><span class="dnm">${esc(p.name)}</span>` +
         `<span class="dsub">${esc(p.mount ? p.what.split(' · ')[0] + ' · click to open' : p.what)}</span>` +
         (p.used != null ? `<span class="dbar"><i style="width:${Math.round(p.used * 100)}%"></i></span>` : '') + '</span>' +
-        (p.eject ? `<b class="ej" data-dev="${esc(p.dev)}" title="Eject">⏏</b>` : '') + '</a>'
+        (p.eject ? `<b class="ej" data-dev="${esc(p.dev)}" title="Eject"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 14l6-6 6 6zM6 18h12"/></svg></b>` : '') + '</a>'
       : `<a data-path="${esc(p.path)}" class="${here === p.path ? 'on' : ''}">${esc(p.name)}</a>`))).join('');
 }
 const rows = () => [...document.querySelectorAll('.row')];
@@ -168,8 +168,8 @@ $('cnow').onclick = () => dir && dir.cloud && send({ type: 'cloud-now', key: dir
 $('cfold').onclick = () => dir && dir.cloud && send({ type: 'nav', path: 'cloud:' + dir.cloud.key });
 
 // --- Dropbox and Google Drive -------------------------------------------------------
-const CLOUD_ICON = '<svg viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7.6 9.1 4.7 4.7 0 0 0 7 18.5z"/></svg>';
-const CARET = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+const CLOUD_ICON = '<svg viewBox="0 0 24 24"><path d="M4 18v-4h3v-3h3V8h6v4h4v6z"/></svg>';
+const CARET = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>';
 let cloudKey = null, cl = null, cTree = {}, cOpen = new Set(), cChosen = new Set(), cHad = 0, cSure = false;
 window.cloud = (d) => {
   const fresh = cloudKey !== d.key || mode !== 'cloud';
@@ -264,12 +264,12 @@ $('stage').addEventListener('click', (e) => {
 $('hid').onclick = () => send({ type: 'hidden' });
 
 
-// Drives get their own little drawings: a stick, a hard drive with its platter, an SSD, an SD card.
+// Drives get their own drawings, from the guide: a USB stick, a disk, an SSD (a board with one chip), an SD card.
 const DRIVE_ICONS = {
-  stick: '<svg viewBox="0 0 24 24"><rect x="7" y="9" width="10" height="13" rx="2"/><path d="M9 9V3h6v6"/><path d="M11 5.5h0M13 5.5h0" stroke-linecap="round" stroke-width="1.8"/></svg>',
-  hdd: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.5"/><circle cx="12" cy="10.5" r="4.5"/><circle cx="12" cy="10.5" r="1"/><path d="M8 18h3"/><path d="M16.5 17.5h0" stroke-linecap="round" stroke-width="1.8"/></svg>',
-  ssd: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h6M7 13.5h4"/><path d="M17 10v4"/></svg>',
-  sd: '<svg viewBox="0 0 24 24"><path d="M8 3h9a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7z"/><path d="M10 3v4M13 3v4M16 3v4"/></svg>',
+  stick: '<svg viewBox="0 0 24 24"><path d="M8 9h8v11H8zM10 9V4h4v5"/></svg>',
+  hdd: '<svg viewBox="0 0 24 24"><path d="M4 8h16v8H4zM15 12h2"/></svg>',
+  ssd: '<svg viewBox="0 0 24 24"><path d="M4 8h16v8H4zM8 11h5v2H8z"/></svg>',
+  sd: '<svg viewBox="0 0 24 24"><path d="M7 4h7l3 3v13H7zM10 4v4M13 4v4"/></svg>',
 };
 function show(it) {
   mode = 'file'; document.body.classList.remove('folder', 'cloudpage', 'incloud');
@@ -386,7 +386,7 @@ function showModel(m) {
     m.tris.toLocaleString() + ' triangles', item.size, item.when].join('  ·  '))}</span>`;
 }
 function other(it, why) {
-  $('stage').innerHTML = `<div class="center"><div class="other"><div class="mark"><i></i><b></b></div>
+  $('stage').innerHTML = `<div class="center"><div class="other"><div class="mark"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M6 4h8l4 4v12H6z"/></svg></div>
     <div class="big">${esc(it.name)}</div><div class="sub">${esc(why || [it.type, it.size, it.when].filter(Boolean).join('  ·  '))}</div>
     <button onclick="send({type:'open'})">${esc(it.app ? 'Open in ' + it.app : 'Open')}</button></div></div>`;
 }

@@ -34,12 +34,12 @@
 /* Tsukuru v3 (Claude Design): Claude in the middle, projects and their sessions on the left,
    Files and Preview as views, Changes as a panel on the right. */
 :root { --bg:#f7f4f1; --side:#f1ede8; --panel:#ece8e2; --card:#fcfbf9; --hover:rgba(17,17,17,.045); --line:rgba(17,17,17,.08); --line2:rgba(17,17,17,.14);
-  --fg:#151413; --fg2:#3b3936; --muted:#77736c; --dim:#a7a29a; --accent:#e0301e; --onaccent:#fff; --ok:#2f8a4a; --warn:#a8741c;
-  --add:rgba(47,138,74,.10); --del:rgba(224,48,30,.08); --kw:#7b4b8a; --str:#3f7d4f; --num:#a06a00; --def:#2f5f8a; --com:#9a958f;
+  --fg:#151413; --fg2:#3b3936; --muted:#77736c; --dim:#a7a29a; --accent:#e0301e; --onaccent:#fff; --ok:#3b3936; --warn:#77736c;
+  --add:rgba(17,17,17,.045); --del:rgba(224,48,30,.08); --kw:#7b4b8a; --str:#3f7d4f; --num:#a06a00; --def:#2f5f8a; --com:#9a958f;
   --shadow:rgba(0,0,0,.10); --scrim:rgba(20,18,16,.28); --sel:rgba(224,48,30,.16); }
 body.night { --bg:#0e0e0d; --side:#121211; --panel:#161615; --card:#1b1a19; --hover:rgba(255,255,255,.045); --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.12);
-  --fg:#ecebe7; --fg2:#cfcdc7; --muted:#8d8a83; --dim:#5d5b56; --accent:#f0705a; --onaccent:#140b09; --ok:#7fc18f; --warn:#e3b86b;
-  --add:rgba(127,193,143,.10); --del:rgba(240,112,90,.10); --kw:#c7a6e0; --str:#9fcfa8; --num:#e8c27f; --def:#8fb6e0; --com:#6a6762;
+  --fg:#ecebe7; --fg2:#cfcdc7; --muted:#8d8a83; --dim:#5d5b56; --accent:#f0705a; --onaccent:#140b09; --ok:#cfcdc7; --warn:#8d8a83;
+  --add:rgba(255,255,255,.045); --del:rgba(240,112,90,.10); --kw:#c7a6e0; --str:#9fcfa8; --num:#e8c27f; --def:#8fb6e0; --com:#6a6762;
   --shadow:rgba(0,0,0,.35); --scrim:rgba(0,0,0,.55); --sel:rgba(240,112,90,.28); }
 html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--fg); -webkit-font-smoothing:antialiased;
   font-family:'Inter',system-ui,sans-serif; font-size:14px; font-weight:300; }
@@ -52,13 +52,17 @@ input::placeholder, textarea::placeholder { color:var(--dim); }
 @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.8); } }
 @keyframes shimmer { from { background-position:200% 0; } to { background-position:-200% 0; } }
 .pulse { display:inline-block; width:7px; height:7px; border-radius:99px; background:var(--accent); flex-shrink:0; animation:pulse 1.3s ease-in-out infinite; }
-.btn { height:30px; padding:0 12px; border:0; border-radius:7px; background:var(--hover); box-shadow:inset 0 0 0 1px var(--line); color:var(--fg); font-size:13px; cursor:pointer; white-space:nowrap; }
-.btn:hover { box-shadow:inset 0 0 0 1px var(--line2); }
-.btn.main { background:var(--accent); color:var(--onaccent); font-weight:500; box-shadow:none; padding:0 14px; }
-.btn.ghost { background:none; box-shadow:none; color:var(--muted); padding:0 10px; }
-.btn.ghost:hover { color:var(--fg); background:var(--hover); }
-.icon { border:0; background:none; color:var(--muted); cursor:pointer; padding:6px; display:grid; place-items:center; border-radius:6px; }
+.btn { height:34px; padding:0 10px; border:0; border-radius:0; background:none; color:var(--fg); font-size:13.5px; cursor:pointer; white-space:nowrap; }
+.btn.main { background:var(--fg); color:var(--bg); padding:0 16px; }
+.btn.main:active { opacity:.8; }
+.btn.ghost { color:var(--muted); }
+.btn:not(.main) { padding:0; } .btn + .btn { margin-left:16px; }
+.btn.ghost:hover { color:var(--fg); }
+.btn:focus-visible, .icon:focus-visible, .sendb:focus-visible { outline:1px solid var(--accent); outline-offset:0; }
+.icon { border:0; background:none; color:var(--muted); cursor:pointer; padding:6px; display:grid; place-items:center; border-radius:0; }
 .icon:hover { color:var(--fg); }
+/* A mark's hot stroke is grey at rest and red only while pointed at. */
+svg .hot { stroke:currentColor; } button:hover svg .hot { stroke:var(--accent); }
 .app { position:fixed; inset:0; display:flex; }
 
 /* sidebar */
@@ -134,8 +138,8 @@ body.noside main .head { padding-left:14px; }
 .todo .top { display:flex; font-size:12px; color:var(--muted); margin-bottom:8px; }
 .todo .it { display:flex; align-items:center; gap:10px; padding:4px 0; font-size:13.5px; color:var(--fg); }
 .todo .it.done { color:var(--muted); }
-.box { width:15px; height:15px; border-radius:5px; display:grid; place-items:center; flex-shrink:0; box-shadow:inset 0 0 0 1px var(--line2); }
-.done .box { background:var(--ok); box-shadow:inset 0 0 0 1px var(--ok); }
+.box { width:12px; height:12px; border-radius:0; display:grid; place-items:center; flex-shrink:0; box-shadow:inset 0 0 0 1px var(--fg2); }
+.done .box { background:var(--fg); box-shadow:none; }
 .tool { border-radius:10px; overflow:hidden; }
 .tool .th { display:flex; align-items:center; gap:10px; height:38px; padding:0 12px 0 14px; }
 .tool.has .th { cursor:pointer; } .tool .th:hover { background:var(--hover); }
@@ -145,7 +149,7 @@ body.noside main .head { padding-left:14px; }
 .tool .meta { margin-left:auto; display:flex; gap:8px; align-items:center; font-family:'JetBrains Mono',monospace; font-size:12px; flex-shrink:0; }
 .tool .note { font-family:'Inter',sans-serif; color:var(--muted); }
 .tool.running .note { color:var(--accent); } .tool.err .note { color:var(--accent); }
-.chev { transition:transform .15s; } .open > .th .chev, .open > .ch .chev { transform:rotate(90deg); }
+.chev { transition:transform .25s cubic-bezier(.2,.7,.2,1); } .open > .th .chev, .open > .ch .chev { transform:rotate(90deg); }
 .add { color:var(--ok); } .del { color:var(--accent); }
 .diff { box-shadow:inset 0 1px 0 var(--line); padding:8px 0; max-height:300px; overflow:auto; scrollbar-width:none; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:21px; }
 .dl { display:flex; white-space:pre; color:var(--fg); }
@@ -175,8 +179,8 @@ body.noside main .head { padding-left:14px; }
 .chip { display:flex; align-items:center; gap:6px; height:28px; padding:0 10px; border:0; border-radius:7px; background:none; font-size:12.5px; cursor:pointer; color:var(--muted); }
 .chip:hover { color:var(--fg); background:var(--hover); } .chip.mode { background:var(--hover); }
 .model { font-size:12px; color:var(--dim); padding-right:8px; }
-.sendb { width:30px; height:30px; border:0; border-radius:99px; display:grid; place-items:center; cursor:pointer; background:var(--hover); color:var(--dim); }
-.sendb.go { background:var(--accent); color:var(--onaccent); }
+.sendb { width:34px; height:34px; border:0; border-radius:0; display:grid; place-items:center; cursor:pointer; background:none; color:var(--dim); }
+.sendb.go { color:var(--fg); }
 
 /* files */
 .files { flex:1; min-height:0; display:flex; }
@@ -184,7 +188,7 @@ body.noside main .head { padding-left:14px; }
 .node { display:flex; align-items:center; gap:8px; height:30px; padding-right:10px; border-radius:7px; cursor:pointer; font-size:13.5px; color:var(--muted); }
 .node:hover { background:var(--hover); color:var(--fg); } .node.on { background:var(--hover); color:var(--fg); }
 .node.dir { color:var(--fg2); }
-.node .cv { width:10px; display:grid; place-items:center; flex-shrink:0; transition:transform .15s; }
+.node .cv { width:12px; display:grid; place-items:center; flex-shrink:0; transition:transform .25s cubic-bezier(.2,.7,.2,1); }
 .node.open .cv { transform:rotate(90deg); }
 .node .nm { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .node .mk { margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--warn); } .node .mk.a { color:var(--ok); }
@@ -241,7 +245,7 @@ body.noside main .head { padding-left:14px; }
 .chi { border-radius:9px; margin-bottom:4px; overflow:hidden; } .chi.open { background:var(--panel); }
 .chi .ch { display:flex; align-items:center; gap:10px; height:34px; padding:0 10px; cursor:pointer; }
 .chi .ch:hover { background:var(--hover); }
-.mark { width:18px; height:18px; border-radius:5px; display:grid; place-items:center; font-family:'JetBrains Mono',monospace; font-size:10.5px; flex-shrink:0; background:var(--hover); color:var(--warn); }
+.mark { width:18px; height:18px; border-radius:0; display:grid; place-items:center; font-family:'JetBrains Mono',monospace; font-size:10.5px; flex-shrink:0; background:var(--hover); color:var(--warn); }
 .mark.A { color:var(--ok); } .mark.D { color:var(--accent); }
 .chi .p { font-family:'JetBrains Mono',monospace; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; cursor:pointer; }
 .chi .p:hover { text-decoration:underline; text-decoration-color:var(--line2); }
@@ -295,20 +299,20 @@ body.noside main .head { padding-left:14px; }
 <div class="app">
   <aside class="side">
     <div class="head"><span class="rline"></span><span style="font-size:14px;font-weight:400">Tsukuru</span>
-      <button class="icon" id="hideSide" title="Hide sidebar (Cmd+B)" style="margin-left:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4v16M15 7l-5 5 5 5"/></svg></button></div>
-    <div style="padding:12px 12px 8px"><button class="newsess" id="newSess"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>New session<span class="kbd">⌘N</span></button></div>
+      <button class="icon" id="hideSide" title="Hide sidebar (Cmd+B)" style="margin-left:auto"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 4v16M16 7l-5 5 5 5"/></svg></button></div>
+    <div style="padding:12px 12px 8px"><button class="newsess" id="newSess"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>New session<span class="kbd">⌘N</span></button></div>
     <div class="plist">
-      <div class="label"><span>Projects</span><button class="icon" id="addProj" title="Open, clone or start a project (Cmd+O)" style="margin-left:auto;padding:2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></button></div>
+      <div class="label"><span>Projects</span><button class="icon" id="addProj" title="Open, clone or start a project (Cmd+O)" style="margin-left:auto;padding:2px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button></div>
       <div id="projects"></div>
     </div>
     <div class="sfoot">
-      <button id="bConn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 15l6-6M10.5 6.5l1.8-1.8a4 4 0 0 1 5.7 5.7l-1.8 1.8M13.5 17.5l-1.8 1.8a4 4 0 0 1-5.7-5.7l1.8-1.8"/></svg>Connections<span id="connDots" style="margin-left:auto;display:flex;gap:4px"></span></button>
+      <button id="bConn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9h9v6H4zM11 9h9v6h-9z"/></svg>Connections<span id="connDots" style="margin-left:auto;display:flex;gap:4px"></span></button>
       <div class="me"><span class="av" id="meAv"></span><span id="meName"></span><span id="meAcct" style="margin-left:auto;font-size:11.5px;color:var(--dim)"></span></div>
     </div>
   </aside>
   <main>
     <div class="head">
-      <button class="icon" id="showSide" title="Show sidebar (Cmd+B)" style="margin-right:-4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4v16M10 7l5 5-5 5"/></svg></button>
+      <button class="icon" id="showSide" title="Show sidebar (Cmd+B)" style="margin-right:-4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 4v16M11 7l5 5-5 5"/></svg></button>
       <span class="rline"></span><span class="title" id="title">Tsukuru</span><span class="crumb" id="crumb"></span>
       <span style="flex:1"></span>
       <div class="vtabs" id="vtabs"><button data-v="chat" title="Conversation">Claude</button><button data-v="files" title="Cmd+E">Files</button><button data-v="preview" title="See the pages">Preview</button></div>
@@ -338,7 +342,7 @@ body.noside main .head { padding-left:14px; }
           <div class="ed">
             <div class="fhead" id="fhead" hidden><span class="d" id="fDir"></span><span class="f" id="fName"></span><span class="dot" id="fDirty" title="Unsaved (Cmd+S)" style="background:var(--accent)" hidden></span>
               <span id="fMark" style="font-size:12px;margin-left:6px"></span><span style="flex:1"></span>
-              <button class="askf" id="askAbout"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v18M3 12h18M5.6 18.4L18.4 5.6" stroke="currentColor"/><path d="M5.6 5.6l12.8 12.8" stroke="var(--accent)"/></svg>Ask Claude about this file</button></div>
+              <button class="askf" id="askAbout"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M4 12h16M6.34 17.66L17.66 6.34"/><path class="hot" d="M6.34 6.34l11.32 11.32"/></svg>Ask Claude about this file</button></div>
             <div class="editor" id="editor"><div class="find" id="find" hidden><input id="findIn" placeholder="Find in this file" spellcheck="false"><span id="findN"></span></div></div>
             <div class="nofile" id="nofile">Select a file.</div>
           </div>
@@ -349,8 +353,8 @@ body.noside main .head { padding-left:14px; }
             <span id="pvPages" style="display:contents"></span>
             <span class="vsep"></span>
             <button class="seg on" data-dev="desktop">Desktop</button><button class="seg" data-dev="mobile">Mobile</button>
-            <button class="icon" id="pvReload" title="Reload"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>
-            <button class="btn main" id="pvOpen" style="display:flex;align-items:center;gap:7px;margin-left:4px;font-size:12.5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></svg>Open in browser</button>
+            <button class="icon" id="pvReload" title="Reload"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12a7 7 0 1 1-2.05-4.95M17 3v4h-4"/></svg></button>
+            <button class="btn" id="pvOpen" style="display:flex;align-items:center;gap:8px;margin-left:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 6H5v13h13v-5M12 12l8-8M14 4h6v6"/></svg>Open in browser</button>
           </div>
           <div class="stage" id="stage"></div>
         </div>
@@ -361,19 +365,19 @@ body.noside main .head { padding-left:14px; }
         <div class="cfoot" id="cfoot" hidden>
           <textarea id="commitMsg" rows="2" placeholder="Commit message" spellcheck="false"></textarea>
           <div class="crow"><button class="btn ghost" id="claudeCommit">Let Claude write it</button><span style="flex:1"></span>
-            <button class="btn" id="commit">Commit</button><button class="btn main" id="commitPush" hidden>Commit and push</button></div>
+            <button class="btn main" id="commitPush" hidden>Commit and push</button><button class="btn" id="commit">Commit</button></div>
         </div>
       </aside>
     </div>
   </main>
 </div>
 <div class="scrim" id="picker" hidden><div class="modal picker" data-stop>
-  <div class="pkin"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6"><path d="M3 6.5h6l2 2h10v10H3z"/></svg>
+  <div class="pkin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M4 6h6l2 2h8v11H4z"/></svg>
     <input id="pickIn" placeholder="Open a folder, paste a repository address, or name a new project" spellcheck="false"><span class="kbd">esc</span></div>
   <div class="pkl" id="pickList"></div></div></div>
 <div class="scrim" id="conn" hidden><div class="modal conn" data-stop>
   <div style="display:flex;align-items:flex-start;gap:12px"><div><h2>Connections</h2><div class="sub">Claude can use these in every project: push code, open pull requests, deploy and read logs.</div></div>
-    <button class="icon" data-close style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <button class="icon" data-close style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div id="connBody"></div></div></div>
 <div class="scrim" id="quick" hidden><div class="modal picker quick" data-stop>
   <div class="pkin"><input id="quickIn" placeholder="Find a file" spellcheck="false"><span class="kbd">esc</span></div>
@@ -386,16 +390,16 @@ const send = (m) => window.webkit.messageHandlers.ide.postMessage(JSON.stringify
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const night = new URLSearchParams(location.search).get('theme') === 'night';
 if (night) document.body.classList.add('night');
-const CHEV = (s = 10, c = 'var(--dim)') => `<svg class="chev" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4"><path d="M8 4l8 8-8 8"/></svg>`;
-const TICK = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="3.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-const UP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
-const STOP = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
+const CHEV = (s = 12, c = 'var(--dim)') => `<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>`;
+const TICK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="2"><path d="M5 12l5 5 9-9"/></svg>';
+const UP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20V5M6 11l6-6 6 6"/></svg>';
+const STOP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 7h10v10H7z"/></svg>';
 const hueOf = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 const tint = (h) => night ? `oklch(0.36 0.07 ${h})` : `oklch(0.9 0.05 ${h})`, ink = (h) => night ? `oklch(0.9 0.07 ${h})` : `oklch(0.38 0.09 ${h})`;
 const letterHtml = (name, cls = '') => { const h = hueOf(name); return `<span class="letter ${cls}" style="background:${tint(h)};color:${ink(h)}">${esc((name[0] || '?').toUpperCase())}</span>`; };
 const ago = (t) => { const s = Date.now() / 1000 - t; if (s < 90) return 'now'; if (s < 3600) return Math.round(s / 60) + 'm'; if (s < 86400) return Math.round(s / 3600) + 'h'; if (s < 172800) return 'Yesterday'; return Math.round(s / 86400) + 'd'; };
 try { localStorage.removeItem('mode'); } catch (e) {}
-const MODES = [['auto', 'Auto', 'var(--accent)'], ['plan', 'Plan', 'var(--def)'], ['ask', 'Ask first', 'var(--warn)']];
+const MODES = [['auto', 'Auto', 'var(--fg)'], ['plan', 'Plan', 'var(--fg)'], ['ask', 'Ask first', 'var(--fg)']];
 
 let S = {
   home: '', user: '', account: '', model: '',
@@ -456,7 +460,7 @@ function drawSide() {
     const on = p.root === S.root, n = on && S.git.repo ? S.git.changes.length : 0;
     let st = '';
     if (projBusy(p.root)) st = '<span class="pulse" style="width:6px;height:6px"></span>';
-    else if (S.needs[p.root]) st = '<span style="color:var(--warn)">Needs you</span>';
+    else if (S.needs[p.root]) st = '<span style="color:var(--accent)">Needs you</span>';
     else if (n) st = `<span class="mono" style="color:var(--warn)">${n}</span>`;
     let h = `<div class="prow${on ? ' on' : ''}${p.more && !on ? ' more' : ''}" data-root="${esc(p.root)}" title="${esc(p.root.replace(S.home, '~'))}">${letterHtml(p.name)}<span class="nm">${esc(p.name)}</span><span class="st">${st}</span></div>`;
     if (on) {
@@ -594,7 +598,7 @@ function summaryHtml() {
   const ch = S.git.changes, a = ch.reduce((x, c) => x + (c.add || 0), 0), d = ch.reduce((x, c) => x + (c.del || 0), 0);
   return `<div class="summary"><span style="font-size:13.5px">${ch.length ? `${ch.length} file${ch.length > 1 ? 's' : ''} changed` : 'All changes committed'}</span>` +
     (ch.length ? `<span class="mono" style="font-size:12px"><span class="add">+${a}</span> <span class="del">−${d}</span></span><span style="flex:1"></span>
-    <div style="display:flex;gap:6px"><button class="btn" data-go="review">Review</button><button class="btn" data-go="preview">Preview</button><button class="btn main" data-go="commit">Commit</button></div>` : '') + '</div>';
+    <div style="display:flex;gap:6px"><button class="btn main" data-go="commit">Commit</button><button class="btn ghost" data-go="review">Review</button><button class="btn ghost" data-go="preview">Preview</button></div>` : '') + '</div>';
 }
 let pinned = true;
 $('log').addEventListener('scroll', () => { const el = $('log'); pinned = el.scrollHeight - el.clientHeight - el.scrollTop < 40; });
@@ -608,7 +612,7 @@ $('logIn').addEventListener('click', (e) => {
   if (e.target.closest('[data-auto]')) { S.mode = 0; drawMode(); return ask('Go ahead with that.'); }
   const t = e.target.closest('.tool.has'); if (t && e.target.closest('.th')) { S.open[t.dataset.key] = !t.classList.contains('open'); drawLog(); }
 });
-function drawMode() { const m = MODES[S.mode]; $('mode').innerHTML = `<span class="dot" style="background:${m[2]}"></span>${m[1]}`; $('mode').style.color = m[2]; }
+function drawMode() { const m = MODES[S.mode]; $('mode').textContent = m[1]; $('mode').style.color = m[2]; }
 function drawModel() { const m = S.model.match(/(opus|sonnet|haiku|fable)-(\d+)-(\d+)/i); $('model').textContent = m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}` : (S.model || ''); }
 window.model = (m) => { S.model = m; drawModel(); };
 function drawSend() {
@@ -843,7 +847,7 @@ function drawChanges() {
   let share = '';
   if (g.repo) {
     const sync = [g.ahead ? `${g.ahead} to push` : '', g.behind ? `${g.behind} to pull` : ''].filter(Boolean).join(' · ');
-    share = `<span class="br"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v8M18 10c0 4-6 4-10 6"/></svg>${esc(g.branch)}${sync ? `<span style="color:var(--muted)">${esc(sync)}</span>` : ''}</span>` +
+    share = `<span class="br"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4v16M16 4v5l-8 8"/></svg>${esc(g.branch)}${sync ? `<span style="color:var(--muted)">${esc(sync)}</span>` : ''}</span>` +
       (g.remote ? `<button class="btn ghost" data-g="pull">Pull</button><button class="btn ghost" data-g="push">Push</button>` +
         (g.host === 'github' || g.host === 'gitlab' ? `<button class="btn ghost" data-g="request">${g.host === 'github' ? 'Pull request' : 'Merge request'}</button><button class="btn ghost" data-g="webRepo">Open</button>` : '') : '');
   }
@@ -886,17 +890,17 @@ function drawPicker() {
   let h = '';
   const projs = S.projects.concat(S.more || []).filter((p) => !ql || p.name.toLowerCase().includes(ql) || p.root.toLowerCase().includes(ql));
   const isUrl = /^(https?:|git@)|\.git$|^(github|gitlab)\./.test(q), isPath = /^[~\/.]/.test(q);
-  if (q && isUrl) { prows.push({ act: 'clone', v: q }); h += `<div class="pkh">Clone</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>', esc(q.replace(/^https?:\/\//, '')), '', 'Clone')}`; }
-  else if (q && isPath) { prows.push({ act: 'open', v: q.replace(/^~/, S.home) }); h += `<div class="pkh">Folder</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6"><path d="M3 6.5h6l2 2h10v10H3z"/></svg>', esc(q), '', 'Open')}`; }
+  if (q && isUrl) { prows.push({ act: 'clone', v: q }); h += `<div class="pkh">Clone</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M12 4v12M6 10l6 6 6-6M5 20h14"/></svg>', esc(q.replace(/^https?:\/\//, '')), '', 'Clone')}`; }
+  else if (q && isPath) { prows.push({ act: 'open', v: q.replace(/^~/, S.home) }); h += `<div class="pkh">Folder</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M4 6h6l2 2h8v11H4z"/></svg>', esc(q), '', 'Open')}`; }
   if (projs.length) h += '<div class="pkh">Projects</div>' + projs.slice(0, 30).map((p) => { prows.push({ act: 'open', v: p.root }); return row(prows.length - 1, letterHtml(p.name), esc(p.name), esc(p.root.replace(S.home, '~')), p.root === S.root ? 'Open' : ''); }).join('');
-  if (q && !isUrl && !isPath) { prows.push({ act: 'new', v: q }); h += `<div class="pkh">New</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>', 'Start an empty project called ' + esc(q), '~/Projects', 'Create')}`; }
+  if (q && !isUrl && !isPath) { prows.push({ act: 'new', v: q }); h += `<div class="pkh">New</div>${row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>', 'Start an empty project called ' + esc(q), '~/Projects', 'Create')}`; }
   const signed = S.conn.github || S.conn.gitlab;
   h += `<div class="pkh">Clone from ${S.conn.gitlab && !S.conn.github ? 'GitLab' : S.conn.github && !S.conn.gitlab ? 'GitHub' : 'GitHub or GitLab'}</div>`;
   if (!signed) h += `<div class="pkmsg">Connect GitHub or GitLab to see your repositories.<button class="btn" data-conn style="margin-left:auto">Connections</button></div>`;
   else if (!S.repos) h += '<div class="pkmsg">Loading your repositories…</div>';
   else {
     const rs = S.repos.filter((r) => !ql || r.name.toLowerCase().includes(ql)).slice(0, 40);
-    h += rs.map((r) => { prows.push({ act: 'clone', v: r.url }); return row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M6 4h10l3 3v13H6z"/><path d="M9 10h7M9 14h7"/></svg>', esc(r.name), esc(r.about || (r.host === 'github' ? 'GitHub' : 'GitLab')), 'Clone'); }).join('') || '<div class="pkmsg">No repositories match.</div>';
+    h += rs.map((r) => { prows.push({ act: 'clone', v: r.url }); return row(prows.length - 1, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M6 4h8l4 4v12H6zM9 12h6M9 16h6"/></svg>', esc(r.name), esc(r.about || (r.host === 'github' ? 'GitHub' : 'GitLab')), 'Clone'); }).join('') || '<div class="pkmsg">No repositories match.</div>';
   }
   psel = Math.min(psel, Math.max(0, prows.length - 1));
   $('pickList').innerHTML = h;
@@ -921,9 +925,9 @@ window.repos = (r) => { S.repos = r; if (!$('picker').hidden) drawPicker(); };
 
 // --- connections -------------------------------------------------------------------------------
 const ICONS = {
-  github: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.7-.2.7-.5v-1.7c-2.7.6-3.2-1.2-3.2-1.2-.4-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.1-.2-4.3-1.1-4.3-4.7 0-1 .4-1.9 1-2.6-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.6 1a9 9 0 0 1 4.8 0c1.8-1.3 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.6 1 2.6 0 3.6-2.2 4.4-4.3 4.7.3.3.6.8.6 1.6v2.4c0 .3.2.6.7.5A9.5 9.5 0 0 0 12 2.5z"/></svg>',
-  gitlab: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 20.5L3.5 13.8 5.6 4.5l2.6 7.2h7.6l2.6-7.2 2.1 9.3z"/></svg>',
-  railway: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.5 3.5v17M15.5 3.5v17M5.5 8h13M5.5 12h13M5.5 16h13"/></svg>',
+  github: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>',
+  gitlab: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="m23.6004 9.5927-.0337-.0862L20.3.9814a.851.851 0 0 0-.3362-.405.8748.8748 0 0 0-.9997.0539.8748.8748 0 0 0-.29.4399l-2.2055 6.748H7.5375l-2.2057-6.748a.8573.8573 0 0 0-.29-.4412.8748.8748 0 0 0-.9997-.0537.8585.8585 0 0 0-.3362.4049L.4332 9.5015l-.0325.0862a6.0657 6.0657 0 0 0 2.0119 7.0105l.0113.0087.03.0213 4.976 3.7264 2.462 1.8633 1.4995 1.1321a1.0085 1.0085 0 0 0 1.2197 0l1.4995-1.1321 2.4619-1.8633 5.006-3.7489.0125-.01a6.0682 6.0682 0 0 0 2.0094-7.003z"/></svg>',
+  railway: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M.113 10.27A13.026 13.026 0 000 11.48h18.23c-.064-.125-.15-.237-.235-.347-3.117-4.027-4.793-3.677-7.19-3.78-.8-.034-1.34-.048-4.524-.048-1.704 0-3.555.005-5.358.01-.234.63-.459 1.24-.567 1.737h9.342v1.216H.113v.002zm18.26 2.426H.009c.02.326.05.645.094.961h16.955c.754 0 1.179-.429 1.315-.96zm-17.318 4.28s2.81 6.902 10.93 7.024c4.855 0 9.027-2.883 10.92-7.024H1.056zM11.988 0C7.5 0 3.593 2.466 1.531 6.108l4.75-.005v-.002c3.71 0 3.849.016 4.573.047l.448.016c1.563.052 3.485.22 4.996 1.364.82.621 2.007 1.99 2.712 2.965.654.902.842 1.94.396 2.934-.408.914-1.289 1.458-2.353 1.458H.391s.099.42.249.886h22.748A12.026 12.026 0 0024 12.005C24 5.377 18.621 0 11.988 0z"/></svg>',
 };
 const SVC = [['Code', [['github', 'GitHub', 'Push branches, open pull requests and read issues.'], ['gitlab', 'GitLab', 'Push branches and open merge requests, on gitlab.com or your company’s GitLab.']]],
   ['Deploy', [['railway', 'Railway', 'Deploy services and read their logs.']]]];
@@ -934,7 +938,7 @@ function drawConn() {
     items.map(([id, name, desc]) => { const who = S.conn[id];
       return `<div class="svc${who ? ' on' : ''}"><div style="display:flex;align-items:center;gap:12px"><span class="ic">${ICONS[id]}</span><div style="min-width:0"><div class="nm">${name}</div>
         <div class="stt"><span class="dot" style="background:currentColor"></span>${who ? 'Connected as ' + esc(who) : 'Not connected'}</div></div></div><div class="ds">${desc}</div>
-        <div>${who ? `<button class="btn" data-s="${id}" data-a="disconnect">Disconnect</button>` : `<button class="btn main" data-s="${id}" data-a="connect">Connect</button>`}</div></div>`; }).join('') + '</div></div>').join('');
+        <div>${who ? `<button class="btn ghost" data-s="${id}" data-a="disconnect">Disconnect</button>` : `<button class="btn" data-s="${id}" data-a="connect">Connect</button>`}</div></div>`; }).join('') + '</div></div>').join('');
 }
 $('connBody').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (!b) return; send({ type: b.dataset.a, service: b.dataset.s }); toast(b.dataset.a === 'connect' ? 'Finish signing in in the terminal below' : 'Signing out…'); });
 window.connections = (c) => {

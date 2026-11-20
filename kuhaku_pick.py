@@ -1,19 +1,24 @@
 """What the Kūhaku file picker shows: a few folders' files, newest first, and any folder in home.
 
-Plain functions with no window code, shared by the home screen's picture picker (kuhaku.py) and
+Plain functions with no window code, shared by the home screen's file picker (kuhaku.py) and
 the picker other apps open for a file (kuhaku-pick.py: Tegami's attachments, Mado's uploads).
-Only quick work here (one folder listed, nothing read): it runs inside the home screen's process."""
+Only quick work here (one folder listed, nothing read): it runs inside the home screen's process;
+peek() is the exception (a PDF's first page) and is called from a thread."""
 
 import mimetypes
 import os
 import stat
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 HOME = Path.home()
 HERE = Path(__file__).resolve().parent
 PICTURE_TYPES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"}
 SHOWN = 400  # the newest this many files of a folder; folders are always all there
+TEXT_SHOWN = 8000  # characters of a text file shown when looking closer
+_pages = None  # first pages of PDFs, in a folder of their own, gone when the process ends
 
 
 def places(images):
@@ -133,6 +138,40 @@ def listing(name, path="", images=False, accept=()):
         "folders": [*tabs, "Other"],
         "items": dirs + files[:SHOWN],
     }
+
+
+def peek(path):
+    """A closer look at a file that is not a picture: its first lines, or a PDF's first page.
+    Can take seconds (pdftoppm): call it from a thread."""
+    global _pages
+    import miru_files
+
+    p = Path(path)
+    out = {"path": path}
+    try:
+        mime, _ = miru_files.mime_of(p)
+        kind = miru_files.kind_of(p, mime)
+        if kind == "text":
+            with open(p, encoding="utf-8", errors="replace") as f:
+                out["text"] = f.read(TEXT_SHOWN)
+        elif kind == "pdf":
+            if _pages is None:
+                _pages = tempfile.TemporaryDirectory(prefix="kuhaku-pick-")
+            dest = Path(_pages.name) / f"page{abs(hash(path))}"
+            subprocess.run(
+                ["pdftoppm", "-png", "-f", "1", "-l", "1", "-scale-to", "1400", "-singlefile", str(p), str(dest)],
+                capture_output=True,
+                timeout=20,
+            )
+            if dest.with_suffix(".png").exists():
+                out["image"] = dest.with_suffix(".png").as_uri()
+    except FileNotFoundError:
+        pass  # no pdftoppm: the file's card is shown instead
+    except Exception:
+        from kuhaku_log import report
+
+        report()
+    return out
 
 
 def pick_command(words=("Choose a file", "Choose"), single=False, accept=()):

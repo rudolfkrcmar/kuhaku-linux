@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 // screen, and a CSS animation kept the processor and X busy the whole time Claude worked.
 const pulseFrom = performance.now();
 setInterval(() => {
-  const dots = document.querySelectorAll('.dot, .rdot, .jobtab i.run'); if (!dots.length) return;
+  const dots = document.querySelectorAll('span.dot, .rdot, .jobtab i.run'); if (!dots.length) return;
   const o = (0.575 + 0.425 * Math.cos((performance.now() - pulseFrom) / 1400 * 2 * Math.PI)).toFixed(2);
   dots.forEach((d) => { if (d.offsetParent !== null && d.style.opacity !== o) d.style.opacity = o; });
 }, 83);
@@ -68,7 +68,7 @@ window.setMicMode = (m) => {
   const t = micMode === 'dictate' ? 'Dictate (Ctrl+Space)' : 'Talk with Claude (Ctrl+Space)';
   $('mic').title = t; $('mic').setAttribute('aria-label', t.replace(/ \(.*/, ''));
   if (micMode === 'dictate' && voice !== 'off') native({ type: 'voice', on: false });
-  $('mic').querySelector('svg').innerHTML = micMode === 'dictate' ? '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>' : '<path d="M4 10.5v3"/><path d="M8 7.5v9"/><path d="M12 4.5v15"/><path d="M16 7.5v9"/><path d="M20 10.5v3"/>';
+  $('mic').querySelector('svg').innerHTML = micMode === 'dictate' ? '<path d="M10 4h4v9h-4zM6.5 10.5a5.5 5.5 0 0 0 11 0M12 16v4"/>' : '<path d="M7 9v6M12 5v14M17 9v6"/>';
 };
 // Talk: a spoken conversation here. Claude listens until you pause, answers aloud, then listens again.
 // The same button (or Ctrl+Space, or Escape) ends it; twenty quiet seconds end it too.
@@ -95,12 +95,12 @@ function talk() {
   native({ type: 'panel', action: 'talk' });
 }
 $('mic').addEventListener('click', talk);
-// Pictures for Claude: picked files are copied into ~/Pictures/ForClaude and named in the line.
+// Files for Claude: picked pictures are copied into ~/Pictures/ForClaude; every file is named in the line.
 $('pic').addEventListener('click', (e) => { e.preventDefault(); openPictures(); });
-window.picturesAdded = ({ files, error }) => {
+window.picturesAdded = ({ files, pictures, error }) => {
   if (error) { ask.placeholder = error; setTimeout(() => setMic(dictation), 3000); return; }
   if (!files || !files.length) { focusInput(); return; }
-  const note = (files.length > 1 ? 'Pictures: ' : 'Picture: ') + files.join(', ');
+  const note = (pictures ? (files.length > 1 ? 'Pictures: ' : 'Picture: ') : (files.length > 1 ? 'Files: ' : 'File: ')) + files.join(', ');
   setAsk((ask.value.trim() ? ask.value.replace(/\s*$/, '\n') : '') + note + '\n');
   focusInput();
   ask.setSelectionRange(ask.value.length, ask.value.length);

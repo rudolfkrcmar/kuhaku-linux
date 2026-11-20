@@ -1,7 +1,7 @@
 /* Kūhaku's file picker (pick/picker.js): a quiet grid, a red ring on the chosen, Space looks closer.
    Uses the page's --bg, --fg, --muted, --faint and --accent. */
 .picks { position:fixed; inset:0; z-index:6; display:flex; flex-direction:column; background:var(--bg);
-         padding:96px 64px 0; animation:rise .45s cubic-bezier(.2,.7,.2,1) both; }
+         padding:96px 64px 0; animation:rise .33s cubic-bezier(.2,.7,.2,1) both; }
 .pkscroll { flex:1; overflow-y:auto; scrollbar-width:none; margin:0 -64px; padding:14px 64px 40px;
             -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 8px, #000 calc(100% - 50px), transparent); }
 .pkscroll::-webkit-scrollbar { display:none; }
@@ -9,29 +9,31 @@
 .pkhead h1 { margin:0; font-size:30px; font-weight:200; letter-spacing:-.02em; }
 .pkfolders { display:flex; gap:30px; width:100%; max-width:1240px; margin:22px auto 24px; }
 .pkf { position:relative; border:0; background:none; padding:6px 0; font:inherit; font-size:15px; font-weight:300; color:var(--muted);
-       cursor:pointer; outline:none; transition:color .2s; }
+       cursor:pointer; outline:none; transition:color .25s cubic-bezier(.2,.7,.2,1); }
 .pkf:hover, .pkf.on { color:var(--fg); }
-.pkf.on::after { content:''; position:absolute; left:0; bottom:-2px; width:20px; height:2px; background:var(--accent); }
+.pkf.on::after { content:''; position:absolute; left:0; bottom:-2px; width:14px; height:1.5px; background:var(--accent); }
 .pkgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:34px 28px; max-width:1240px; margin:0 auto; }
 .pk { margin:0; cursor:pointer; }
 .pkimg { position:relative; display:block; aspect-ratio:16/10; border-radius:10px; background:var(--faint);
          outline:1px solid transparent; outline-offset:5px; transition:outline-color .2s, transform .25s cubic-bezier(.2,.7,.2,1); }
 .pkimg img { width:100%; height:100%; object-fit:cover; border-radius:10px; display:block; }
-.pkimg i { position:absolute; top:10px; right:10px; width:20px; height:20px; border-radius:20px; background:var(--accent);
-           box-shadow:0 0 0 2px var(--bg); opacity:0; transform:scale(.6); transition:opacity .2s, transform .2s; }
-.pkimg i::after { content:''; position:absolute; left:6px; top:5px; width:7px; height:4px; border:solid #fff; border-width:0 0 1.6px 1.6px; transform:rotate(-45deg); }
+/* Chosen: the switch's square, filled with ink, on a little paper so it reads on any picture. */
+.pkimg i { position:absolute; top:10px; right:10px; width:12px; height:12px; box-sizing:border-box; background:var(--fg);
+           box-shadow:0 0 0 3px var(--bg); opacity:0; transition:opacity .25s cubic-bezier(.2,.7,.2,1); }
 .pk:hover .pkimg { transform:translateY(-2px); }
 .pk.at .pkimg { outline-color:color-mix(in srgb, var(--fg) 35%, transparent); }
 .pk.on .pkimg { outline:2px solid var(--accent); }
-.pk.on .pkimg i { opacity:1; transform:none; }
-.pk figcaption { margin-top:12px; font-size:12.5px; font-weight:300; letter-spacing:.01em; color:var(--muted); transition:color .2s; }
+.pk.on .pkimg i { opacity:1; }
+.pk figcaption { margin-top:12px; font-size:12.5px; font-weight:300; letter-spacing:.01em; color:var(--muted); transition:color .25s cubic-bezier(.2,.7,.2,1); }
 .pk.at figcaption, .pk.on figcaption { color:var(--fg); }
 .pknone { grid-column:1/-1; margin:40px 0; font-size:15px; font-weight:300; color:var(--muted); }
 .pkfoot { display:flex; align-items:center; justify-content:space-between; width:100%; max-width:1240px; margin:0 auto; padding:18px 0 36px; }
 .pkkeys { font-size:12.5px; font-weight:300; letter-spacing:.02em; color:var(--muted); }
-.pkadd { display:flex; align-items:stretch; gap:14px; border:0; background:none; padding:4px 0; cursor:pointer; outline:none;
-         font:inherit; font-size:20px; font-weight:300; color:var(--fg); }
-.pkadd .line { width:2px; height:auto; background:var(--accent); border-radius:2px; transition:height .2s; }
+/* The one action of the picker: a word on an ink block. */
+.pkadd { display:flex; align-items:center; height:34px; border:0; background:var(--fg); padding:0 16px; border-radius:0; cursor:pointer; outline:none;
+         font:inherit; font-size:15px; font-weight:300; color:var(--bg); }
+.pkadd .line { display:none; }
+.pkadd:active { opacity:.8; }
 .pkadd:disabled { opacity:.3; cursor:default; }
 .peek { position:fixed; inset:0; z-index:8; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
         background:color-mix(in srgb, var(--bg) 92%, transparent); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
@@ -43,14 +45,15 @@
 .pkcap b { font-weight:400; color:var(--fg); }
 @keyframes peek { from { opacity:0; transform:scale(.97) } to { opacity:1; transform:none } }
 .pkcrumbs { display:flex; align-items:baseline; gap:10px; width:100%; max-width:1240px; margin:-8px auto 22px; font-size:13px; font-weight:300; color:var(--muted); }
-.pkcrumbs button { border:0; background:none; padding:0; font:inherit; color:var(--muted); cursor:pointer; outline:none; transition:color .15s; }
+.pkcrumbs button { border:0; background:none; padding:0; font:inherit; color:var(--muted); cursor:pointer; outline:none; transition:color .25s cubic-bezier(.2,.7,.2,1); }
 .pkcrumbs button:hover { color:var(--fg); }
 .pkcrumbs span { color:var(--fg); }
 .pkcrumbs i { font-style:normal; opacity:.4; }
 .pk.dir .pkimg { background:none; box-shadow:inset 0 0 0 1px var(--faint); display:grid; place-items:center; color:var(--muted); transition:color .2s, outline-color .2s, transform .25s cubic-bezier(.2,.7,.2,1); }
 .pk.dir:hover .pkimg, .pk.dir.at .pkimg { color:var(--fg); }
-.pklook { position:absolute; right:10px; bottom:10px; width:28px; height:28px; border-radius:28px; display:grid; place-items:center;
-          background:color-mix(in srgb, var(--bg) 88%, transparent); color:var(--fg); opacity:0; transition:opacity .2s; cursor:zoom-in; }
+.pklook { position:absolute; right:10px; bottom:10px; width:28px; height:28px; display:grid; place-items:center;
+          background:color-mix(in srgb, var(--bg) 88%, transparent); color:var(--fg); opacity:0; transition:opacity .25s cubic-bezier(.2,.7,.2,1); cursor:zoom-in; }
+.pklook svg { display:block; }
 .pk:hover .pklook, .pk.at .pklook { opacity:.9; }
 .pkhint { margin-top:8px; font-size:12px; opacity:.75; }
 .pk.file .pkimg { display:grid; place-items:center; background:none; box-shadow:inset 0 0 0 1px var(--faint); }

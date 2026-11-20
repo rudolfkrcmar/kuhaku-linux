@@ -7,7 +7,7 @@
           --bg:#f7f4f1; --fg:#111111; --muted:#666666; --faint:rgba(17,17,17,.05); --line:rgba(17,17,17,.09); --accent:#e0301e;
           --sheet:#f7f4f1; --surface:#ffffff; --glow:transparent;
           --r:0px; --r2:0px; --rp:0px; --bd:1px solid transparent; --btn-bg:transparent; --btn-fg:var(--fg); --btn-ul:inset 0 -1.5px 0 var(--accent);
-          --send-fg:var(--accent); --b2-bg:var(--faint); --b2-bd:1px solid transparent; --pill-pad:0 0 0 9px; --ask-sh:inset 2px 0 0 var(--accent); }
+          --send-fg:var(--fg); --b2-bg:var(--faint); --b2-bd:1px solid transparent; --pill-pad:0 0 0 9px; --ask-sh:inset 2px 0 0 var(--accent); }
   body.night { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --faint:rgba(236,236,236,.05); --line:rgba(236,236,236,.09); --accent:#f0705a;
                --sheet:#121212; --surface:#1b1b1b; }
   body.modern { --font:'Geist','Inter Variable','Inter',system-ui,sans-serif; --bg:#f4f2ef; --muted:#6b6b6b; --faint:rgba(17,17,17,.06); --line:rgba(17,17,17,.12);
@@ -25,7 +25,7 @@
   a { color:inherit; text-decoration-color:var(--accent); text-underline-offset:3px; }
   a:hover { color:var(--accent); }
   [hidden] { display:none !important; }
-  .mono { font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .mono { font-family:var(--mono); font-size:11px; color:var(--muted); }
   .grow { flex:1; }
 
   /* The bar */
@@ -38,8 +38,8 @@
   .ib:hover { color:var(--fg); background:var(--faint); }
   .bar .ib:hover { background:none; }
   .ib.write { color:var(--fg); }
-  .ib.write:hover { color:var(--accent); }
-  .ib.on { color:var(--accent); }
+  .ib.on { color:var(--fg); }
+  .ib:hover .hot, .ib.on .hot { stroke:var(--accent); }   /* a mark's hot stroke: red only when open or pointed at */
   .name { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:400; }
   .name i { width:2px; height:18px; background:var(--accent); }
   .name i.pulse { animation:pulse 1.4s ease-in-out infinite; }
@@ -58,17 +58,16 @@
   .calmb:hover, .calmb.on { color:var(--fg); }
   .calmb .lbl { display:none; white-space:nowrap; }
   .calmb:hover .lbl { display:inline; }
-  .calmb b { position:absolute; top:2px; right:0; min-width:16px; height:16px; padding:0 4px; box-sizing:border-box; border-radius:var(--rp); background:var(--accent);
-             color:#fff; font-family:var(--mono); font-size:10px; font-weight:400; display:inline-flex; align-items:center; justify-content:center; }
+  .calmb b { font-size:12.5px; font-weight:300; color:var(--muted); font-variant-numeric:tabular-nums; }
 
   /* Drawer and column */
   .body { flex:1; min-height:0; display:flex; padding-bottom:12px; box-sizing:border-box; }
-  .drawer { width:0; flex-shrink:0; overflow:hidden; transition:width .28s cubic-bezier(.2,.8,.2,1); }
+  .drawer { width:0; flex-shrink:0; overflow:hidden; transition:width .28s cubic-bezier(.2,.7,.2,1); }
   .drawer > div { width:236px; height:100%; padding:22px 0 0 32px; box-sizing:border-box; overflow:auto; scrollbar-width:none;
-                  transform:translateX(-24px); opacity:0; transition:transform .28s cubic-bezier(.2,.8,.2,1), opacity .2s; }
+                  transform:translateX(-24px); opacity:0; transition:transform .28s cubic-bezier(.2,.7,.2,1), opacity .28s; }
   body.dopen .drawer { width:236px; }
   body.dopen .drawer > div { transform:none; opacity:1; }
-  .dh { display:flex; align-items:center; gap:10px; padding:14px 16px 6px 0; cursor:pointer; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .dh { display:flex; align-items:center; gap:10px; padding:14px 16px 6px 0; cursor:pointer; font-size:12.5px; color:var(--muted); }
   .dh:hover { color:var(--fg); }
   .dh > i { width:2px; height:12px; flex-shrink:0; }
   .dh span { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -94,7 +93,7 @@
   .btn { border:0; background:var(--btn-bg); color:var(--btn-fg); box-shadow:var(--btn-ul); cursor:pointer; padding:8px 16px; border-radius:var(--r2); font-size:13px; }
   .btn2 { border:var(--b2-bd); background:var(--b2-bg); color:var(--fg); cursor:pointer; padding:6px 12px; border-radius:var(--r2); font-size:12.5px;
           display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
-  .btn2:hover { color:var(--accent); }
+  .btn2:hover { color:var(--fg); }
   .btn2.quiet { color:var(--muted); }
   .btn2.quiet:hover { color:var(--fg); }
   .link { border:0; background:none; cursor:pointer; padding:0; font-size:13px; color:var(--muted); }
@@ -105,13 +104,13 @@
   /* Today */
   .home { max-width:860px; margin:0 auto; padding:28px 32px 0; min-height:100%; box-sizing:border-box; display:flex; flex-direction:column; }
   .meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .meta .glow { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); }
+  .meta .glow { width:6px; height:6px; border-radius:50%; background:var(--accent); }
   .meta .glow.pulse { animation:pulse 1.4s ease-in-out infinite; }
   .home h1 { margin:12px 0 0; font-size:32px; line-height:1.15; letter-spacing:-.02em; }
   .home .lead { margin:10px 0 0; font-size:16px; line-height:1.6; opacity:.85; text-wrap:pretty; }
   .qhead { display:flex; align-items:center; gap:14px; margin:24px 0 10px; }
   .bars { display:flex; gap:3px; }
-  .bars i { width:18px; height:3px; border-radius:2px; background:var(--line); }
+  .bars i { width:18px; height:3px; background:var(--line); }
   .bars i.on { background:var(--accent); }
   .q { display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:4px 14px; align-items:baseline; padding:16px 16px 16px 14px; border-radius:var(--r); cursor:pointer; margin-bottom:2px; }
   .q:hover, .q.sel { background:var(--faint); }
@@ -124,19 +123,13 @@
   .q.done .who span { text-decoration:line-through; text-decoration-color:var(--muted); }
   .q .side { display:flex; align-items:center; gap:12px; }
   .q .due { font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap; }
-  .q .due.now, .q.done .due { color:var(--accent); }
-  .raise { width:26px; height:26px; border:1px solid var(--line); border-radius:50%; background:transparent; cursor:pointer; color:var(--muted);
-           display:flex; align-items:center; justify-content:center; padding:0; }
-  .raise:hover { border-color:var(--accent); color:var(--accent); }
-  .raise.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .tick { width:26px; height:26px; border:1px solid var(--line); border-radius:50%; background:transparent; cursor:pointer; color:var(--muted);
-          display:flex; align-items:center; justify-content:center; padding:0; }
-  .tick:hover { border-color:var(--accent); }
-  .q.done .tick { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .q .due.now { color:var(--accent); }
+  .raise, .tick { width:34px; height:34px; border:0; background:none; cursor:pointer; color:var(--muted); display:flex; align-items:center; justify-content:center; padding:0; margin:-4px; }
+  .raise:hover, .tick:hover, .raise.on, .q.done .tick { color:var(--fg); }
   .ready { display:inline-flex; align-items:center; gap:8px; margin-top:10px; border:var(--bd); background:var(--sheet); border-radius:var(--rp); padding:5px 12px;
            cursor:pointer; font-size:12.5px; color:var(--fg); }
   body:not(.modern) .ready { padding:5px 0; background:none; }
-  .ready:hover { border-color:var(--accent); color:var(--accent); }
+  .ready:hover { border-color:var(--fg); }
   .ready i { width:5px; height:5px; border-radius:50%; background:var(--accent); }
   .aside { margin:22px 0 0 14px; border:0; background:none; padding:0; cursor:pointer; text-align:left; font-size:13.5px; line-height:1.6; color:var(--muted); }
   .aside:hover { color:var(--fg); }
@@ -169,11 +162,9 @@
   .prov.on { background:var(--faint); color:var(--fg); }
   .sw { display:flex; align-items:center; gap:8px; border:0; background:none; cursor:pointer; font-size:12px; color:var(--muted); padding:4px 6px; }
   .sw:hover { color:var(--fg); }
-  .sw i { width:24px; height:14px; border-radius:var(--rp); background:var(--line); position:relative; display:inline-block; }
-  body:not(.modern) .sw i { border-radius:7px; }
-  .sw i::after { content:''; position:absolute; top:2px; left:2px; width:10px; height:10px; border-radius:50%; background:var(--bg); transition:left .15s; }
-  .sw.on i { background:var(--accent); }
-  .sw.on i::after { left:12px; }
+  .sw i, .tog, .box { width:12px; height:12px; box-sizing:border-box; flex-shrink:0; display:inline-block; border:1.5px solid var(--muted); background:none; transition:background .25s cubic-bezier(.2,.7,.2,1); }
+  .sw:hover i, .crow.click:hover .tog, .cr:hover .box { border-color:var(--fg); }
+  .sw.on i, .tog.on, .box.on { background:var(--fg); border-color:var(--fg); }
 
   /* Calm down */
   .calm { margin-top:16px; border:var(--bd); border-radius:var(--r); background:var(--sheet); box-shadow:0 24px 60px -30px var(--glow); }
@@ -183,16 +174,13 @@
   .calm .hd p { font-size:13px; color:var(--muted); margin:3px 0 0; }
   .cr { display:flex; align-items:center; gap:14px; padding:10px 18px; cursor:pointer; }
   .cr:hover, .cr.peek { background:var(--faint); }
-  .box { width:18px; height:18px; flex-shrink:0; border-radius:5px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:#fff; }
-  body:not(.modern) .box { border-radius:0; }
-  .box.on { background:var(--accent); border-color:var(--accent); }
-  .box svg { visibility:hidden; }
-  .box.on svg { visibility:visible; }
+  .box { margin:0 3px; }
+  .box svg { display:none; }   /* the filled square says it; no tick */
   .cr .t { flex:1; min-width:0; }
   .cr .w { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:400; }
   .cr .w span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cr .y { font-size:13px; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .cr .k { font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .cr .k { font-family:var(--mono); font-size:10.5px; color:var(--muted); }
   .cr em { width:12px; font-size:12px; color:var(--muted); text-align:center; font-style:normal; }
   .peekb { margin:0 18px 8px 50px; padding:12px 14px; background:var(--faint); border-radius:var(--r); }
   .peekb .s { display:flex; gap:12px; align-items:baseline; font-size:13px; color:var(--muted); margin-bottom:6px; }
@@ -222,11 +210,10 @@
   .acts { display:flex; align-items:center; gap:2px; position:sticky; top:0; z-index:4; background:var(--bg); margin:-30px -12px 0; padding:22px 12px 8px; }
   .acts .lnav { display:inline-flex; align-items:center; gap:0; margin-left:6px; }
   .acts .lnav .ib:disabled { opacity:.3; cursor:default; background:none; }
-  .acts .done { display:inline-flex; align-items:center; gap:6px; border:0; background:none; cursor:pointer; padding:6px 10px; font-size:13px; color:var(--fg); box-shadow:inset 0 -1.5px 0 var(--accent); margin-right:6px; }
+  .acts .done { display:inline-flex; align-items:center; gap:6px; border:0; background:none; cursor:pointer; padding:6px 10px; font-size:13px; color:var(--fg); margin-right:6px; }
   body.modern .acts .done { background:var(--accent); color:#fff; box-shadow:none; border-radius:var(--r2); }
-  .acts .done.prio { color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); border-radius:var(--r2); margin-left:4px; }
-  .acts .done.prio:hover { background:var(--accent); color:#fff; }
-  .acts .done.prio.on { background:var(--accent); color:#fff; }
+  .acts .done.prio { color:var(--muted); box-shadow:none; margin-left:4px; }
+  .acts .done.prio:hover, .acts .done.prio.on { color:var(--fg); }
   .acts .done.quiet { color:var(--muted); box-shadow:none; background:none; }
   .acts .done.quiet:hover { color:var(--fg); }
   .notebox { margin:14px 0 6px; padding:14px 16px; background:var(--faint); border-radius:var(--r); }
@@ -251,7 +238,7 @@
   .chip small { font-family:var(--mono); font-size:11px; color:var(--muted); }
   .chip.file { padding:0; gap:0; }
   .chip.file .fo { border:0; background:none; cursor:pointer; color:var(--fg); font-size:12.5px; padding:6px 10px; display:inline-flex; gap:8px; align-items:baseline; }
-  .chip.file .fo:hover { color:var(--accent); }
+  .chip.file .fo:hover { text-decoration:underline; text-decoration-color:var(--line); }
   .chip.file .fs { border:0; border-left:1px solid var(--line); background:none; cursor:pointer; color:var(--muted); font-size:12px; padding:6px 10px; }
   .chip.file .fs:hover { color:var(--fg); }
   .chip button { border:0; background:none; cursor:pointer; color:var(--muted); font-size:15px; padding:0 0 0 2px; line-height:1; }
@@ -284,7 +271,7 @@
   .chips input { min-width:140px; }
   .addr { display:inline-flex; align-items:center; gap:4px; padding:2px 4px 2px 10px; border-radius:999px; background:var(--faint); border:1px solid var(--line); font-size:13px; line-height:1.5; }
   .addr button { border:0; background:none; cursor:pointer; color:var(--muted); font-size:14px; padding:0 4px; line-height:1; }
-  .addr button:hover { color:var(--accent); }
+  .addr button:hover { color:var(--fg); }
   .whisper { position:absolute; left:0; top:calc(100% + 4px); z-index:9; min-width:320px; background:var(--surface); border:1px solid var(--line);
              border-radius:var(--r2); box-shadow:0 18px 50px rgba(0,0,0,.16); padding:4px 0; }
   .whisper button { display:flex; gap:10px; align-items:baseline; width:100%; border:0; background:none; text-align:left; padding:7px 12px; cursor:pointer; color:var(--fg); font-size:13.5px; }
@@ -296,7 +283,7 @@
   .gn .mono { margin-right:4px; }
   .gn button { border:1px solid var(--line); background:none; border-radius:var(--r2); padding:4px 10px; cursor:pointer; font-size:12.5px; color:var(--fg);
                display:inline-flex; align-items:baseline; gap:6px; }
-  .gn button:hover { border-color:var(--accent); }
+  .gn button:hover { border-color:var(--fg); }
   .gn s { color:var(--muted); text-decoration-color:var(--accent); }
   .gn b { font-weight:400; }
   .gn small { color:var(--muted); font-size:11px; }
@@ -315,7 +302,7 @@
   /* Polish: one control. The left part does it; the right part chooses how. */
   .split { position:relative; display:inline-flex; align-items:stretch; border:1px solid var(--line); border-radius:var(--r2); background:var(--surface); }
   .split button { border:0; background:none; cursor:pointer; font-size:12.5px; padding:6px 12px; color:var(--fg); display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
-  .split .go:hover { color:var(--accent); }
+  .split .go:hover { color:var(--fg); }
   .split .pick { border-left:1px solid var(--line); color:var(--muted); padding:6px 10px; }
   .split .pick:hover { color:var(--fg); background:var(--faint); }
   .split .pick i { font-style:normal; font-size:10px; opacity:.7; }
@@ -344,7 +331,7 @@
   .comp .foot .link { padding:6px 8px; font-size:12.5px; }
   .from { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; color:var(--muted); }
   .from button { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line); background:none; border-radius:var(--rp); padding:4px 12px; cursor:pointer; font-size:13px; color:var(--fg); }
-  .from button.on { border-color:var(--accent); }
+  .from button.on { border-color:var(--fg); }
 
   /* Settings and setup */
   .narrow { max-width:600px; margin:0 auto; padding:40px 32px 80px; }
@@ -362,10 +349,7 @@
   .crow input.v { flex:1; border:0; outline:none; background:none; font-size:15px; font-weight:300; color:var(--fg); caret-color:var(--accent); }
   .crow textarea.v { flex:1; min-height:60px; border:0; outline:none; resize:vertical; background:none; color:var(--fg); font-size:14.5px; line-height:1.55; font-weight:300; caret-color:var(--accent); }
   .crow .k { width:100px; font-size:15px; font-weight:400; flex-shrink:0; }
-  .tog { width:40px; height:24px; flex-shrink:0; border-radius:12px; background:var(--line); position:relative; transition:background .15s; }
-  .tog::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:left .15s; }
-  .tog.on { background:var(--accent); }
-  .tog.on::after { left:19px; }
+  .tog { margin-right:11px; }
   .mbox { display:flex; align-items:center; gap:14px; padding:12px 16px; }
   .mbox .c { width:22px; height:22px; flex-shrink:0; border-radius:50%; border:2px solid var(--sheet); box-shadow:0 0 0 1px var(--line); cursor:pointer; padding:0; }
   .mbox input { width:140px; border:0; outline:none; background:none; font-size:15px; font-weight:400; color:var(--fg); caret-color:var(--accent); }
@@ -385,8 +369,8 @@
   .setup > p { color:var(--muted); font-size:14.5px; line-height:1.6; margin:0 0 26px; }
   .svcs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
   .svcs button { border:var(--bd); border-radius:var(--r); background:var(--sheet); cursor:pointer; padding:24px 10px; font-size:14px; color:var(--fg); }
-  body:not(.modern) .svcs button { background:var(--faint); }
-  .svcs button:hover { border-color:var(--accent); color:var(--accent); }
+  body:not(.modern) .svcs button { background:none; padding:12px 0; text-align:left; font-size:16px; }
+  .svcs button:hover { border-color:var(--fg); }
   .steps { margin:0 0 22px; padding-left:20px; font-size:14.5px; line-height:1.7; }
   .steps li { margin-bottom:8px; padding-left:6px; }
   .fields { display:flex; flex-direction:column; gap:4px; }
@@ -400,7 +384,7 @@
   .hsearch input { flex:1; border:0; outline:none; background:none; color:var(--fg); font-size:17px; font-weight:200; caret-color:var(--accent); }
   .hsearch .x { border:0; background:none; cursor:pointer; color:var(--muted); font-size:18px; padding:0 4px; }
   .hsearch .x:hover { color:var(--fg); }
-  .tag { font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .tag { font-family:var(--mono); font-size:10.5px; color:var(--muted); }
   .tag.imp { color:var(--accent); }
   /* Attachment viewer */
   .viewer { position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.55); display:flex; flex-direction:column; align-items:center; padding:28px 0 0; }
@@ -429,7 +413,7 @@
   .menu { position:fixed; z-index:20; min-width:230px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r2);
           box-shadow:0 18px 50px rgba(0,0,0,.18); padding:6px 0; font-size:13.5px; }
   .menu button { display:block; width:100%; border:0; background:none; text-align:left; padding:8px 16px; cursor:pointer; color:var(--fg); }
-  .menu button:hover { background:var(--faint); color:var(--accent); }
+  .menu button:hover { background:var(--faint); }
   .menu hr { border:0; border-top:1px solid var(--line); margin:6px 0; }
   .menu .why { padding:8px 14px 10px; width:300px; }
   .menu .why small { display:block; color:var(--muted); font-size:12px; line-height:1.45; margin-bottom:8px; }
@@ -438,7 +422,7 @@
   .menu .why .go { display:flex; gap:14px; align-items:center; margin-top:8px; }
   .menu .why .go button { width:auto; padding:6px 12px; }
   .cnt { font-family:var(--mono); font-size:10.5px; color:var(--muted); font-weight:300; white-space:nowrap; }
-  .q .pin { font-family:var(--mono); font-size:10px; color:var(--accent); letter-spacing:.06em; text-transform:uppercase; }
+  .q .pin { font-family:var(--mono); font-size:10.5px; color:var(--muted); }
   .conv { margin:6px 0 18px; }
   .tm { border-bottom:1px solid var(--line); }
   .tm .th { display:flex; align-items:center; gap:12px; padding:10px 4px; cursor:pointer; min-width:0; }
@@ -452,11 +436,13 @@
   .lmeta.fold { cursor:pointer; }
   .lacts { display:flex; gap:8px; align-items:center; margin:22px 0 6px; padding-top:14px; border-top:1px solid var(--line); flex-wrap:wrap; }
   .tm .lacts { margin:0 4px 14px; padding-top:10px; }
-  .la { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line); background:var(--surface); color:var(--fg); cursor:pointer;
-        padding:7px 14px; border-radius:var(--r2); font-size:13px; }
-  .la:hover { border-color:var(--accent); color:var(--accent); }
+  .la { display:inline-flex; align-items:center; height:34px; box-sizing:border-box; border:0; background:none; color:var(--muted); cursor:pointer;
+        padding:0 16px; border-radius:0; font-size:13px; }
+  .la:not(.prime) { padding:0 11px; }
+  .la:hover { color:var(--fg); }
   .la.prime { background:var(--fg); color:var(--bg); border-color:var(--fg); }
-  .la.prime:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .la.prime:hover { color:var(--bg); }
+  .la.prime:active { opacity:.8; }
   .conv .c { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 16px; padding:10px 14px; border-radius:var(--r); cursor:pointer; }
   .conv .c:hover { background:var(--faint); }
   .conv .c b { font-weight:400; font-size:14px; }
@@ -465,7 +451,7 @@
   .it .app { display:flex; gap:10px; align-items:center; }
   .it .clear { border:0; background:none; cursor:pointer; padding:0; font-size:12.5px; color:var(--muted); opacity:0; }
   .it:hover .clear { opacity:1; }
-  .it .clear:hover { color:var(--accent); }
+  .it .clear:hover { color:var(--fg); }
   .donenote { grid-column:1 / -1; font-size:13px; color:var(--fg); opacity:.8; }
   .donenote::before { content:'Your note: '; color:var(--muted); }
   .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--fg); color:var(--bg); font-size:13px; padding:9px 16px;
@@ -475,17 +461,17 @@
 <body>
 <div class="bar">
   <div class="l">
-    <button class="ib" id="bDrawer" title="Mailboxes and folders"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M9.5 5v14"/></svg></button>
+    <button class="ib" id="bDrawer" title="Mailboxes and folders"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h16v14H4zM9.5 5v14"/></svg></button>
     <span class="name"><i id="barLine"></i>Tegami</span>
     <span class="state" id="state"></span>
   </div>
   <div class="seg" id="focus" hidden></div>
   <div class="r">
-    <button class="ib" id="bFind" title="Find letters (Cmd+F)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg></button>
-    <button class="ib" id="bRefresh" title="Get mail now (Cmd+R)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M19 5v4h-4"/></svg></button>
-    <button class="calmb" id="bCalm" title="Calm down: mark letters that don't need you as read"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 10c3-3 6-3 9 0s6 3 9 0M3 16c3-3 6-3 9 0s6 3 9 0"/></svg><span class="lbl" id="calmLbl">Calm down</span><b id="calmN" hidden></b></button>
-    <button class="ib" id="bSettings" title="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
-    <button class="ib write" id="bWrite" title="New letter (Cmd+N)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 19l2.5-.5L18 8l-2-2L5.5 16.5z"/><path d="M14 8l2 2" stroke="var(--accent)"/></svg></button>
+    <button class="ib" id="bFind" title="Find letters (Cmd+F)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg></button>
+    <button class="ib" id="bRefresh" title="Get mail now (Cmd+R)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12a7 7 0 1 1-2.05-4.95M17 3v4h-4"/></svg></button>
+    <button class="calmb" id="bCalm" title="Calm down: mark letters that don't need you as read"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9.5a5.5 5.5 0 0 1 8 0a5.5 5.5 0 0 0 8 0M4 14.5a5.5 5.5 0 0 1 8 0a5.5 5.5 0 0 0 8 0"/></svg><span class="lbl" id="calmLbl">Calm down</span><b id="calmN" hidden></b></button>
+    <button class="ib" id="bSettings" title="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12h8"/><path class="hot" d="M15 9h6v6h-6z"/></svg></button>
+    <button class="ib write" id="bWrite" title="New letter (Cmd+N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 5H5v14h14v-6M10 14L20 4"/></svg></button>
   </div>
 </div>
 <div class="body">
@@ -506,20 +492,24 @@
   if (store.get('tegamiDrawer', false)) document.body.classList.add('dopen');
 
   const IC = {
-    pen: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 19l2.5-.5L18 8l-2-2L5.5 16.5z"/><path d="M14 8l2 2"/></svg>',
-    up2: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V6M6 11l6-6 6 6"/></svg>',
-    clock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>',
-    spark: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 4v16M4 12h16M6.3 17.7L17.7 6.3M6.3 6.3l11.4 11.4"/></svg>',
-    tick: (w = 13, s = 1.6) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${s}"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,
-    reply: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 7l-5 5 5 5M5 12h9a5 5 0 0 1 5 5"/></svg>',
-    replyAll: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 7l-5 5 5 5M7 7l-5 5 5 5M7 12h7a5 5 0 0 1 5 5"/></svg>',
-    fwd: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M14 7l5 5-5 5M19 12h-9a5 5 0 0 0-5 5"/></svg>',
-    done: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="8"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg>',
-    spam: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="8"/><path d="M6.5 17.5l11-11"/></svg>',
-    trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>',
-    again: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 12a7 7 0 1 1-2.1-5M19 4v4h-4"/></svg>',
-    clip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 12.5l5.5-5.5a2.5 2.5 0 0 1 3.5 3.5L10 17.5a4 4 0 0 1-5.5-5.5L11 5.5"/></svg>',
-    up: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+    pen: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H5v14h14v-6M10 14L20 4"/></svg>',
+    up2: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V5M6 11l6-6 6 6"/></svg>',
+    clock: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7.5"/><path d="M12 7.5V12h3.5"/></svg>',
+    spark: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 4v16M4 12h16M6.34 17.66L17.66 6.34"/><path class="hot" d="M6.34 6.34l11.32 11.32"/></svg>',
+    spark12: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16M4 12h16M6.34 17.66L17.66 6.34"/><path class="hot" d="M6.34 6.34l11.32 11.32"/></svg>',
+    tick: (w = 12) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${({ 12: 2, 16: 1.5, 18: 1.33 })[w] || 2}"><path d="M5 12l5 5 9-9"/></svg>`,
+    reply: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 6.5L5 11l4.5 4.5M5 11h14v7"/></svg>',
+    replyAll: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8.5 6.5L4 11l4.5 4.5M13.5 6.5L9 11l4.5 4.5M9 11h11v7"/></svg>',
+    fwd: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.5 6.5L19 11l-4.5 4.5M19 11H5v7"/></svg>',
+    done: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12l5 5 9-9"/></svg>',
+    spam: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="7.5"/><path d="M6.7 17.3L17.3 6.7"/></svg>',
+    trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 7h14M7 7v13h10V7M10 4h4"/></svg>',
+    again: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12a7 7 0 1 1-2.05-4.95M17 3v4h-4"/></svg>',
+    clip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 4v14h8V7h-4v8"/></svg>',
+    up: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20V5M6 11l6-6 6 6"/></svg>',
+    prev: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 5l-7 7 7 7"/></svg>',
+    next: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5l7 7-7 7"/></svg>',
+    close: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   };
   const SWATCHES = ['oklch(0.72 0.11 250)', 'oklch(0.75 0.12 155)', 'oklch(0.78 0.12 75)', 'oklch(0.68 0.16 30)', 'oklch(0.7 0.14 330)', 'oklch(0.72 0.12 200)', 'oklch(0.7 0.02 260)'];
   const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
@@ -688,6 +678,7 @@
   }
   function paint() {
     const v = view.name;
+    $('bSettings').classList.toggle('on', v === 'settings');
     if (v === 'home') return drawHome();
     if (v === 'folder') return drawFolder();
     if (v === 'letter') return drawLetter();
@@ -837,7 +828,7 @@
     return `<div class="calm"><div class="hd"><b>${WORDS[list.length] || list.length} unread letter${list.length > 1 ? 's' : ''} can be marked as read</b>
       <p>None of these need you. Click a letter to preview it; untick anything you want to keep as new.</p></div>
       ${list.slice(0, ui.calmAll ? list.length : 8).map((m) => { const on = !calmOff.has(m.key), pk = calmPeek === m.key;
-        return `<div class="cr${pk ? ' peek' : ''}" data-peek="${esc(m.key)}" title="Preview"><span class="box${on ? ' on' : ''}" data-keep="${esc(m.key)}" title="Include">${IC.tick(11, 2.4)}</span>
+        return `<div class="cr${pk ? ' peek' : ''}" data-peek="${esc(m.key)}" title="Preview"><span class="box${on ? ' on' : ''}" data-keep="${esc(m.key)}" title="Include">${IC.tick()}</span>
           <div class="t"><div class="w"><span>${esc(m.who)}</span>${pill(m.acct)}</div><div class="y">${esc(m.subject)}</div></div>
           <span class="k">${esc(KIND[m.cat] || 'Letter')}</span><em>${pk ? '–' : '+'}</em></div>` +
           (pk ? `<div class="peekb"><div class="s"><b>${esc(m.subject)}</b><span class="grow"></span><span class="mono" style="letter-spacing:0;text-transform:none">${full(m.date)}</span></div>
@@ -1014,14 +1005,14 @@
     const ib = (act_, icon, title, extra = '') => `<button class="ib" data-act="${act_}" title="${title}" ${extra}>${icon}</button>`;
     $('main').innerHTML = `<div class="col">
       <div class="acts"><button class="back" data-back="1">${esc(backLabel)}</button>${(() => { const [keys, i] = listPos(m); return keys.length > 1 || i < 0 ? `
-        <span class="lnav"><button class="ib" data-step="-1" title="Previous letter (K or ←)" ${i <= 0 ? 'disabled' : ''}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <span class="lnav"><button class="ib" data-step="-1" title="Previous letter (K or ←)" ${i <= 0 ? 'disabled' : ''}>${IC.prev}</button>
         <span class="mono" style="font-size:10.5px">${i < 0 ? '' : `${i + 1} / ${keys.length}`}</span>
-        <button class="ib" data-step="1" title="Next letter (J or →)" ${i >= keys.length - 1 && i >= 0 ? 'disabled' : ''}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 6l6 6-6 6"/></svg></button></span>` : ''; })()}<span class="grow"></span>
+        <button class="ib" data-step="1" title="Next letter (J or →)" ${i >= keys.length - 1 && i >= 0 ? 'disabled' : ''}>${IC.next}</button></span>` : ''; })()}<span class="grow"></span>
         ${a ? (doneNow ? '<button class="done quiet" data-act="undone" title="Bring it back to Today">Not done</button>'
-                       : `<span class="split dsplit"><button class="go" data-act="done" title="Done: it leaves Today and waits in Done">${IC.tick(12, 1.8)} Done</button><button class="pick" data-act="donenote" title="Done with a note: tell the assistant what happened or what to learn">${IC.pen}</button></span>`) : ''}
-        ${!out && m.folder === 'inbox' ? `<span class="split lsplit"><button class="go" data-act="later" title="Out of sight until tomorrow morning; then back on Today">${IC.clock} Later</button><button class="pick" data-act="latermenu" title="Choose when">▾</button>${ui.laterMenu ? laterMenu() : ''}</span>` : ''}
+                       : `<span class="split dsplit"><button class="go" data-act="done" title="Done: it leaves Today and waits in Done">Done</button><button class="pick" data-act="donenote" title="Done with a note: tell the assistant what happened or what to learn">${IC.pen}</button></span>`) : ''}
+        ${!out && m.folder === 'inbox' ? `<span class="split lsplit"><button class="go" data-act="later" title="Out of sight until tomorrow morning; then back on Today">Later</button><button class="pick" data-act="latermenu" title="Choose when">▾</button>${ui.laterMenu ? laterMenu() : ''}</span>` : ''}
         ${!out && m.folder === 'inbox' ? (() => { const t = today.find((x) => (x.keys || [x.key]).includes(m.key)), up = t && t.pri > 0;
-          return `<button class="done prio${up ? ' on' : ''}" data-act="${t ? 'raise' : 'important'}" title="${up ? 'Raised: click to put it back in the assistant\'s order' : t ? 'More important: to the top of Today' : 'Important: put it on Today, at the top'}">${IC.up2} ${up ? 'Raised' : 'Higher'}</button>`; })() : ''}
+          return `<button class="done prio${up ? ' on' : ''}" data-act="${t ? 'raise' : 'important'}" title="${up ? 'Raised: click to put it back in the assistant\'s order' : t ? 'More important: to the top of Today' : 'Important: put it on Today, at the top'}">${up ? 'Raised' : 'Higher'}</button>`; })() : ''}
         ${m.folder === 'inbox' ? ib('spam', IC.spam, 'Spam') : m.folder === 'spam' ? ib('notspam', IC.spam, 'Not spam') : ''}
         ${ib('trash', IC.trash, out ? 'Do not send' : 'Delete')}</div>
       <div id="noteHere"></div>
@@ -1065,7 +1056,7 @@
   function letterActions(m, mode, main) {
     const many = others(m).length > 0, sent = m.folder === 'sent' || m.sent;
     const k = main ? '' : ` data-tkey="${esc(m.key)}"`;
-    const b = (act, icon, label, primary) => `<button class="la${primary ? ' prime' : ''}" data-${main ? 'act' : 'tact'}="${act}"${k}>${icon}${label}</button>`;
+    const b = (act, icon, label, primary) => `<button class="la${primary ? ' prime' : ''}" data-${main ? 'act' : 'tact'}="${act}"${k}>${label}</button>`;
     return `<div class="lacts">${sent ? '' : many ? b('all', IC.replyAll, 'Reply all', mode === 'all') + b('reply', IC.reply, 'Reply', mode !== 'all') : b('reply', IC.reply, 'Reply', true)}
       ${b('fwd', IC.fwd, 'Forward')}${main && !sent ? `<span class="grow"></span>${b('write', IC.spark, 'Write a reply for me')}` : ''}</div>`;
   }
@@ -1118,7 +1109,7 @@
       : `<div class="vmsg">Tegami cannot show this kind of file (${esc(v.type || '')}). Open it in its app, or save it.</div>`;
     el.innerHTML = `<div class="vbar"><b>${esc(v.name)}</b>${v.kind === 'pdf' && v.total ? `<span class="mono" style="font-size:10.5px">${v.total} page${v.total > 1 ? 's' : ''}</span>` : ''}
         <span class="grow"></span><button class="btn2" data-vopen="1">${v.kind === 'other' ? 'Open in its app' : 'Open in ' + VIEWER}</button><button class="btn2" data-vsave="1">Save</button>
-        <button class="ib" data-vclose="1" title="Close (Esc)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+        <button class="ib" data-vclose="1" title="Close (Esc)">${IC.close}</button></div>
       <div class="vbody${v.kind === 'pdf' ? ' pages' : ''}">${body}</div>`;
     el.onclick = (e) => {
       if (e.target === el || e.target.closest('[data-vclose]')) { viewer = null; return drawViewer(); }
@@ -1214,7 +1205,7 @@
         ${c.cc || c.showCc ? `<div class="xrow"><span class="lb">Cc</span>${chipsHtml('cc', 'Copy to')}</div>` : ''}
         ${c.bcc || c.showBcc ? `<div class="xrow"><span class="lb">Bcc</span>${chipsHtml('bcc', 'Hidden copy to')}</div>` : ''}
         ${c.mode === 'fwd' ? `<div class="xrow"><span class="lb">Subject</span><input class="f" id="cSubj" value="${esc(c.subject)}"></div>` : ''}`}
-      ${c.sugg || c.busy === 'another' ? `<div class="sugbox"><div class="sh"><span class="mono" style="font-size:10.5px">${IC.spark}Suggested by ${esc(provName())}${c.sugg && c.sugg.ver > 1 ? ' · version ' + c.sugg.ver : ''}</span><span class="grow"></span>
+      ${c.sugg || c.busy === 'another' ? `<div class="sugbox"><div class="sh"><span class="mono" style="font-size:10.5px">${IC.spark12}Suggested by ${esc(provName())}${c.sugg && c.sugg.ver > 1 ? ' · version ' + c.sugg.ver : ''}</span><span class="grow"></span>
           ${c.sugg && c.busy !== 'another' ? `<button class="btn2" id="sUse">${c.body.trim() ? 'Use this instead of my text' : 'Use this'}</button><button class="link" id="sHide">Hide</button>` : ''}</div>
         <div class="st${c.busy === 'another' ? ' wait' : ''}">${c.busy === 'another' ? 'Writing a version in your voice…' : esc(c.sugg.body)}</div>
         ${c.sugg && c.sugg.note && c.busy !== 'another' ? `<div class="sn">${esc(c.sugg.note)}</div>` : ''}</div>` : ''}
@@ -1222,8 +1213,8 @@
       <div id="gnotes">${gnotesHtml()}</div>
       ${c.note ? `<div class="cnote">${esc(c.note)}</div>` : ''}${files}
       <div class="ailine"><span>${IC.spark}</span><input id="cWish" value="${esc(c.wish)}" placeholder="Optional: tell ${esc(provName())} what to change, or what it should know" spellcheck="false">
-        <button class="btn2" id="cAgain" title="Writes a new version. Uses what you typed on the left, if anything.">${IC.again}${c.busy === 'another' ? 'Writing…' : c.sugg ? 'Another version' : 'Write it for me'}</button>
-        <span class="split" id="cSplit"><button class="go" id="cPolish" title="${esc(POLISH[c.polish][1])}">${IC.tick()}${c.busy === 'polish' ? 'Polishing…' : 'Polish'}</button><button class="pick" id="cMode" title="Choose how to polish">${esc(POLISH[c.polish][0])}<i>▾</i></button>
+        <button class="btn2" id="cAgain" title="Writes a new version. Uses what you typed on the left, if anything.">${c.busy === 'another' ? 'Writing…' : c.sugg ? 'Another version' : 'Write it for me'}</button>
+        <span class="split" id="cSplit"><button class="go" id="cPolish" title="${esc(POLISH[c.polish][1])}">${c.busy === 'polish' ? 'Polishing…' : 'Polish'}</button><button class="pick" id="cMode" title="Choose how to polish">${esc(POLISH[c.polish][0])}<i>▾</i></button>
           ${ui.polishMenu ? `<span class="modes">${Object.entries(POLISH).map(([k, [name, what]]) => `<button data-pmode="${k}" class="${c.polish === k ? 'on' : ''}"><b>${esc(name)}</b><small>${esc(what)}</small></button>`).join('')}</span>` : ''}</span></div>
       <div class="foot"><button class="ib" id="cAttach" title="Attach files">${IC.clip}</button>
         <small>${status.online === false ? 'Offline: it goes out when you are back online' : 'Cmd+Enter sends'}</small><span class="grow"></span>
@@ -1304,7 +1295,7 @@
     if (t.wait) return '<div class="trbar"><span class="mono" style="font-size:10.5px">Translating…</span></div>';
     if (t.error) return `<div class="trbar"><span>Could not translate it: ${esc(t.error)}</span></div>`;
     if (langs.langs.includes(t.lang)) return '';
-    return `<div class="trbar"><span class="mono" style="font-size:10.5px">${IC.spark} Translated from ${esc(LANG[t.lang] || t.lang)}</span><span class="grow"></span>
+    return `<div class="trbar"><span class="mono" style="font-size:10.5px">${IC.spark12} Translated from ${esc(LANG[t.lang] || t.lang)}</span><span class="grow"></span>
       <button class="link" data-trshow="1">${ui.trOriginal ? 'Show the translation' : 'Show the original'}</button></div>
       ${ui.trOriginal ? '' : `<div class="text">${renderText(t.body)}</div>`}`;
   }

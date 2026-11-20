@@ -21,8 +21,9 @@
   /* Loading: the Mado mark, its red line breathing above the window. */
   .dot { width:16px; height:16px; flex-shrink:0; margin:0 -7px; display:flex; }
   .dot[hidden] { display:none; }
-  .dot .bar { fill:var(--accent); animation:pulse 1.4s ease-in-out infinite; }
-  .dot .frame { fill:none; stroke:var(--muted); stroke-width:1.3; }
+  .dot svg { stroke:var(--muted); }
+  .dot .hot { stroke:var(--accent); animation:pulse 1.6s ease-in-out infinite; }
+  body.private .dot path:first-child { stroke-dasharray:2.5 2.5; stroke-dashoffset:1.25; }
   .addr { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
           font-size:15px; font-weight:300; letter-spacing:.005em; color:var(--muted); }
   .addr .host { color:var(--fg); }
@@ -32,8 +33,9 @@
   /* Selected text: a quiet shade, not the accent (red is for the one line that matters). */
   input::selection { background:rgba(127,127,127,.28); color:inherit; }
   .count { font-size:13px; color:var(--muted); white-space:nowrap; }
-  .note { font-size:13px; color:var(--muted); white-space:nowrap; display:flex; gap:12px; align-items:center; animation:fade .3s both; }
+  .note { font-size:13px; color:var(--muted); white-space:nowrap; display:flex; gap:12px; align-items:center; animation:fade .3s cubic-bezier(.2,.7,.2,1) both; }
   .note button { font-size:13px; }
+  .note #permYes, .note #openDl { color:var(--fg); }
 
   .quiet { display:flex; gap:2px; opacity:0; transition:opacity .3s; }
   body:hover .quiet { opacity:1; }
@@ -46,38 +48,36 @@
          font-size:12.5px; font-weight:300; letter-spacing:.005em; color:var(--muted); }
   .tab span { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-align:left;
               -webkit-mask-image:linear-gradient(to right, #000 78%, transparent); }
-  .tab::after { content:''; position:absolute; left:12px; right:12px; bottom:0; height:1.5px; background:var(--accent);
+  .tab::after { content:''; position:absolute; left:12px; width:14px; bottom:0; height:1.5px; background:var(--accent);
                 transform:scaleX(0); transform-origin:left; transition:transform .3s cubic-bezier(.2,.7,.2,1); }
   .tab.active { color:var(--fg); }
   .tab.active::after { transform:scaleX(1); }
-  .tab.loading::before { content:''; width:4px; height:4px; border-radius:9px; background:var(--accent); flex-shrink:0;
-                         animation:pulse 1.4s ease-in-out infinite; }
+  /* Loading: a dot of ink that pulses. The red in this row is the line under the current tab. */
+  .tab.loading::before { content:''; width:4px; height:4px; border-radius:50%; background:currentColor; flex-shrink:0;
+                         animation:pulse 1.6s ease-in-out infinite; }
   .tab .x { width:16px; height:16px; display:flex; align-items:center; justify-content:center; opacity:0;
-            border-radius:9px; transition:opacity .15s; flex-shrink:0; }
+            transition:opacity .15s; flex-shrink:0; }
   .tab:hover .x { opacity:.6; }
   .tab .x:hover { opacity:1; }
   .plus { width:30px; opacity:0; }
   .tabrow:hover .plus { opacity:.8; }
 
-  .progress { position:absolute; left:0; bottom:0; height:1.5px; background:var(--accent); width:0;
-              transition:width .3s ease, opacity .5s .2s; opacity:0; }
-  .progress.on { opacity:1; transition:width .3s ease, opacity .1s; }
   .rule { position:absolute; left:0; right:0; bottom:0; height:1px; background:var(--faint); }
   [hidden] { display:none !important; }
-  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.15 } }
+  @keyframes pulse { 50% { opacity:.2 } }
   @keyframes fade { from { opacity:0 } to { opacity:1 } }
 
-  /* Three modes in one small toggle: Normal, Private, Developer. The chosen one names itself. */
-  .modes { display:flex; align-items:center; gap:2px; padding:2px; border-radius:17px;
-           box-shadow:inset 0 0 0 1px var(--faint2); }
-  .modes button { height:28px; min-width:32px; padding:0 8px; border-radius:14px; gap:7px; position:relative;
-                  font-size:12.5px; font-weight:300; letter-spacing:.03em; transition:color .15s, background .2s; }
+  /* Three modes, three marks: Normal, Private, Developer. The chosen one is ink, names itself,
+     and its hot stroke is red. No box around them: space sets them apart. */
+  .modes { display:flex; align-items:center; gap:2px; }
+  .modes button { height:30px; min-width:30px; padding:0 7px; gap:7px; position:relative;
+                  font-size:12.5px; font-weight:300; letter-spacing:.005em; transition:color .15s; }
   .modes button span { display:none; }
-  .modes button.on { background:var(--faint2); color:var(--fg); padding:0 12px 0 9px; }
+  .modes button.on { color:var(--fg); padding:0 10px 0 7px; }
   .modes button.on span { display:inline; }
   .modes .hot { stroke:currentColor; transition:stroke .15s; }
   .modes button.on .hot, .modes button:hover .hot { stroke:var(--accent); }
-  .modes sup { position:absolute; top:2px; right:2px; font-size:9px; color:var(--accent); }
+  .modes sup { position:absolute; top:2px; right:0; font-size:9px; color:var(--muted); }
   .divide { width:1px; height:18px; background:var(--faint2); }
 
   /* Private keeps nothing: its line is hollow. Developer: the line is drawn in dots. */
@@ -88,25 +88,26 @@
   .tool { height:30px; gap:8px; padding:0 6px; font-size:13px; font-weight:300; white-space:nowrap; }
   .tool .dim { color:var(--muted); opacity:.75; }
   .tool.open { color:var(--fg); }
+  .tool .down { margin-left:-2px; }
   .panel { padding:2px 32px 12px 46px; display:flex; flex-wrap:wrap; gap:6px 26px; font-size:12.5px; font-weight:300;
-           color:var(--muted); max-height:120px; overflow:auto; animation:fade .3s both; }
+           color:var(--muted); max-height:120px; overflow:auto; animation:fade .3s cubic-bezier(.2,.7,.2,1) both; }
   .panel .h { color:var(--fg); }
   .panel.devices { gap:4px; padding-left:40px; }
-  .panel .dev { height:38px; padding:0 12px; gap:9px; border-radius:10px; font-size:13px; font-weight:300; position:relative; }
+  /* The devices are one choice: each name is followed by its square, the current one filled with ink. */
+  .panel .dev { height:34px; padding:0 12px; gap:9px; font-size:13px; font-weight:300; }
   .panel .dev small { font-size:11px; opacity:.6; }
-  .panel .dev:hover { background:var(--faint); }
+  .panel .dev::after { content:''; width:12px; height:12px; margin-left:3px; flex-shrink:0; box-shadow:inset 0 0 0 1px currentColor; }
   .panel .dev.on { color:var(--fg); }
-  .panel .dev.on::after { content:''; position:absolute; left:12px; right:12px; bottom:3px; height:1.5px; background:var(--accent); }
+  .panel .dev.on::after { background:currentColor; }
 
   /* Developer: the tools' toggle and side, and comments on the page. */
   .tool.icon { width:30px; padding:0; }
-  .tool.on { color:var(--accent); }
-  .tool.on:hover { color:var(--accent); }
-  #pick { position:relative; }
-  #pick .num { position:absolute; top:0; right:-4px; transform:scale(.8); }
-  .tool .num { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--accent); color:#fff;
-               font-size:11px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; }
-               font-size:13px; font-weight:300; text-align:left; width:100%; }
+  /* On: the mark turns ink and its hot stroke red. The count is a plain grey number beside it. */
+  .tool .hot { stroke:currentColor; transition:stroke .15s; }
+  .tool.on { color:var(--fg); }
+  .tool.on .hot { stroke:var(--accent); }
+  #pick { width:auto; min-width:30px; gap:5px; }
+  .tool .num { font-size:12.5px; font-weight:300; color:var(--muted); }
 
   /* Minimise and close live in Kūhaku's bar at the top of the screen; one of each is enough. */
   #bMin, #bClose, #minimize, #quit { display:none !important; }
@@ -115,7 +116,7 @@
 <body>
   <div class="bar">
     <div class="where" id="where">
-      <span class="line" id="line"></span><span class="dot" id="dot" hidden><svg viewBox="0 0 16 16" width="16" height="16"><rect class="bar" x="2.6" y="1.6" width="10.8" height="1.4"/><rect class="frame" x="3.6" y="5.8" width="8.8" height="8.8"/></svg></span>
+      <span class="line" id="line"></span><span class="dot" id="dot" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M7 9h10v10H7z"/><path class="hot" d="M6 5h12"/></svg></span>
       <div class="addr" id="addr"></div>
       <input id="input" hidden spellcheck="false" autocomplete="off">
       <span class="count" id="count" hidden></span>
@@ -127,25 +128,24 @@
     <button class="tool icon" id="pick" hidden title="Show or hide comments (Ctrl+Alt+C)"></button>
     <span class="divide" id="divide" hidden></span>
     <div class="modes" id="modes">
-      <button data-m="normal" title="Normal: your everyday tabs"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round"><path class="hot" d="M6.2 5.35h11.6"/><path d="M7.2 9.2h9.6v9.6H7.2z" stroke="currentColor"/></svg><span>Normal</span></button>
-      <button data-m="private" title="Private: nothing is kept (Ctrl+Shift+N)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round"><path class="hot" d="M6.2 5.35h11.6"/><path d="M7.2 9.2h9.6v9.6H7.2z" stroke="currentColor" stroke-dasharray="2.4 2.4"/></svg><span>Private</span><sup id="ptabs"></sup></button>
-      <button data-m="developer" title="Developer: tools and devices (F12)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5" stroke="currentColor"/><path class="hot" d="M13.4 5.5l-2.8 13"/></svg><span>Developer</span></button>
+      <button data-m="normal" title="Normal: your everyday tabs"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 9h10v10H7z"/><path class="hot" d="M6 5h12"/></svg><span>Normal</span></button>
+      <button data-m="private" title="Private: nothing is kept (Ctrl+Shift+N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 9h10v10H7z" stroke-dasharray="2.5 2.5" stroke-dashoffset="1.25"/><path class="hot" d="M6 5h12"/></svg><span>Private</span><sup id="ptabs"></sup></button>
+      <button data-m="developer" title="Developer: tools and devices (F12)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/><path class="hot" d="M14.5 9.5l-5 5"/></svg><span>Developer</span></button>
     </div>
     <div class="quiet">
-      <button id="back" title="Back (Alt+Left)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <button id="forward" title="Forward (Alt+Right)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button id="back" title="Back (Alt+Left)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button id="forward" title="Forward (Alt+Right)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5l7 7-7 7"/></svg></button>
       <span class="gap"></span>
-      <button id="minimize" title="Minimise"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
-      <button id="quit" title="Close (Ctrl+Q)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <button id="minimize" title="Minimise"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+      <button id="quit" title="Close (Ctrl+Q)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
   </div>
   <div class="tabrow" id="tabrow" hidden>
     <div class="tabs" id="tabs" style="display:flex;align-items:stretch;gap:2px;min-width:0"></div>
-    <button class="plus" id="plus" title="New tab (Ctrl+T)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button class="plus" id="plus" title="New tab (Ctrl+T)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
   </div>
   <div class="panel" id="panel" hidden></div>
   <div class="rule"></div>
-  <div class="progress" id="progress"></div>
 
 <script>
   const $ = (id) => document.getElementById(id);
@@ -154,16 +154,18 @@
   const params = new URLSearchParams(location.search);
   if (params.get('theme') === 'night') document.body.classList.add('night');
   let panel = null, height = -1;
-  const svg = (d, w = 15) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  // Drawn with the one pen of the design guide: the 24 grid, square ends, mitred corners, no radius.
+  const svg = (d, w = 16) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${{ 12: 2, 16: 1.5, 18: 1.33, 40: 1 }[w]}">${d}</svg>`;
   const ICON = {
-    shield: svg('<path d="M12 3.8l7 2.6v5.2c0 4.3-3 7.4-7 8.6-4-1.2-7-4.3-7-8.6V6.4z"/><path d="M9.2 12l2 2 3.8-4"/>'),
-    phone: svg('<rect x="7.5" y="3.5" width="9" height="17" rx="2"/><path d="M11 17.6h2"/>'),
-    tablet: svg('<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M11 17.6h2"/>'),
-    laptop: svg('<rect x="5.5" y="5.5" width="13" height="9" rx="1"/><path d="M3.5 18h17"/>'),
-    full: svg('<rect x="3.5" y="5" width="17" height="12" rx="1.2"/><path d="M9 20h6M12 17v3"/>'),
-    toolsOpen: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 13.5h17"/><path d="M7 16.5h4"/>'),
-    toolsShut: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 17h17"/>'),
-    note: svg('<path d="M5 5.5h14v10H11l-4 3.5v-3.5H5z"/><path d="M9 10.5h6"/>'),
+    shield: svg('<path d="M6 4h12v8l-6 6-6-6z"/><path d="M9 10.5l2 2 4-4"/>'),
+    phone: svg('<path d="M8 4h8v16H8zM11 17h2"/>'),
+    tablet: svg('<path d="M6 4h12v16H6zM11 17h2"/>'),
+    laptop: svg('<path d="M6 6h12v9H6zM4 18h16"/>'),
+    full: svg('<path d="M4 5h16v11H4z"/><path class="hot" d="M9 20h6"/>'),
+    toolsOpen: svg('<path d="M4 5h16v14H4zM4 13h16"/>'),
+    toolsShut: svg('<path d="M4 5h16v14H4zM4 16h16"/>'),
+    note: svg('<path d="M5 5h14v10h-7l-4 4v-4H5z"/><path class="hot" d="M9 10h6"/>'),
+    down: svg('<path d="M5 9l7 7 7-7"/>', 12).replace('<svg', '<svg class="down"'),
   };
   // The bar grows only by what it shows: the tab row, the list of stopped trackers.
   function fit() {
@@ -195,13 +197,9 @@
     state = s;
     $('back').disabled = !s.back; $('forward').disabled = !s.forward;
     $('line').hidden = s.loading; $('dot').hidden = !s.loading;
-    const p = $('progress');
-    p.classList.toggle('on', s.loading);
-    p.style.width = (s.loading ? Math.max(.06, s.progress) : 1) * 100 + '%';
-    if (!s.loading) setTimeout(() => { if (!state.loading) p.style.width = '0'; }, 700);
     $('tabs').innerHTML = s.tabs.map((t, i) =>
       `<button class="tab${t.active ? ' active' : ''}${t.loading ? ' loading' : ''}" data-i="${i}" title="${esc(t.title)}"><span>${esc(t.title)}</span>` +
-      `<i class="x" data-close="${i}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></i></button>`).join('');
+      `<i class="x" data-close="${i}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></i></button>`).join('');
     // The tab row only exists when there is more than one tab.
     const many = s.tabs.length > 1;
     $('tabrow').hidden = !many;
@@ -217,7 +215,7 @@
     // Developer: the device the page is shown as; its icon opens the others.
     $('device').hidden = m !== 'developer';
     const dv = (s.devices || []).find((x) => x.name === s.device);
-    if (m === 'developer' && dv) $('device').innerHTML = ICON[dv.kind] + esc(dv.kind === 'full' ? 'Full window' : dv.name) + (s.size ? ` <span class="dim">${esc(s.size)}</span>` : '');
+    if (m === 'developer' && dv) $('device').innerHTML = ICON[dv.kind] + esc(dv.kind === 'full' ? 'Full window' : dv.name) + (s.size ? ` <span class="dim">${esc(s.size)}</span>` : '') + ICON.down;
     // Developer: the tools folded or shown (and on which side), and comments.
     const dev = m === 'developer';
     $('tools').hidden = !dev;

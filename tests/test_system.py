@@ -419,7 +419,7 @@ class Battery(TempDirCase):
             mock.patch.object(ks, "find_battery", return_value=d),
             mock.patch.object(ks, "on_mains", return_value=False),
         ):
-            self.assertEqual(ks.read_battery(), {"level": 80, "charging": False})
+            self.assertEqual(ks.read_battery(), {"level": 80, "charging": False, "limit": 100})
 
     def test_plugged_in_at_a_charge_limit(self):
         d = self.bat(capacity="80", status="Not charging")
@@ -427,12 +427,18 @@ class Battery(TempDirCase):
             mock.patch.object(ks, "find_battery", return_value=d),
             mock.patch.object(ks, "on_mains", return_value=True),
         ):
-            self.assertEqual(ks.read_battery(), {"level": 80, "charging": True})
+            self.assertEqual(ks.read_battery(), {"level": 80, "charging": True, "limit": 100})
+        (d / "charge_control_end_threshold").write_text("80\n")
+        with (
+            mock.patch.object(ks, "find_battery", return_value=d),
+            mock.patch.object(ks, "on_mains", return_value=True),
+        ):
+            self.assertEqual(ks.read_battery()["limit"], 80)
 
     def test_capacity_fallback_and_full(self):
         d = self.bat(capacity="104\n", status="Full\n")
         with mock.patch.object(ks, "find_battery", return_value=d):
-            self.assertEqual(ks.read_battery(), {"level": 100, "charging": True})
+            self.assertEqual(ks.read_battery(), {"level": 100, "charging": True, "limit": 100})
 
     def test_no_battery(self):
         with mock.patch.object(ks, "find_battery", return_value=None):

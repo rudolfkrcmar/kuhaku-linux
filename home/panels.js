@@ -152,7 +152,7 @@ function monthCells(y, m) {
   const off = (new Date(y, m, 1).getDay() + 6) % 7;
   return Array.from({ length: 42 }, (_, i) => new Date(y, m, 1 - off + i));
 }
-const chev = (d) => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+const chev = (d) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="${d}"/></svg>`;
 // Google Calendar (any iCal feed): events in the month, the chosen day's list.
 let calEvents = {}, calNames = [], calAdding = false, calNote = '', calAsked = '';
 function askEvents() {
@@ -241,9 +241,10 @@ function usageHtml(day) {
 
 // Wi-Fi
 const wifi = { data: null, open: null, busy: null, note: {}, toggling: false, scanning: false, tab: 'wifi' };
-const bars = (sig) => `<svg width="16" height="12" viewBox="0 0 16 12">${[3, 6, 9, 12].map((h, i) =>
-    `<rect x="${i * 4 + 1}" y="${12 - h}" width="2" height="${h}" rx="1" fill="currentColor" opacity="${sig > [0, 30, 55, 75][i] ? 1 : .25}"/>`).join('')}</svg>`;
-const lock = '<svg width="10" height="12" viewBox="0 0 10 12" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="1" y="5" width="8" height="6" rx="1.5"/><path d="M3 5V3.5a2 2 0 0 1 4 0V5"/></svg>';
+// The Wi-Fi sign (three bars, lit with the signal) and the lock, at 16 in one ink.
+const bars = (sig) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${['M6 15v4', 'M12 10v9', 'M18 5v14'].map((d, i) =>
+    `<path d="${d}" opacity="${sig > [0, 40, 70][i] ? 1 : .25}"/>`).join('')}</svg>`;
+const lock = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 11h12v9H6z"/><path d="M9 11V5h6v6"/></svg>';
 const quality = (s) => s >= 75 ? 'Excellent signal' : s >= 55 ? 'Good signal' : s >= 35 ? 'Fair signal' : 'Weak signal';
 function connect(ssid, password) {
   wifi.busy = ssid; wifi.note[ssid] = ''; renderWifi();
@@ -353,10 +354,10 @@ function chart(hist, now) {
   const last = pts[pts.length - 1];
   const ago = Math.round(span / 3600);
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-      <defs><linearGradient id="bf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+      <defs><linearGradient id="bf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--fg)" stop-opacity=".12"/><stop offset="1" stop-color="var(--fg)" stop-opacity="0"/></linearGradient></defs>
       <line x1="0" x2="${W}" y1="3" y2="3" stroke="var(--faint)" stroke-dasharray="2 4"/><line x1="0" x2="${W}" y1="${H - 3}" y2="${H - 3}" stroke="var(--faint)"/>
       <path d="${line} L${last[0].toFixed(1)} ${H} L0 ${H} Z" fill="url(#bf)"/>
-      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <path d="${line}" fill="none" stroke="var(--fg)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
     </svg><div class="axis"><span>${ago >= 1 ? ago + ' h ago' : Math.round(span / 60) + ' min ago'}</span><span>Now</span></div>`;
 }
 // Notifications (F9): what came in, newest first, kept by the system's notice daemon.
@@ -388,7 +389,7 @@ function renderBattery() {
     b.name && ['Battery', esc(b.name) + (b.technology ? `<small>${esc(b.technology)}</small>` : '')],
   ].filter(Boolean);
   let h = `<div class="big">${lvl}<span>%</span></div><p class="p-sub" style="margin-top:12px">${state}</p>
-    <div class="meter"><i style="width:${lvl}%"></i></div>`;
+    <div class="meter"><i style="width:${lvl}%"></i>${b.state === 'charging' && b.limit && lvl < b.limit ? `<b style="left:${Math.min(100, b.limit)}%"></b>` : ''}</div>`;
   const c = chart(b.history, b.now);
   if (c) h += `<div class="p-label"><span>Last hours</span></div>${c}`;
   if (b.limit != null) {
@@ -399,12 +400,12 @@ function renderBattery() {
       : b.limit >= 100 && b.why?.why === 'travelling' ? 'Filling to 100%: you seem to be travelling (a network that is not one of your usual places).'
       : b.limit >= 100 ? 'Filling to 100%: you usually head off around now. Otherwise it stays at 80%.'
       : 'Stops at 80% to keep the battery young, and fills up before you usually head off.';
-    h += `<div class="p-label"><span>Charging</span></div><div class="opts">` +
+    h += `<div class="p-label"><span>Charging</span></div><div class="opts choice">` +
       [['care', 'Care'], ['once', 'Full once'], ['full', 'Always full']]
         .map(([k, l]) => `<span class="opt${k === b.care ? ' sel' : ''}" data-act="care" data-v="${k}">${l}</span>`).join('') +
       `</div><p class="p-sub" style="margin-top:8px">${why}</p>`;
   }
-  if (b.profiles?.length) h += `<div class="p-label"><span>Power mode</span></div><div class="opts">` +
+  if (b.profiles?.length) h += `<div class="p-label"><span>Power mode</span></div><div class="opts choice">` +
     b.profiles.slice().sort((x, y) => Object.keys(PROFILES).indexOf(x) - Object.keys(PROFILES).indexOf(y))
       .map((p) => `<span class="opt${p === b.profile ? ' sel' : ''}" data-act="profile" data-v="${p}">${PROFILES[p] || p}</span>`).join('') + '</div>';
   h += `<div class="p-label"><span>Details</span></div><div class="p-rows">` +

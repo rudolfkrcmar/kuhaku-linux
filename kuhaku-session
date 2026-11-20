@@ -54,8 +54,9 @@ xfconf-query -c xfwm4 -p /general/theme -s Kuhaku 2>/dev/null
 xfconf-query -c xfwm4 -p /general/button_layout -s "|" 2>/dev/null
 xfconf-query -c xfwm4 -p /general/show_dock_shadow -s false 2>/dev/null
 
-# Apps' "Are you sure?" boxes (GTK message dialogs, like the Claude app's "navigate to this
-# link?") in Kūhaku's night look. Kept in its own file; the user's gtk.css only gains an import.
+# Apps' "Are you sure?" boxes and Save and Open windows (GTK dialogs, like the Claude app's Export)
+# in Kūhaku's look. Kept in its own file; the user's gtk.css only gains an import. This copy is the
+# night one; the home screen rewrites it for day (kuhaku_gtk.py) whenever the theme changes.
 mkdir -p "$HOME/.config/gtk-3.0" && cp "$DIR/system/gtk/kuhaku.css" "$HOME/.config/gtk-3.0/kuhaku.css"
 grep -qs 'kuhaku.css' "$HOME/.config/gtk-3.0/gtk.css" \
   || printf '@import url("kuhaku.css");\n' >> "$HOME/.config/gtk-3.0/gtk.css"

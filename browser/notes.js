@@ -21,29 +21,31 @@
     * { box-sizing: border-box; }
     .layer { position: fixed; inset: 0; pointer-events: none; z-index: 2147483647;
              font-family: 'Inter Variable', 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-    .hi { position: fixed; border: 1.5px solid #e0301e; background: rgba(224,48,30,.06); border-radius: 3px;
+    /* Red here means here: the element being marked, and the pins where comments are. Square, like the pen. */
+    .hi { position: fixed; border: 1.5px solid #e0301e; background: rgba(224,48,30,.06);
           pointer-events: none; transition: all .08s ease-out; }
     .hi i { position: absolute; left: -1.5px; bottom: 100%; margin-bottom: 4px; font-weight: 300; font-size: 11px; line-height: 1;
-            font-style: normal; color: #fff; background: #e0301e; padding: 3px 6px; border-radius: 4px; white-space: nowrap; }
-    .pin { position: fixed; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
-           background: #e0301e; color: #fff; font-weight: 500; font-size: 11px; line-height: 22px; text-align: center; cursor: pointer;
-           pointer-events: auto; box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0,0,0,.25); user-select: none; }
-    .pin:hover { transform: scale(1.12); }
-    .box { position: fixed; width: 300px; pointer-events: auto; border-radius: 12px; padding: 12px;
-           background: #fff; color: #111; box-shadow: 0 0 0 1px rgba(17,17,17,.08), 0 10px 34px rgba(0,0,0,.18);
-           font-weight: 300; font-size: 14px; line-height: 1.45; }
+            font-style: normal; color: #fff; background: #e0301e; padding: 3px 6px; white-space: nowrap; }
+    .pin { position: fixed; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+           background: #e0301e; color: #fff; font-weight: 400; font-size: 11px; line-height: 20px; text-align: center; cursor: pointer;
+           pointer-events: auto; box-shadow: 0 0 0 1px #fff; user-select: none; }
+    /* A sheet: radius 18, a hairline edge and one shadow, on paper. */
+    .box { position: fixed; width: 300px; pointer-events: auto; border-radius: 18px; padding: 14px 16px;
+           background: #f7f4f1; color: #111; box-shadow: 0 0 0 1px rgba(17,17,17,.08), 0 10px 34px rgba(0,0,0,.18);
+           font-weight: 300; font-size: 14px; line-height: 1.45; animation: rise .3s cubic-bezier(.2,.7,.2,1) both; }
     .box.night { background: #1b1b1b; color: #ececec; box-shadow: 0 0 0 1px rgba(236,236,236,.1), 0 10px 34px rgba(0,0,0,.5); }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .box { animation: none; } }
     .box .what { font-size: 11.5px; opacity: .55; margin: 0 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .box textarea { width: 100%; min-height: 64px; resize: vertical; border: 0; outline: 0; padding: 0;
                     background: transparent; color: inherit; font: inherit; caret-color: #e0301e; }
     .box .said { white-space: pre-wrap; margin: 0 0 4px; }
-    .box .row { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
+    /* Words, strongest first from the left, 22 apart; what cannot be undone comes last. */
+    .box .row { display: flex; gap: 22px; align-items: center; margin-top: 10px; }
     .box button { border: 0; background: none; color: inherit; opacity: .6; font: inherit; font-size: 13px;
-                  padding: 5px 10px; border-radius: 8px; cursor: pointer; }
-    .box button:hover { opacity: 1; background: rgba(127,127,127,.12); }
-    .box button.go { opacity: 1; color: #e0301e; }
-    .box.night button.go { color: #f0705a; }
-    .box .hint { flex: 1; font-size: 11px; opacity: .4; align-self: center; }
+                  padding: 6px 0; cursor: pointer; transition: opacity .15s; }
+    .box button:hover, .box button.go { opacity: 1; }
+    .box .hint { flex: 1; text-align: right; font-size: 11px; opacity: .45; white-space: nowrap; }
   `;
 
   function build() {
@@ -152,7 +154,7 @@
     const r = el.getBoundingClientRect();
     const at = [r.width ? (e.clientX - r.left) / r.width : 0, r.height ? (e.clientY - r.top) / r.height : 0];
     const b = make(`<p class="what">${esc(label(el))}</p><textarea placeholder="What should change here?"></textarea>
-      <div class="row"><span class="hint">Enter to keep · Esc</span><button class="no">Cancel</button><button class="go">Comment</button></div>`);
+      <div class="row"><button class="go">Comment</button><button class="no">Cancel</button><span class="hint">Enter to keep · Esc</span></div>`);
     const ta = b.querySelector('textarea');
     const save = () => {
       const text = ta.value.trim();
@@ -190,7 +192,7 @@
   // An existing note: read it, change it, mark it done or remove it.
   function openNote(n, pin) {
     const b = make(`<p class="what">${esc(n.element.tag)}</p><textarea>${esc(n.text)}</textarea>
-      <div class="row"><button class="del">Delete</button><button class="done">Done</button><button class="go">Keep</button></div>`);
+      <div class="row"><button class="go">Keep</button><button class="done">Done</button><button class="del">Delete</button></div>`);
     const ta = b.querySelector('textarea');
     const keep = () => { const t = ta.value.trim(); closeBox(); if (t && t !== n.text) post({ type: 'edit', id: n.id, text: t }); };
     ta.addEventListener('keydown', (k) => {
