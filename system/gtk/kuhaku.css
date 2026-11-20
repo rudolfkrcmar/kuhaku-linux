@@ -28,3 +28,97 @@ messagedialog button:hover label, messagedialog button.default label { color: #e
 messagedialog button.default label { border-bottom: 1px solid #f0705a; }
 messagedialog button:focus label { color: #ececec; }
 messagedialog selection { background: rgba(240,112,90,.35); color: #ececec; }
+
+/* Apps' "Save as" and "Open" windows (the GTK file chooser, like the Claude app's Export):
+   night paper, the name to write on a hairline, places as words, the folder you are in marked
+   with the one red line, files in light type, and two words to answer. No icons but the files'. */
+filechooser, filechooser ~ .dialog-action-box, filechooser ~ .dialog-action-box buttonbox,
+filechooser box, filechooser grid, filechooser stack, filechooser paned,
+filechooser placessidebar, filechooser placessidebar list, filechooser viewport,
+filechooser scrolledwindow, filechooser placesview, filechooser placesview list, filechooser frame,
+filechooser .view, filechooser treeview.view, filechooser treeview.view header button {
+  background: #121212; background-image: none; color: #ececec;
+  border: none; box-shadow: none; text-shadow: none;
+}
+filechooser *, filechooser ~ .dialog-action-box * { font-family: "Inter Variable", Inter, sans-serif; font-weight: 300; }
+filechooser { padding: 0; }
+filechooser selection, filechooser ~ .dialog-action-box selection { background: rgba(240,112,90,.35); color: #ececec; }
+
+/* The name: a line to write on, its label quiet beside it. The caret is red: where you are. */
+filechooser .search-bar { padding: 26px 32px 18px; border-bottom: 1px solid rgba(236,236,236,.08); }
+filechooser .search-bar label { color: #9a9a9a; font-size: 12.5px; margin-right: 6px; }
+filechooser entry {
+  background: none; color: #ececec; border: none; border-radius: 0; box-shadow: inset 0 -1px rgba(236,236,236,.18);
+  padding: 4px 0; min-height: 0; font-size: 15px; caret-color: #f0705a; outline: none;
+}
+filechooser entry:focus { box-shadow: inset 0 -1px rgba(236,236,236,.45); }
+filechooser entry image { color: #9a9a9a; -gtk-icon-shadow: none; }
+
+/* Places: words, grey at rest; the one you are in is ink with the red line beside it. */
+filechooser paned > separator { background: rgba(236,236,236,.08); min-width: 1px; background-image: none; border: none; }
+filechooser placessidebar list { padding: 14px 0; }
+filechooser placessidebar row { background: none; border-radius: 0; padding: 0; margin-left: 32px; min-height: 30px; outline: none; }
+filechooser placessidebar row .sidebar-label { color: #9a9a9a; font-size: 13px; padding-left: 0; }
+filechooser placessidebar row:hover .sidebar-label { color: #ececec; }
+filechooser placessidebar row:selected { background: none; box-shadow: inset 1.5px 0 #f0705a; }
+filechooser placessidebar row:selected .sidebar-label { color: #ececec; }
+filechooser placessidebar .sidebar-icon { opacity: 0; min-width: 0; -gtk-icon-transform: scale(0); margin: 0 -8px 0 0; }
+filechooser placessidebar row.sidebar-new-bookmark-row .sidebar-label { color: #666666; }
+filechooser placessidebar separator { background: rgba(236,236,236,.08); margin: 10px 28px 10px 42px; min-height: 1px; }
+filechooser placessidebar .sidebar-button { background: none; border: none; box-shadow: none; color: #9a9a9a; }
+
+/* Where you are: the path as words; the folder you are in is ink. */
+filechooser .path-bar { padding: 0; }
+filechooser .path-bar button, filechooser .path-bar + button, filechooser button.popup {
+  background: none; border: none; border-radius: 0; box-shadow: none; outline: none;
+  padding: 4px 6px; min-height: 0; min-width: 0; color: #9a9a9a; -gtk-icon-shadow: none;
+}
+filechooser .path-bar button label { color: #9a9a9a; font-size: 13px; }
+filechooser .path-bar button:hover label, filechooser .path-bar button:checked label { color: #ececec; }
+filechooser .path-bar button:checked { background: none; }
+filechooser .path-bar button image { opacity: 0; min-width: 0; -gtk-icon-transform: scale(0); margin: 0 -6px 0 0; }
+filechooser .path-bar button.image-button image { opacity: 1; -gtk-icon-transform: none; margin: 0; color: #9a9a9a; }
+filechooser .path-bar button.slider-button image { opacity: 1; -gtk-icon-transform: none; margin: 0; color: #9a9a9a; }
+filechooser .path-bar button.slider-button:disabled image { opacity: .3; }
+filechooser button.popup:hover, filechooser .path-bar button:hover image { color: #ececec; }
+filechooser revealer > box.view { padding: 14px 24px 10px 18px; }
+filechooser stack.view > box > scrolledwindow { margin: 0 18px 0 18px; }
+filechooser button.popup image, filechooser .path-bar button image { -gtk-icon-style: symbolic; color: #9a9a9a; }
+
+/* Files: light type on paper, the chosen one on a faint sheet. Headings are small and grey. */
+filechooser treeview.view { font-size: 13px; color: #ececec; }
+filechooser treeview.view:selected, filechooser treeview.view:selected:focus {
+  background: rgba(236,236,236,.08); color: #ececec;
+}
+filechooser treeview.view:hover { background: rgba(236,236,236,.04); }
+filechooser treeview.view header button {
+  padding: 4px 6px 8px 6px; border-bottom: 1px solid rgba(236,236,236,.08); border-radius: 0; min-height: 0;
+}
+filechooser treeview.view header button label { color: #666666; font-size: 12px; }
+filechooser treeview.view header button:hover label { color: #9a9a9a; }
+filechooser treeview.view header button image { color: #666666; -gtk-icon-transform: scale(.7); }
+filechooser treeview.view.dnd { border: none; }
+filechooser scrollbar, filechooser scrollbar trough { background: none; border: none; }
+filechooser scrollbar slider { background: rgba(236,236,236,.18); border: none; min-width: 3px; min-height: 3px; border-radius: 0; }
+
+/* Other places and empty folders. */
+filechooser placesview row { background: none; border: none; color: #ececec; }
+filechooser placesview row:hover { background: rgba(236,236,236,.04); }
+filechooser placesview label { color: #ececec; font-size: 13px; }
+filechooser placesview .dim-label, filechooser .dim-label { color: #666666; opacity: 1; }
+filechooser placesview image { opacity: 0; min-width: 0; -gtk-icon-transform: scale(0); }
+filechooser placesview .sidebar-button image { opacity: 1; -gtk-icon-transform: none; color: #9a9a9a; }
+filechooser placesview separator { background: rgba(236,236,236,.08); }
+filechooser placesview > actionbar, filechooser placesview actionbar box { background: #121212; border: none; color: #9a9a9a; }
+
+/* The answer: two words, Cancel grey, the main one ink. */
+filechooser ~ .dialog-action-box { padding: 12px 32px 22px; border-top: 1px solid rgba(236,236,236,.08); }
+filechooser ~ .dialog-action-box buttonbox { margin: 0; }
+filechooser ~ .dialog-action-box button {
+  background: none; border: none; box-shadow: none; text-shadow: none; border-radius: 0;
+  padding: 4px 0; margin: 0 0 0 26px; min-height: 0; outline-color: transparent;
+}
+filechooser ~ .dialog-action-box button label { color: #9a9a9a; font-size: 15px; }
+filechooser ~ .dialog-action-box button:hover label, filechooser ~ .dialog-action-box button:focus label,
+filechooser ~ .dialog-action-box button.default label { color: #ececec; }
+filechooser ~ .dialog-action-box button:disabled label { color: #666666; }
