@@ -362,12 +362,17 @@ class Power(unittest.TestCase):
 
     def test_read_power(self):
         self.assertEqual(
-            ks.read_power(), {"screen_off": 10, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0}
+            ks.read_power(), {"screen_off": 10, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0, "lock_off": 0}
         )  # nothing chosen yet
         ks.DESKTOP.write_text('{"power": {"screen_off": 15, "sleep_after": 10, "lid": "oops"}}')
-        self.assertEqual(ks.read_power(), {"screen_off": 15, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0})
+        self.assertEqual(
+            ks.read_power(), {"screen_off": 15, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0, "lock_off": 0}
+        )
         ks.DESKTOP.write_text('{"power": {"sleep_after": 30}}')
-        self.assertEqual(ks.read_power(), {"screen_off": 10, "sleep_after": 30, "lid": 1, "charge": 80, "full_once": 0})
+        self.assertEqual(
+            ks.read_power(),
+            {"screen_off": 10, "sleep_after": 30, "lid": 1, "charge": 80, "full_once": 0, "lock_off": 0},
+        )
 
     def test_write_power(self):
         ks.DESKTOP.write_text('{"dpi": 120}')

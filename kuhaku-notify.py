@@ -8,8 +8,12 @@ on its own after a few seconds (an urgent one stays until clicked). Clicking a c
 what the app offered for it; buttons appear for any other choices.
 
 Every notice is also kept (notices.sqlite) for the home screen's list (F9).
+
+Settings, Notices (desktop.json "notices"): quiet for a while (only urgent cards show), apps
+that never show a card, cards without their words, and how long a card stays.
 """
 
+import json
 import os
 import re
 import sqlite3
@@ -28,6 +32,7 @@ from kuhaku_log import report  # faults go to the log instead of vanishing
 from kuhaku_sun import theme
 
 LOG = Path.home() / ".local" / "state" / "kuhaku" / "notices.sqlite"
+DESKTOP = Path.home() / ".config" / "kuhaku" / "desktop.json"
 KEEP = 200  # notices kept for the list
 WIDTH = 360
 MARGIN = 20  # from the screen's edge
@@ -106,6 +111,28 @@ def css(t):
 def plain(text):
     """Bodies may carry a little markup (<b>, <a>); the card shows only the words."""
     return unescape(re.sub(r"<[^>]+>", "", text or "")).strip()
+
+
+def choices():
+    """What the person chose in Settings, Notices (read for every notice: they may change any time)."""
+    try:
+        n = json.loads(DESKTOP.read_text()).get("notices") or {}
+    except FileNotFoundError:
+        n = {}
+    except Exception:
+        report()
+        n = {}
+    return n if isinstance(n, dict) else {}
+
+
+def shows(n, app, urgent, now=None):
+    """Whether a card appears: urgent ones always do; a muted app or a quiet spell keeps the rest away."""
+    if urgent:
+        return True
+    if app in (n.get("muted") or []):
+        return False
+    q = n.get("quiet_until") or 0
+    return not (q == -1 or q > (now if now is not None else time.time()))
 
 
 # --- the kept list ------------------------------------------------------------------
@@ -307,6 +334,14 @@ class Server:
         value = hints.get("value")
         if not hints.get("transient") and replaces not in self.cards:
             keep(app, title, text)
+        n = choices()
+        if not shows(n, app, urgent):
+            self.last = time.monotonic()
+            return nid
+        if not n.get("previews", 1):  # cards without their words; the list keeps them
+            title, text = "New notice", ""
+        if timeout < 0 and n.get("show_s") in (4, 6, 10):
+            timeout = n["show_s"] * 1000
         card = self.cards.get(nid) or Card(self, nid)
         self.cards[nid] = card
         card.fill(app, title, text, pairs, urgent, value if isinstance(value, int) else None, timeout)

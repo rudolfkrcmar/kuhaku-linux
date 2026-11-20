@@ -2,8 +2,8 @@
 
 Kūhaku is a set of small Python programs on Debian 13 (or Linux Mint), X11. It is its own session, not an XFCE desktop. The one XFCE part it
 borrows is the window manager, xfwm4 (with xfconf, where xfwm4 keeps its settings). Everything else
-around the apps is Kūhaku's: keys, text size and touchpad (`kuhaku-keys.py`), screen off, sleep, lid
-and battery (`kuhaku-powerd.py`), notifications (`kuhaku-notify.py`), all reading
+around the apps is Kūhaku's: keys, keyboard layouts, text size and touchpad (`kuhaku-keys.py`), screen off, sleep, lid,
+locking when the screen goes off and battery (`kuhaku-powerd.py`), notifications and which of them show (`kuhaku-notify.py`), all reading
 `~/.config/kuhaku/desktop.json`.
 Each visible app is a GTK window holding a web page (WebKitGTK): the page draws, Python does the
 work. Claude Code does what people ask, in the background, through its command line.

@@ -35,8 +35,9 @@ from kuhaku_x11 import X, Xss, open_display
 
 CONFIG = Path.home() / ".config" / "kuhaku" / "desktop.json"
 LID_SAVED = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "kuhaku" / "lid" / "saved"
-DEFAULTS = {"screen_off": 10, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0}
-# minutes, minutes (0 never), 1 sleep / 3 lock / 0 screen off, 80 care / 100 always full, fill once
+DEFAULTS = {"screen_off": 10, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0, "lock_off": 0}
+# minutes, minutes (0 never), 1 sleep / 3 lock / 0 screen off, 80 care / 100 always full, fill once,
+# lock when the screen goes off by itself
 NUDGE, LOW, CRITICAL = 20, 10, 4  # battery percent: a gentle card, a firm one, then sleep
 CARE = (75, 80)  # charge from, charge to: kept between them while plugged in
 FULL = (0, 100)  # the firmware's own: always fill
@@ -304,6 +305,7 @@ class Power:
         self.lid_fd = None
         self.key_fd = None
         self.slept_at = -1e9
+        self.locked_idle = False
         self.warned = self.nudged = False
         self.unplugged_at = None  # when the charger came out, while it stays out
         self.unplugs = load_unplugs()
@@ -482,6 +484,7 @@ class Power:
             if m != self.mtime:
                 self.mtime, self.cfg = m, load()
                 self.apply()
+            self.lock_when_off()
             after = int(self.cfg.get("sleep_after") or 0) * 60
             now = time.monotonic()
             if after and not self.held() and self.idle.seconds() >= after and now - self.slept_at > after:
@@ -491,6 +494,22 @@ class Power:
         except Exception:
             report()
         return True
+
+    def lock_when_off(self):
+        """Settings, Privacy: the screen went off on its own, so the session locks (once per idle spell)."""
+        off = int(self.cfg.get("screen_off") or 0) * 60
+        if not (int(self.cfg.get("lock_off") or 0) and off) or self.held("screen"):
+            self.locked_idle = False
+            return
+        idle = self.idle.seconds()
+        if idle < off:
+            self.locked_idle = False
+        elif not self.locked_idle:
+            self.locked_idle = True
+            try:
+                subprocess.Popen(["loginctl", "lock-session"])
+            except OSError:
+                report()
 
     def battery(self):
         dev = "/org/freedesktop/UPower/devices/DisplayDevice"

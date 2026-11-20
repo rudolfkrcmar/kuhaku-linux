@@ -565,7 +565,7 @@ def note_limits(info):
 # --- Screens -------------------------------------------------------------------
 # Power: screen off, sleep when idle, the lid. Kept in desktop.json; kuhaku-powerd.py applies
 # them. One choice applies on battery and plugged in alike.
-POWER_KEYS = {"screen_off": 10, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0}
+POWER_KEYS = {"screen_off": 10, "sleep_after": 0, "lid": 1, "charge": 80, "full_once": 0, "lock_off": 0}
 
 
 def read_power():
@@ -1092,3 +1092,141 @@ def notices(clear=False):
         }
         for t, a, su, b, r in rows
     ]
+
+
+# --- Notices, privacy and keyboard layouts (desktop.json) ---------------------------
+# Notices: kuhaku-notify.py reads these for every notice. quiet_until: 0 off, -1 always, else a
+# moment (seconds since the epoch) until which cards stay away. Urgent ones still show; every
+# notice is still kept for the list.
+NOTICE_KEYS = {"quiet_until": 0, "previews": 1, "show_s": 6, "muted": []}
+
+
+def read_notice_prefs(cfg=None):
+    have = (cfg if cfg is not None else read_desktop()).get("notices") or {}
+    out = {k: have.get(k, v) for k, v in NOTICE_KEYS.items()}
+    if not isinstance(out["muted"], list):
+        out["muted"] = []
+    return out
+
+
+def notices_quiet(prefs, now=None):
+    q = prefs.get("quiet_until") or 0
+    return q == -1 or q > (now if now is not None else time.time())
+
+
+def quiet_until(choice, now=None):
+    """'off', 'hour', 'morning' (the next 7:00) or 'always' -> the stored value."""
+    now = now if now is not None else time.time()
+    if choice == "hour":
+        return int(now + 3600)
+    if choice == "morning":
+        t = time.localtime(now)
+        seven = time.mktime((t.tm_year, t.tm_mon, t.tm_mday, 7, 0, 0, 0, 0, -1))
+        return int(seven if seven > now else time.mktime((t.tm_year, t.tm_mon, t.tm_mday + 1, 7, 0, 0, 0, 0, -1)))
+    return -1 if choice == "always" else 0
+
+
+def notice_apps():
+    """The apps that sent notices lately, newest first (for muting one by one)."""
+    import sqlite3
+
+    if not NOTIFY_LOG.exists():
+        return []
+    try:
+        db = sqlite3.connect(str(NOTIFY_LOG), timeout=2)
+        rows = db.execute(
+            "SELECT app_name FROM notifications WHERE app_name != '' GROUP BY app_name ORDER BY MAX(id) DESC LIMIT 12"
+        ).fetchall()
+        db.close()
+        return [r[0] for r in rows]
+    except Exception:
+        report()
+        return []
+
+
+def write_notice(key, value):
+    def change(cfg):
+        n = cfg.setdefault("notices", {})
+        if key == "quiet":
+            n["quiet_until"] = quiet_until(str(value))
+        elif key == "previews":
+            n["previews"] = 1 if str(value) == "1" else 0
+        elif key == "show_s" and str(value) in ("4", "6", "10"):
+            n["show_s"] = int(value)
+        elif key == "mute":  # "app|1" mutes, "app|0" lets it show again
+            app, _, on = str(value).rpartition("|")
+            muted = [a for a in n.get("muted") or [] if a != app]
+            n["muted"] = muted + [app] if on == "1" and app else muted
+
+    write_desktop(change)
+
+
+# Privacy: whether Claude may look through the phone's camera (kuhaku-eye.py).
+PRIVACY_KEYS = {"eye": 1}
+
+
+def read_privacy(cfg=None):
+    have = (cfg if cfg is not None else read_desktop()).get("privacy") or {}
+    return {k: have.get(k, v) for k, v in PRIVACY_KEYS.items()}
+
+
+def write_privacy(key, value):
+    if key in PRIVACY_KEYS:
+        write_desktop(lambda cfg: cfg.setdefault("privacy", {}).__setitem__(key, 1 if str(value) == "1" else 0))
+
+
+# Keyboard layouts: kuhaku-keys.py sets them (setxkbmap) at login and whenever they change;
+# Alt+Shift moves to the next one.
+LAYOUTS = {
+    "us": "English (US)",
+    "gb": "English (UK)",
+    "cz": "Czech",
+    "sk": "Slovak",
+    "de": "German",
+    "at": "German (Austria)",
+    "ch": "Swiss German",
+    "fr": "French",
+    "es": "Spanish",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "hu": "Hungarian",
+    "se": "Swedish",
+    "no": "Norwegian",
+    "dk": "Danish",
+    "fi": "Finnish",
+    "ua": "Ukrainian",
+    "ru": "Russian",
+    "gr": "Greek",
+    "tr": "Turkish",
+    "jp": "Japanese",
+}
+SWITCH_LAYOUT = "grp:alt_shift_toggle"
+
+
+def read_layouts(cfg=None):
+    have = (cfg if cfg is not None else read_desktop()).get("layouts")
+    if isinstance(have, list) and have:
+        return [x for x in have if x in LAYOUTS] or ["us"]
+    _, out, _ = run(["setxkbmap", "-query"])
+    found = re.search(r"layout:\s*(\S+)", out)
+    return [x for x in (found.group(1).split(",") if found else ["us"]) if x in LAYOUTS] or ["us"]
+
+
+def layouts_command(layouts):
+    return ["setxkbmap", "-layout", ",".join(layouts), "-option", "", "-option", SWITCH_LAYOUT]
+
+
+def write_layouts(action, value):
+    now = read_layouts()
+    if action == "add" and value in LAYOUTS and value not in now and len(now) < 4:
+        now = now + [value]
+    elif action == "remove" and value in now and len(now) > 1:
+        now = [x for x in now if x != value]
+    elif action == "first" and value in now:
+        now = [value] + [x for x in now if x != value]
+    else:
+        return
+    write_desktop(lambda cfg: cfg.__setitem__("layouts", now))
+    run(layouts_command(now))

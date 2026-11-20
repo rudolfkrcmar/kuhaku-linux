@@ -17,6 +17,7 @@ desktop.json is read again whenever it changes; Settings writes it.
 import ctypes
 import json
 import os
+import re
 import select
 import shlex
 import struct
@@ -214,6 +215,7 @@ class Keys:
         self.mtime = None
         self.serial = 0
         self.devices: set = set()
+        self.applied_layouts: list[str] = []
         self.win = X.XCreateSimpleWindow(self.dpy, self.root, -1, -1, 1, 1, 0, 0, 0)
         self.atom = {n: X.XInternAtom(self.dpy, n.encode(), 0) for n in (selection, "_XSETTINGS_SETTINGS", "MANAGER")}
         self.reload()
@@ -232,6 +234,22 @@ class Keys:
         self.publish()
         self.devices = set()  # every pointer gets its settings again
         self.pointers()
+        self.layouts()
+
+    # --- keyboard layouts (Settings, Language and time): Alt+Shift moves to the next one ---
+    def layouts(self):
+        want = [x for x in self.cfg.get("layouts") or [] if isinstance(x, str) and re.fullmatch(r"[a-z]{2,3}", x)]
+        if not want or want == self.applied_layouts:
+            return
+        self.applied_layouts = want
+        try:
+            subprocess.run(
+                ["setxkbmap", "-layout", ",".join(want), "-option", "", "-option", "grp:alt_shift_toggle"],
+                timeout=5,
+                capture_output=True,
+            )
+        except (OSError, subprocess.SubprocessError):
+            report()
 
     # --- keys ---
     def grab(self):

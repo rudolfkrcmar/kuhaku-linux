@@ -586,3 +586,4 @@ body.picking .stage, body.picking .hint, body.picking .menu, body.picking #quick
 
 /* Marks and glyphs: the dot is the only fill. */
 svg .dot { fill:currentColor; stroke:none; }
+.settings .list .choice.up { max-height:min(360px, 60vh); overflow-y:auto; scrollbar-width:none; flex-wrap:nowrap; }

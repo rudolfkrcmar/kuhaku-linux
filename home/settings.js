@@ -2,23 +2,23 @@
 // A place is a title, one grey line saying how things stand, then groups of rows. A row is one setting:
 // its name (a grey hint under it if it needs one) and its control, every control on one right edge
 // (the codex, Controls 9.4). Classic script, loaded after pages.js: it uses CHOICE, OPT and chose.
-let settingsCat = 'look', settingsQuery = '', acctAdding = false, unlockForget = null, settingsTimer = 0;
+let settingsCat = 'look', settingsQuery = '', acctAdding = false, unlockForget = null, settingsAsk = null, settingsTimer = 0;
 
 // The places, in three groups. What is used most comes first in each.
 const PLACES = [
-  ['You', [['look', 'Look'], ['ai', 'AI'], ['lock', 'Lock and unlock']]],
+  ['You', [['look', 'Look'], ['notices', 'Notices'], ['ai', 'AI'], ['privacy', 'Privacy']]],
   ['Computer', [['sound', 'Sound'], ['display', 'Display'], ['network', 'Network'], ['battery', 'Battery'], ['input', 'Keyboard and trackpad']]],
-  ['System', [['time', 'Date and time'], ['storage', 'Storage'], ['updates', 'Updates'], ['about', 'About']]],
+  ['System', [['time', 'Language and time'], ['storage', 'Storage'], ['updates', 'Updates'], ['about', 'About']]],
 ];
 // Other names a place is asked for by (the menu, the battery card, keyboard shortcuts, older pages).
-const PLACE_ALIAS = { general: 'look', appearance: 'look', power: 'battery', claude: 'ai', unlock: 'lock', keys: 'input',
+const PLACE_ALIAS = { general: 'look', appearance: 'look', power: 'battery', claude: 'ai', unlock: 'privacy', lock: 'privacy', notifications: 'notices', language: 'time', keys: 'input',
   trackpad: 'input', tools: 'about', wifi: 'network' };
 const catOf = (s) => PLACE_ALIAS[s] || (PLACES.some(([, l]) => l.some(([id]) => id === s)) ? s : settingsCat);
 
 // Opened from the menu, a card or a key: go to that place, with an empty search.
 function settingsOpened(section) {
   if (section && section !== 'settings') settingsCat = catOf(section);
-  settingsQuery = ''; acctAdding = false; unlockForget = null;
+  settingsQuery = ''; acctAdding = false; unlockForget = null; settingsAsk = null;
   settingsFetch();
 }
 // Battery and network come from the cards' own readers; the battery is read again every 10 seconds.
@@ -59,25 +59,8 @@ function settingsPlaces(p) {
 
   out.ai = aiPlace(p);
 
-  const ul = p.unlock;
-  if (ul && ul.reader) {
-    const NICE = (f) => f.replace('-finger', '').replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
-    const fs = ul.fingers || [];
-    const rows = fs.map((f) => ({ n: NICE(f), k: 'fingerprint finger',
-      h: unlockForget === f ? 'Press again to forget this finger.' : '',
-      c: unlockForget === f ? WORD('Forget', `data-act2="unlock" data-what="forget-finger" data-v="${f}"`, true)
-        : WORD('Forget', `data-act2="unlock-ask" data-v="${f}"`) }));
-    if (!fs.length) rows.push({ n: 'Set up', h: 'Three fingers, one at a time. About two minutes.', k: 'fingerprint',
-      c: WORD('Start', 'data-act2="unlock" data-what="guided"', true) });
-    if (fs.length < 10) rows.push({ n: fs.length ? 'Add a finger' : 'Teach one finger', k: 'fingerprint',
-      h: fs.length && fs.length < 3 ? 'Three or more make it much more reliable.' : '',
-      c: WORD(fs.length ? 'Add' : 'Teach', 'data-act2="unlock" data-what="add-finger"', !!fs.length && fs.length < 3) });
-    if (fs.length > 1) rows.push({ n: 'Forget all fingers', k: 'fingerprint',
-      h: unlockForget === 'all' ? 'Press again to forget all of them. The password still opens the lock.' : 'The password still opens the lock.',
-      c: unlockForget === 'all' ? WORD('Forget all', 'data-act2="unlock" data-what="forget-fingers"', true) : WORD('Forget all', 'data-act2="unlock-ask"') });
-    out.lock = { title: 'Lock and unlock', sub: fs.length >= 3 ? 'Any of these fingers opens the lock screen, and so does your password.'
-      : 'The reader is the power button. Your password always opens the lock screen.', parts: [{ cap: 'Fingers', rows }] };
-  }
+  out.notices = noticesPlace(p);
+  out.privacy = privacyPlace(p);
 
   const outCur = (p.outputs || []).find((o) => o.active) || {};
   out.sound = { title: 'Sound', sub: outCur.name ? 'Playing through ' + esc(outCur.name) + '.' : 'Volume and microphone.', parts: [
@@ -109,16 +92,24 @@ function settingsPlaces(p) {
       ['Ctrl + Shift + 5', 'Record the screen, with your microphone', 'Again to stop.'], ['Ctrl + Shift + 6', 'Record a part of the screen']]
       .map(([key, n, h]) => ({ n, h, k: 'screenshot capture video shortcut keys', c: `<span class="st-keys">${key}</span>` })) }] };
 
-  const tm = p.time;
-  if (tm) {
-    const now = new Date();
-    out.time = { title: 'Date and time', sub: `${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}, ${esc(tm.zone || '')}.`, parts: [{ rows: [
-      { n: 'Set the time automatically', h: tm.auto ? (tm.synced ? 'In step with the internet.' : 'Not yet checked with the internet.') : 'Set by hand.', k: 'clock sync internet ntp',
+  const tm = p.time, ly = p.layouts || { on: [], all: {} };
+  const lyName = (x) => esc(ly.all[x] || x);
+  const typing = { cap: 'Typing', rows: [
+    { n: 'Kūhaku speaks English', h: 'The AI answers in the language you write in.', k: 'language english translate locale', c: '' },
+    ...ly.on.map((x, i) => ({ n: lyName(x), k: 'keyboard layout language typing input',
+      h: i === 0 ? (ly.on.length > 1 ? 'Used first. Alt + Shift moves to the next one.' : 'The keyboard layout.') : '',
+      c: (i ? WORD('Use first', `data-pref="layout_first" data-v="${x}"`) : '') + (ly.on.length > 1 ? WORD('Remove', `data-pref="layout_remove" data-v="${x}"`) : '') })),
+    ly.on.length < 4 && { n: 'Add a layout', h: 'Another language to type in.', k: 'keyboard layout language typing input',
+      c: CHOICE(Object.entries(ly.all).filter(([x]) => !ly.on.includes(x)).map(([x, l]) => ({ label: esc(l), sel: false, attrs: `data-pref="layout_add" data-v="${x}"` })), true)
+        .replace('<span class="lv">Choose</span>', '<span class="lv">Choose a language</span>') }] };
+  const now = new Date();
+  out.time = { title: 'Language and time', sub: tm ? `${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}, ${esc(tm.zone || '')}.` : 'Typing and the clock.', parts: [typing,
+    tm && { cap: 'Time', rows: [
+      { n: 'Set the time automatically', h: tm.auto ? (tm.synced ? 'In step with the internet.' : 'Not yet checked with the internet.') : 'Set by hand.', k: 'clock sync internet ntp date',
         c: SWITCH(tm.auto, `data-switch="time_auto" data-v="${tm.auto ? 0 : 1}"`, 'Set the time automatically') },
       !tm.auto && { n: 'Date and time', k: 'clock', c: FIELD('type="datetime-local" id="timeSet"', tm.now) + WORD('Set', 'data-act2="time-set"', true) },
-      { n: 'Time zone', h: 'Type a city, like Europe/Prague.', k: 'timezone clock city region',
+      { n: 'Time zone', h: 'Type a city, like Europe/Prague.', k: 'timezone clock city region date',
         c: FIELD('id="timeZone" list="zones"', tm.zone) + `<datalist id="zones">${(tm.zones || []).map((z) => `<option value="${z}">`).join('')}</datalist>` }] }] };
-  }
 
   if (a.disk) {
     const [free, total] = a.disk, used = Math.round(100 * (total - free) / Math.max(total, 1));
@@ -141,6 +132,68 @@ function settingsPlaces(p) {
       .filter(([, v]) => v).map(([n, v]) => ({ n, k: 'about version hardware', c: VAL(esc(v)) })) },
     tools.length && { cap: 'System tools', k: 'tools apps', raw: '<div class="tools">' + tools.map((t) => WORD(esc(t.name), `data-act2="tool" data-v="${esc(t.id)}"`)).join('') + '</div>' }] };
   return out;
+}
+
+// Notices: quiet for a while, apps that never show a card, cards without their words.
+function noticesPlace(p) {
+  const n = p.notices || { quiet_until: 0, previews: 1, show_s: 6, muted: [], apps: [] };
+  const q = n.quiet_until || 0, quiet = q === -1 || q > (n.now || Date.now() / 1000);
+  const until = q > 0 ? new Date(q * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  const qv = !quiet ? 'off' : q === -1 ? 'always' : q - (n.now || 0) <= 3600 ? 'hour' : 'morning';
+  const apps = [...new Set([...(n.apps || []), ...(n.muted || [])])];
+  return { title: 'Notices', sub: !quiet ? 'Cards come in at the top right, and leave by themselves.' : q === -1 ? 'Quiet. Only urgent notices show.' : `Quiet until ${until}. Only urgent notices show.`,
+    parts: [
+      { rows: [
+        { n: 'Quiet', h: 'Notices wait in the list (F9). Urgent ones, like a low battery, still show.', k: 'do not disturb dnd silence focus mute',
+          c: OPT('notices_quiet', [['off', 'Off'], ['hour', 'An hour'], ['morning', 'Until 7:00'], ['always', 'Always']], qv) },
+        { n: 'Show what they say', h: n.previews ? 'A card shows its title and a line or two.' : 'A card shows only the app. The list keeps the words.', k: 'preview content private privacy',
+          c: SWITCH(!!n.previews, `data-switch="notices_previews" data-v="${n.previews ? 0 : 1}"`, 'Show what they say') },
+        { n: 'A card stays for', k: 'duration time seconds', c: OPT('notices_show_s', [[4, '4 s'], [6, '6 s'], [10, '10 s']], n.show_s) },
+        { n: 'The list', h: 'What came in, newest first. F9 opens it.', k: 'history clear', c: WORD('Open', 'data-act2="notices-open"') + WORD('Clear', 'data-act2="notices-clear"') }] },
+      { cap: 'Apps', rows: apps.length ? apps.map((x) => ({ n: esc(x), h: (n.muted || []).includes(x) ? 'Kept in the list, never a card.' : '', k: 'app mute notifications',
+        c: SWITCH(!(n.muted || []).includes(x), `data-switch="notices_mute" data-v="${esc(x)}|${(n.muted || []).includes(x) ? 0 : 1}"`, 'Cards from ' + esc(x)) }))
+        : [{ n: 'No app has sent a notice yet', h: 'Each will be listed here, to be quieted one by one.', c: '' }] }] };
+}
+
+// Privacy: the lock, the phone's camera, what the AI may do, and what is kept.
+function privacyPlace(p) {
+  const pv = p.privacy || { eye: 1, answers: 0, picture: false }, pw = p.power || {}, ul = p.unlock;
+  const mode = p.permission_mode === 'bypassPermissions' ? 'Anything, and asks before what cannot be undone.' : 'Careful: it reads and edits files, but runs no commands.';
+  const ask = (key, label, word, hint, sure) => settingsAsk === key
+    ? { n: label, h: sure, c: WORD(word, `data-act2="do" data-v="${key}"`, true) }
+    : { n: label, h: hint, c: WORD(word, `data-act2="ask" data-v="${key}"`) };
+  const parts = [
+    { cap: 'Lock', rows: [
+      pw.screen_off != null && { n: 'Lock when the screen goes off', h: pw.screen_off ? `After ${pw.screen_off} minutes without a touch. Closing the lid follows its own choice, in Battery.` : 'The screen never goes off by itself; choose when, in Battery.',
+        k: 'lock screen password security idle', c: SWITCH(!!pw.lock_off, `data-switch="lock_off" data-v="${pw.lock_off ? 0 : 1}"`, 'Lock when the screen goes off') },
+      { n: 'Lock now', h: 'Ctrl + Alt + L, from anywhere.', k: 'lock screen password', c: WORD('Lock', 'data-act2="do" data-v="lock-now"') }] },
+  ];
+  if (ul && ul.reader) {
+    const NICE = (f) => f.replace('-finger', '').replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
+    const fs = ul.fingers || [];
+    const rows = fs.map((f) => ({ n: NICE(f), k: 'fingerprint finger unlock',
+      h: unlockForget === f ? 'Press again to forget this finger.' : '',
+      c: unlockForget === f ? WORD('Forget', `data-act2="unlock" data-what="forget-finger" data-v="${f}"`, true)
+        : WORD('Forget', `data-act2="unlock-ask" data-v="${f}"`) }));
+    if (!fs.length) rows.push({ n: 'Set up', h: 'Three fingers, one at a time. About two minutes.', k: 'fingerprint unlock',
+      c: WORD('Start', 'data-act2="unlock" data-what="guided"', true) });
+    if (fs.length < 10) rows.push({ n: fs.length ? 'Add a finger' : 'Teach one finger', k: 'fingerprint unlock',
+      h: fs.length && fs.length < 3 ? 'Three or more make it much more reliable.' : '',
+      c: WORD(fs.length ? 'Add' : 'Teach', 'data-act2="unlock" data-what="add-finger"', !!fs.length && fs.length < 3) });
+    if (fs.length > 1) rows.push({ n: 'Forget all fingers', k: 'fingerprint unlock',
+      h: unlockForget === 'all' ? 'Press again to forget all of them. The password still opens the lock.' : 'The password still opens the lock.',
+      c: unlockForget === 'all' ? WORD('Forget all', 'data-act2="unlock" data-what="forget-fingers"', true) : WORD('Forget all', 'data-act2="unlock-ask"') });
+    parts.push({ cap: 'Fingerprints', act: `<span>${fs.length >= 3 ? 'Any of these opens the lock' : 'The reader is the power button'}</span>`, rows });
+  }
+  parts.push({ cap: 'The AI', rows: [
+    { n: 'May do', h: mode, k: 'permissions safety careful commands claude', c: WORD('Change', 'data-cat="ai"') },
+    { n: 'The safety net', h: 'Whatever it may do, it never wipes disks, deletes whole folders outright, force-pushes over main, sends secrets over the network or adds login keys.', k: 'guard safety protection', c: '' },
+    { n: 'Look through the phone', h: pv.eye ? 'When you ask, it takes one picture with your phone, if the camera page is open there. Nothing is streamed.' : 'Off. The AI cannot ask your phone for a picture.',
+      k: 'camera phone eye picture', c: SWITCH(!!pv.eye, `data-switch="privacy_eye" data-v="${pv.eye ? 0 : 1}"`, 'Look through the phone') }] });
+  parts.push({ cap: 'Kept on this computer', rows: [
+    ask('forget-answers', 'Answers', 'Forget', pv.answers ? `${pv.answers} answers, the last 300 at most. They come back with Alt + Left.` : 'None kept.', 'Press again to forget every answer. This cannot be undone.'),
+    pv.picture && ask('forget-picture', 'The phone’s last picture', 'Forget', 'Only the last one is kept.', 'Press again to delete it.')] });
+  return { title: 'Privacy', sub: 'Who can open the lock, what the AI may do, and what is kept here.', parts };
 }
 
 // AI: what the home screen asks first, then the other apps, voice, and the accounts.
@@ -312,6 +365,11 @@ $('page').addEventListener('click', (e) => {
   if (a === 'unlock-ask') { e.stopPropagation(); unlockForget = t.dataset.v || 'all'; renderSettings();
     setTimeout(() => { unlockForget = null; if (page === 'settings') renderSettings(); }, 5000); }
   if (a === 'unlock') unlockForget = null;
+  if (a === 'ask') { e.stopPropagation(); settingsAsk = t.dataset.v; renderSettings();
+    setTimeout(() => { settingsAsk = null; if (page === 'settings') renderSettings(); }, 5000); }
+  if (a === 'do') { e.stopPropagation(); settingsAsk = null; native({ type: 'panel', action: 'pref', key: t.dataset.v, value: 1 }); }
+  if (a === 'notices-open') { e.stopPropagation(); closePage(); openPanel('notices'); }
+  if (a === 'notices-clear') { e.stopPropagation(); native({ type: 'panel', action: 'notices-clear' }); t.textContent = 'Cleared'; }
 }, true);
 $('page').addEventListener('input', (e) => {
   if (e.target.id === 'setFind') { settingsQuery = e.target.value; renderSettings(); }

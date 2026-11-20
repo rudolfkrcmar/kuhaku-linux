@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 import gi
@@ -24,20 +25,30 @@ from kuhaku_config import ANSWERS_FILE, CONFIG_FILE, HERE, HOME
 from kuhaku_log import note as log_note
 from kuhaku_log import report
 from kuhaku_system import (
+    LAYOUTS,
     PAD_KEYS,
     POWER_KEYS,
+    notice_apps,
     read_battery,
     read_displays,
+    read_layouts,
+    read_notice_prefs,
     read_power,
+    read_privacy,
     read_time,
     read_trackpad,
     read_unlock,
     run,
     write_display,
+    write_layouts,
+    write_notice,
     write_power,
+    write_privacy,
     write_time,
     write_trackpad,
 )
+
+EYE_PICTURE = HOME / ".local/state/kuhaku/eye/latest.jpg"  # the phone's last picture (kuhaku-eye.py)
 
 # Formats covered by patents in some countries: never shipped, added only when the person chooses.
 CODECS = ("gstreamer1.0-plugins-bad", "gstreamer1.0-plugins-ugly", "gstreamer1.0-libav")
@@ -165,6 +176,9 @@ class Settings(Home):
             "ai_signing": sorted(getattr(self, "signing", set())),
             "ai_local": accounts.local_status(),
             "trackpad": read_trackpad(),
+            "notices": {**read_notice_prefs(), "apps": notice_apps(), "now": time.time()},
+            "privacy": {**read_privacy(), "answers": len(self.load_answers()), "picture": EYE_PICTURE.exists()},
+            "layouts": {"on": read_layouts(), "all": LAYOUTS},
             "unlock": read_unlock(),
             "about": {
                 "computer": model,
@@ -207,6 +221,19 @@ class Settings(Home):
             accounts.set_for(key[8:], str(value or ""))
         elif key == "local_model":
             accounts.set_local_model(value)
+        elif key.startswith("notices_"):
+            write_notice(key[8:], value)
+        elif key.startswith("privacy_"):
+            write_privacy(key[8:], value)
+        elif key.startswith("layout_"):
+            write_layouts(key[7:], str(value))
+        elif key == "forget-answers":
+            ANSWERS_FILE.write_text("[]")
+            GLib.idle_add(self.answers_forgotten)
+        elif key == "forget-picture":
+            EYE_PICTURE.unlink(missing_ok=True)
+        elif key == "lock-now":
+            subprocess.Popen(["python3", str(HERE / "kuhaku-lock.py"), "lock"], start_new_session=True)
         elif key == "theme":
             self.state["theme"] = None if value == "auto" else value
             self.save_state()
@@ -232,6 +259,10 @@ class Settings(Home):
                 self.whisper = None
             if key == "mic_button":
                 self.send("setMicMode", self.config.get(key) or "talk")
+
+    def answers_forgotten(self):
+        self.send("setAnswers", {"answers": [], "show": False})
+        return False
 
     def update_now(self):
         """Everything up to date now (asks for the password once); the OSD says when it is done."""

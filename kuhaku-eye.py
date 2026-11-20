@@ -35,6 +35,7 @@ WAIT = 20  # seconds the phone's request is held open, waiting for a question
 ANSWER = 10  # seconds Claude waits for the picture
 PHONE_GONE = WAIT + 10  # no word from the phone for this long: the page is not open
 MAX_PICTURE = 20 * 1024 * 1024
+DESKTOP = Path.home() / ".config/kuhaku/desktop.json"
 
 
 class Eye:
@@ -122,6 +123,9 @@ class Handler(BaseHTTPRequestHandler):
         if not secrets.compare_digest(self.headers.get("X-Eye-Pass", ""), PASS.read_text().strip()):
             self.json(403, {"error": "not allowed"})
             return
+        if not allowed():
+            self.json(200, {"error": "Looking through the phone is off in Settings, under Privacy."})
+            return
         with EYE.changed:
             if not EYE.phone_open():
                 self.json(200, {"error": "The camera page is not open on the phone."})
@@ -137,6 +141,17 @@ class Handler(BaseHTTPRequestHandler):
             self.json(200, {"path": str(PICTURE)})
         else:
             self.json(200, {"error": "The phone did not send a picture (its screen may be off)."})
+
+
+def allowed() -> bool:
+    """Settings, Privacy: the person may turn the eye off ("privacy": {"eye": 0} in desktop.json)."""
+    try:
+        return bool((json.loads(DESKTOP.read_text()).get("privacy") or {}).get("eye", 1))
+    except FileNotFoundError:
+        return True
+    except Exception:
+        report()
+        return True
 
 
 def serve() -> None:
