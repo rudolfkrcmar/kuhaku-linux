@@ -183,7 +183,7 @@ class FirstStart(PageCase):
 
 
 class Pictures(PageCase):
-    """The picture button opens Kūhaku's own picker: choose, look closer with Space, add with Enter."""
+    """The file button opens Kūhaku's own picker: choose, look closer with Space, add with Enter."""
 
     def setUp(self):
         self.page = home()
@@ -202,8 +202,8 @@ class Pictures(PageCase):
             "setPictures("
             + json.dumps(
                 {
-                    "folder": "Screenshots",
-                    "folders": ["Screenshots", "Pictures", "Downloads", "Other"],
+                    "folder": "Recent",
+                    "folders": ["Recent", "Downloads", "Documents", "Pictures", "Other"],
                     "items": self.items,
                 }
             )
@@ -217,8 +217,8 @@ class Pictures(PageCase):
         )
         self.page.wait(150)
 
-    def test_opening_asks_for_recent_pictures(self):
-        self.assertIn({"type": "picture", "action": "list", "folder": "Screenshots", "path": ""}, self.page.messages)
+    def test_opening_asks_for_recent_files(self):
+        self.assertIn({"type": "picture", "action": "list", "folder": "Recent", "path": ""}, self.page.messages)
         self.assertEqual(self.page.js("return document.querySelectorAll('#picks .pk').length;"), 7)
 
     def test_choose_two_and_add(self):
@@ -251,7 +251,7 @@ class Pictures(PageCase):
             "folder": "Other",
             "path": "/home/someone",
             "crumbs": [{"name": "Home", "path": "/home/someone"}],
-            "folders": ["Screenshots", "Other"],
+            "folders": ["Recent", "Other"],
             "items": [{"path": "/home/someone/Documents", "name": "Documents", "dir": True}, *self.items[:2]],
         }
         self.page.js("setPictures(" + json.dumps(home_dir) + "); return true;")
