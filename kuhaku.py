@@ -145,6 +145,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         GLib.timeout_add(1500, self.push_windows)
         GLib.timeout_add_seconds(60, self.push_theme)
         self.recording = None
+        self.rec_mic = None  # while recording: True (microphone heard), False (muted), None (no microphone)
         self.plugged = None
         GLib.timeout_add_seconds(3, self.watch_power)
         threading.Thread(target=self.listen_fifo, daemon=True).start()
@@ -164,6 +165,9 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
                 read_wifi,
                 self.open_panel,
                 vpn_fn=read_vpn,
+                rec_fn=lambda: self.recording and {"mic": self.rec_mic},
+                stop_fn=self.stop_recording,
+                mic_fn=self.toggle_rec_mic,
             )
         except Exception as e:
             print("Kūhaku: no bar over apps:", e)
@@ -343,6 +347,48 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         if self.recording:
             self.capture("record")
 
+    def toggle_rec_mic(self, _msg=None):
+        """Mutes or unmutes the microphone in this recording only (its own stream), not the computer's."""
+        if not self.recording or self.rec_mic is None:
+            return
+        want = not self.rec_mic
+        pid = self.recording[0].pid
+
+        def run():
+            try:
+                out = subprocess.run(
+                    ["pactl", "-f", "json", "list", "source-outputs"], capture_output=True, text=True, timeout=5
+                ).stdout
+                ids = [
+                    o["index"]
+                    for o in json.loads(out or "[]")
+                    if str(o.get("properties", {}).get("application.process.id")) == str(pid)
+                ]
+                for i in ids:
+                    subprocess.run(["pactl", "set-source-output-mute", str(i), "0" if want else "1"], timeout=5)
+            except Exception:
+                report()
+                return
+            if ids:
+                GLib.idle_add(self.rec_mic_set, want)
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def rec_mic_set(self, on):
+        if not self.recording:
+            return False
+        self.rec_mic = on
+        self.note("Microphone on" if on else "Microphone off", "In this recording")
+        self.rec_changed()
+        return False
+
+    def rec_changed(self):
+        """The home screen and the bar over apps show the same: recording, the microphone, and how to stop."""
+        self.send("setRecording", {"on": bool(self.recording), "mic": self.rec_mic})
+        if getattr(self, "corner", None):
+            self.corner.win.queue_draw()
+        return False
+
     def overview(self, _msg=None):
         from rundot import overview
 
@@ -500,7 +546,9 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
                 except Exception:
                     proc.kill()
                 GLib.idle_add(self.note, "Recording", "Saved to Videos")
-                GLib.idle_add(self.send, "setRecording", False)
+
+            self.rec_mic = None
+            self.rec_changed()
 
             threading.Thread(target=wait, daemon=True).start()
             return
@@ -543,8 +591,11 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             self.note("Recording", "Not available")
             return
         self.recording = (proc, path)
-        self.note("Recording", "With your microphone" if " pulsesrc " in f" {branches} " else "Same keys to stop")
-        self.send("setRecording", True)
+        self.rec_mic = True if " pulsesrc " in f" {branches} " else None
+        self.note(
+            "Recording", "Microphone on · same keys to stop" if self.rec_mic else "No microphone · same keys to stop"
+        )
+        self.rec_changed()
 
     # --- pictures for Claude: copied into ~/Pictures/ForClaude ------------
     # The page shows its own calm picker (home/pictures.js): recent pictures from a few folders,
@@ -750,6 +801,7 @@ MESSAGES = {
     "dictate": lambda k, m: k.dictate(m.get("on")),
     "picture": lambda k, m: k.pictures(m),
     "stopRecording": lambda k, m: k.stop_recording(),
+    "recMic": lambda k, m: k.toggle_rec_mic(),
     "dismiss": lambda k, m: k.dismiss(),
     "draft": lambda k, m: k.save_draft(m),
     "panel": lambda k, m: threading.Thread(target=k.panel, args=(m,), daemon=True).start(),

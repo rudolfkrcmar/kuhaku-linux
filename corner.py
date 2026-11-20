@@ -4,7 +4,8 @@ When an app is in front, a 34 px strip sits at the top of the screen (apps are k
 below it). On the right: the date, time, Wi‑Fi and battery, as on the home screen, then
 the red dot (the open apps, as cards), the red line, which takes you home to Kūhaku (the app stays open), and a cross that
 closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku in front, or a
-fullscreen app (a game), the bar steps away.
+fullscreen app (a game), the bar steps away. While the screen is recorded, the left end says so: "Stop recording"
+(a click stops it) and the microphone, on or off (a click switches it).
 """
 
 import os
@@ -67,7 +68,19 @@ def root_prop(name):
 
 
 class Corner:
-    def __init__(self, theme_fn, own_xid_fn, battery_fn, wifi_fn, open_fn=None, vpn_fn=None):
+    def __init__(
+        self,
+        theme_fn,
+        own_xid_fn,
+        battery_fn,
+        wifi_fn,
+        open_fn=None,
+        vpn_fn=None,
+        rec_fn=None,
+        stop_fn=None,
+        mic_fn=None,
+    ):
+        self.rec_fn, self.stop_fn, self.mic_fn = rec_fn, stop_fn, mic_fn  # recording: {"mic": True/False/None} or None
         self.theme_fn, self.own_xid_fn, self.battery_fn, self.wifi_fn = theme_fn, own_xid_fn, battery_fn, wifi_fn
         self.vpn_fn, self.vpn = vpn_fn, None  # a VPN in use: {"name", "app"} (kuhaku_system.read_vpn)
         self.open_fn = open_fn  # opens a home-screen panel: calendar, light, wifi, battery
@@ -314,11 +327,61 @@ class Corner:
         dw = self.text(cr, time.strftime("%a %-d %b", now), x, 9.5, hot("calendar", c["muted"]), right=True)
         zones.append((x - dw - 9, x + 9, "calendar"))
         x -= dw + 30
+        self.draw_recording(cr, c, zones)
         self.zones = zones
+
+    def draw_recording(self, cr, c, zones):
+        """Left end, while recording: a red dot, "Stop recording", then the microphone and its state."""
+        rec = self.rec_fn() if self.rec_fn else None
+        if not rec:
+            return
+        mid, x = H / 2, 20
+        on = int(time.time() * 1.25) % 2 == 0  # the dot breathes slowly, as long as it records
+        cr.set_source_rgba(0.898, 0.282, 0.302, 1 if on else 0.45)
+        cr.arc(x + 3.5, mid, 3.5, 0, 6.2832)
+        cr.fill()
+        tw = self.text(
+            cr,
+            "Stop recording",
+            x + 14,
+            9.5,
+            c["accent"] if self.hover == "rec-stop" else c["fg"],
+            weight=Pango.Weight.NORMAL,
+        )
+        zones.append((x - 8, x + 14 + tw + 8, "rec-stop"))
+        x += 14 + tw + 26
+        mic = rec.get("mic")
+        label = "No microphone" if mic is None else "Microphone on" if mic else "Microphone off"
+        color = c["fg"] if self.hover == "rec-mic" and mic is not None else c["muted"]
+        # A small microphone: a capsule and its stand; struck through when off.
+        cr.set_source_rgba(*color, 1 if mic else 0.55)
+        cr.set_line_width(1.2)
+        cr.set_line_cap(1)
+        cr.new_path()  # the text leaves a current point behind
+        cr.arc(x + 4, mid - 3, 2, 3.1416, 0)
+        cr.line_to(x + 6, mid + 0.5)
+        cr.arc(x + 4, mid + 0.5, 2, 0, 3.1416)
+        cr.close_path()
+        cr.stroke()
+        cr.arc(x + 4, mid + 0.5, 4, 0, 3.1416)
+        cr.move_to(x + 4, mid + 4.5)
+        cr.line_to(x + 4, mid + 6.5)
+        cr.stroke()
+        if not mic:
+            cr.move_to(x - 1, mid - 6)
+            cr.line_to(x + 9, mid + 6)
+            cr.stroke()
+        mw = self.text(cr, label, x + 16, 9.5, color)
+        if mic is not None:
+            zones.append((x - 8, x + 16 + mw + 8, "rec-mic"))
 
     def click(self, _w, e):
         w = self.where(e.x)
-        if w == "apps":
+        if w == "rec-stop" and self.stop_fn:
+            self.stop_fn()
+        elif w == "rec-mic" and self.mic_fn:
+            self.mic_fn()
+        elif w == "apps":
             from rundot import overview
 
             overview()

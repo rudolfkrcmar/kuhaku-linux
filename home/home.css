@@ -91,7 +91,13 @@ body.paged .quick { opacity:0; pointer-events:none; }
 #batteryWrap { gap:5px; }
 
 .rec { color:var(--fg); gap:10px; }
-.rdot { width:7px; height:7px; border-radius:9px; background:var(--accent); }
+.rdot { width:7px; height:7px; border-radius:9px; background:var(--accent); animation:pulse 1.6s ease-in-out infinite; }
+.rec:hover { color:var(--accent); }
+.recmic { gap:8px; }
+.recmic .strike { display:none; }
+.recmic.off { opacity:.55; }
+.recmic.off .strike { display:inline; }
+.recmic:disabled { cursor:default; }
 body.dim .stage { opacity:.08; filter:blur(3px); pointer-events:none; }
 .pscrim { position:fixed; inset:0; z-index:3; }
 .panel { position:fixed; top:108px; right:56px; width:376px; max-height:calc(100vh - 150px); overflow-y:auto; z-index:4;

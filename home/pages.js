@@ -365,8 +365,17 @@ $('page').addEventListener('pointerup', (e) => {
   native({ type: 'panel', action: 'pref', key: el.dataset.slide, value: v, quiet: true });
 });
 
-window.setRecording = (on) => { $('recBtn').hidden = !on; };
+// While recording: "Stop recording" (a click stops and saves it), then the microphone, which a click switches.
+window.setRecording = (s) => {
+  const on = !!(s && (s === true || s.on)), mic = s && s.mic;
+  $('recBtn').hidden = !on;
+  $('recMicBtn').hidden = !on;
+  $('recMicBtn').classList.toggle('off', mic !== true);
+  $('recMicBtn').disabled = mic == null;
+  $('recMicText').textContent = mic == null ? 'No microphone' : mic ? 'Microphone on' : 'Microphone off';
+};
 $('recBtn').addEventListener('click', () => native({ type: 'stopRecording' }));
+$('recMicBtn').addEventListener('click', () => native({ type: 'recMic' }));
 
 const params = new URLSearchParams(location.search);
 if (params.get('theme')) setTheme(params.get('theme'));
