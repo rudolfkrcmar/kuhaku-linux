@@ -8,3 +8,4 @@
 - Never do slow pure-Python work (parsing big files, long loops) in `kuhaku.py`'s process, not even on a thread: it starves the main loop and freezes the whole screen. Run it in its own process (see "Never stuck" in ARCHITECTURE.md; `calendars.py index` is the example).
 - Best-effort code never hides a fault: `except Exception: report()` (from `kuhaku_log`), never a bare `pass`.
 - The repository is public: no personal paths, names, accounts or tokens. `tests/test_static.py` checks for home paths.
+- Design: read `design/MANUAL.md` before drawing an icon, panel or page (one thing speaks, colour has a reason, state changes in place). After changing any icon, run `python3 dev/design.py` and look at `design/library.html`; `dev/check` fails if it is stale.
