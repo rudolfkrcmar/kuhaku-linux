@@ -279,7 +279,8 @@ window.setAccount = ({ name, many }) => {
   const b = $('acctBtn'), changed = $('acctName').textContent && $('acctName').textContent !== name;
   const work = !/priv|person|home|own/i.test(name || '') && /work|team|company|office|job|org/i.test(name || '');
   b.hidden = !many; $('acctName').textContent = name;
-  $('acctHome').hidden = work; $('acctWork').hidden = !work;
+  // SVG elements have no .hidden property: set the attribute itself, or the mark never changes.
+  $('acctHome').toggleAttribute('hidden', work); $('acctWork').toggleAttribute('hidden', !work);
   b.title = `${name} account: click to switch`; b.setAttribute('aria-label', `Claude account: ${name}`);
   if (changed) { b.classList.remove('flip'); void b.offsetWidth; b.classList.add('flip'); }
 };

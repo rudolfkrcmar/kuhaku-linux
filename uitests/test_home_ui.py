@@ -326,3 +326,15 @@ class NetworkCard(PageCase):
     def test_the_vpn_is_named_on_the_connections_mark(self):
         self.page.js("closePanel(); setStatus({wifi: 'on', signal: 80, vpn: {name: 'Work', app: ''}}); return true;")
         self.assertIn("VPN Work", self.page.js("return document.getElementById('wifiBtn').title;"))
+
+
+class AccountMark(PageCase):
+    def test_the_mark_follows_the_account(self):
+        self.page = home()
+        shown = "return ['acctHome', 'acctWork'].filter((i) => getComputedStyle(document.getElementById(i)).display !== 'none');"
+        self.page.js("setAccount({name: 'Private', many: true}); return true;")
+        self.assertEqual(self.page.js(shown), ["acctHome"])
+        self.page.js("setAccount({name: 'Work', many: true}); return true;")
+        self.assertEqual(self.page.js(shown), ["acctWork"])
+        self.page.click("#acctBtn")
+        self.assertIn({"type": "panel", "action": "account-cycle"}, self.page.messages)
