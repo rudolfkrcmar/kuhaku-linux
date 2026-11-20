@@ -1,11 +1,11 @@
 """The thin bar over apps: Kūhaku's way home and its corner of the world.
 
 When an app is in front, a 34 px strip sits at the top of the screen (apps are kept
-below it). On the right: the date, time, Wi‑Fi and battery, as on the home screen, then
-the red dot (the open apps, as cards), the red line, which takes you home to Kūhaku (the app stays open), and a cross that
-closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku in front, or a
-fullscreen app (a game), the bar steps away. While the screen is recorded, the left end says so: "Stop recording"
-(a click stops it) and the microphone, on or off (a click switches it).
+below it), laid out as the home screen's top row. On the left: the red line, which takes you home to Kūhaku
+(the app stays open), and the red dot (the open apps, as cards). On the right: Wi‑Fi, battery, date and time,
+then a cross that closes the app. Apps do not draw their own minimise and close: there is one of each. With Kūhaku
+in front, or a fullscreen app (a game), the bar steps away. While the screen is recorded, the left side says so
+after the dot: "Stop recording" (a click stops it) and the microphone, on or off (a click switches it).
 """
 
 import os
@@ -228,16 +228,17 @@ class Corner:
         subprocess.Popen(["wmctrl", "-i", "-r", hex(xid), "-e", f"0,{nx},{ny},-1,-1"])
 
     # drawing --------------------------------------------------------------------------
-    # Flat, right-aligned: date, time, Wi‑Fi, battery, then the red dot (open apps), the red line (home, the app stays
-    # open) and the cross (close the app). Nothing on the left.
+    # As on the home screen. Left: the red line (home, the app stays open), then the red dot (open apps, as cards);
+    # while recording, "Stop recording" and the microphone follow. Right: Wi‑Fi, battery, date and time, then the
+    # cross (close the app) at the very end.
     def where(self, x):
         x /= self.s
         width = self.win.get_allocated_width() / self.s
-        if width - 130 <= x < width - 104:
-            return "apps"
-        if width - 104 <= x < width - 60:
+        if 28 <= x < 62:
             return "home"
-        if width - 60 <= x < width - 20:
+        if 62 <= x < 88:
+            return "apps"
+        if width - 30 <= x < width:
             return "close"
         # Date, time, Wi‑Fi and battery open their panels, as on the home screen.
         return next((name for x0, x1, name in self.zones if x0 <= x < x1), None)
@@ -266,8 +267,17 @@ class Corner:
         cr.scale(self.s, self.s)  # drawn at 34 px and scaled with the text size
         width = self.win.get_allocated_width() / self.s
         mid = H / 2
-        # Close: a thin cross, far right.
-        x = width - 40
+        # Home: the red line where the home screen has its menu line (longer on hover, as there).
+        lw = 26 if self.hover == "home" else 20
+        cr.set_source_rgb(*c["accent"])
+        cr.rectangle(34, mid - 1, lw, 2)
+        cr.fill()
+        # Open apps: the red dot just after it, where the home screen has it; it opens the cards of what is open.
+        cr.set_source_rgb(0.898, 0.282, 0.302)
+        cr.arc(74, mid, 3.9 if self.hover == "apps" else 3, 0, 6.2832)
+        cr.fill()
+        # Close: a thin cross at the very end.
+        x = width - 15
         cr.set_source_rgb(*(c["fg"] if self.hover == "close" else c["muted"]))
         cr.set_line_width(1.4)
         cr.set_line_cap(1)
@@ -277,18 +287,17 @@ class Corner:
         cr.move_to(x + r, mid - r)
         cr.line_to(x - r, mid + r)
         cr.stroke()
-        # Home: the red line (longer on hover, as on the home screen).
-        lw = 26 if self.hover == "home" else 20
-        cr.set_source_rgb(*c["accent"])
-        cr.rectangle(width - 66 - lw, mid - 1, lw, 2)
-        cr.fill()
-        # Open apps: the red dot, just before the red line; it opens the cards of what is open.
-        cr.set_source_rgb(0.898, 0.282, 0.302)
-        cr.arc(width - 117, mid, 3.9 if self.hover == "apps" else 3, 0, 6.2832)
-        cr.fill()
-        x = width - 142
+        x = width - 38
         zones = []
         hot = lambda name, color: c["fg"] if self.hover == name else color
+        # Time and date, last before the cross, as at the end of the home screen's row.
+        now = time.localtime()
+        tw = self.text(cr, time.strftime("%H:%M", now), x, 9.5, c["fg"], right=True, weight=Pango.Weight.NORMAL)
+        zones.append((x - tw - 5, x + 9, "light"))
+        x -= tw + 10
+        dw = self.text(cr, time.strftime("%a %-d %b", now), x, 9.5, hot("calendar", c["muted"]), right=True)
+        zones.append((x - dw - 9, x + 5, "calendar"))
+        x -= dw + 24
         # Battery: a flat bar, its track faint.
         b = self.battery
         if b:
@@ -306,27 +315,19 @@ class Corner:
                 cr.close_path()
                 cr.fill()
             zones.append((x - 31, x + 9, "battery"))
-            x -= 36
+            x -= 46 if b["charging"] else 34
         # Wi‑Fi: three flat lines, as on the home screen.
         on = self.wifi in ("on", "wired")
         cr.set_source_rgba(*hot("wifi", c["muted"]), 1 if on else 0.3)
         # The home screen's mark exactly (its 24-unit drawing at 16 px): lines 10, 6 and 2.7 px wide.
         for i, half in enumerate((5, 3, 1.35)):
-            cr.rectangle(x - 7 - half, mid - 8 + 4.33 + i * 3, half * 2, 1)
+            cr.rectangle(x - 8 - half, mid - 8 + 4.33 + i * 3, half * 2, 1)
         cr.fill()
-        zones.append((x - 21, x + 7, "wifi"))
+        zones.append((x - 22, x + 6, "wifi"))
         x -= 34
         if self.vpn:  # a VPN in use: its name stays short, "VPN", beside Wi‑Fi
             vw = self.text(cr, "VPN", x + 8, 8, hot("vpn", c["muted"]), right=True)
             zones.append((x - vw, x + 12, "vpn"))
-            x -= vw + 22
-        now = time.localtime()
-        tw = self.text(cr, time.strftime("%H:%M", now), x, 9.5, c["fg"], right=True, weight=Pango.Weight.NORMAL)
-        zones.append((x - tw - 9, x + 9, "light"))
-        x -= tw + 18
-        dw = self.text(cr, time.strftime("%a %-d %b", now), x, 9.5, hot("calendar", c["muted"]), right=True)
-        zones.append((x - dw - 9, x + 9, "calendar"))
-        x -= dw + 30
         self.draw_recording(cr, c, zones)
         self.zones = zones
 
@@ -335,7 +336,7 @@ class Corner:
         rec = self.rec_fn() if self.rec_fn else None
         if not rec:
             return
-        mid, x = H / 2, 20
+        mid, x = H / 2, 104
         on = int(time.time() * 1.25) % 2 == 0  # the dot breathes slowly, as long as it records
         cr.set_source_rgba(0.898, 0.282, 0.302, 1 if on else 0.45)
         cr.arc(x + 3.5, mid, 3.5, 0, 6.2832)
