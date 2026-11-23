@@ -209,9 +209,25 @@ class Osd:
         self.detail = detail
         self.show(title, 0, False, power="message")
 
+    def message_width(self):
+        """A message box wide enough for its words: the charger's width at least, room either side."""
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
+        cr = cairo.Context(surface)
+        widest = 0
+        for s, size in ((self.kind, 17), (getattr(self, "detail", ""), 11)):
+            layout = PangoCairo.create_layout(cr)
+            fd = Pango.FontDescription.from_string(f"Inter Variable {size}")
+            fd.set_weight(Pango.Weight.LIGHT)
+            layout.set_font_description(fd)
+            layout.set_text(s or "", -1)
+            widest = max(widest, layout.get_pixel_size()[0])
+        return max(PW, widest + 2 * 36)
+
     def show(self, kind, level, muted, power=False):
         self.kind, self.level, self.muted, self.power = kind, level, muted, power
         w, h = (PW, PH) if power else (W, H)
+        if power == "message":
+            w = self.message_width()
         self.size = (w, h)
         # Text size in Settings (Xft DPI) grows the notice with everything else.
         dpi = Gtk.Settings.get_default().get_property("gtk-xft-dpi")

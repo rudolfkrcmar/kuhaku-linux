@@ -230,7 +230,7 @@ class Corner:
 
     # drawing --------------------------------------------------------------------------
     # As on the home screen. Left: the red line (home, the app stays open), then the red dot (open apps, as cards);
-    # while recording, "Stop" and the microphone follow. Right: Wi‑Fi, battery, date and time, then the
+    # Right: while recording, "Stop" and the microphone, then Wi‑Fi, battery, date and time, then the
     # cross (close the app) at the very end.
     def where(self, x):
         x /= self.s
@@ -331,29 +331,17 @@ class Corner:
         if self.vpn:  # a VPN in use: its name stays short, "VPN", beside Wi‑Fi
             vw = self.text(cr, "VPN", x + 8, 8, hot("vpn", c["muted"]), right=True)
             zones.append((x - vw, x + 12, "vpn"))
-        self.draw_recording(cr, c, zones)
+            x -= vw + 14
+        self.draw_recording(cr, c, zones, x - 4)
         self.zones = zones
 
-    def draw_recording(self, cr, c, zones):
-        """Left side, while recording: a red dot and "Stop", then the microphone, struck through when off."""
+    def draw_recording(self, cr, c, zones, right):
+        """Right side, as on the home screen, while recording: a red dot and "Stop", then the microphone
+        (struck through when off), ending just before Wi‑Fi. Drawn from the right, so it never moves."""
         rec = self.rec_fn() if self.rec_fn else None
         if not rec:
             return
-        mid, x = H / 2, 104
-        on = int(time.time() * 1.25) % 2 == 0  # the dot breathes slowly, as long as it records
-        cr.set_source_rgba(*c["accent"], 1 if on else 0.45)
-        cr.arc(x + 3.5, mid, 3.5, 0, 6.2832)
-        cr.fill()
-        tw = self.text(
-            cr,
-            "Stop",
-            x + 14,
-            9.5,
-            c["accent"] if self.hover == "rec-stop" else c["fg"],
-            weight=Pango.Weight.NORMAL,
-        )
-        zones.append((x - 8, x + 14 + tw + 8, "rec-stop"))
-        x += 14 + tw + 26
+        mid = H / 2
         mic = rec.get("mic")
         color = c["fg"] if self.hover == "rec-mic" and mic is not None else c["muted"]
         # The guide's microphone at 16 px: a square capsule, its cradle and stand; struck through when off.
@@ -361,7 +349,7 @@ class Corner:
         cr.set_line_width(1)
         cr.set_line_cap(0)
         cr.new_path()  # the text leaves a current point behind
-        k, x0, y0 = 16 / 24, x - 4, mid - 8
+        k, x0, y0 = 16 / 24, right - 16, mid - 8
         P = lambda ux, uy: (x0 + ux * k, y0 + uy * k)
         cr.rectangle(*P(10, 4), 4 * k, 9 * k)
         cr.stroke()
@@ -374,7 +362,24 @@ class Corner:
             cr.line_to(*P(20, 4))
         cr.stroke()
         if mic is not None:  # the icon alone says it: struck through when off
-            zones.append((x - 8, x + 16, "rec-mic"))
+            zones.append((x0 - 4, right + 4, "rec-mic"))
+        end = x0 - 18
+        tw = self.text(
+            cr,
+            "Stop",
+            end,
+            9.5,
+            c["accent"] if self.hover == "rec-stop" else c["fg"],
+            right=True,
+            weight=Pango.Weight.NORMAL,
+        )
+        dot = end - tw - 10.5
+        on = int(time.time() * 1.25) % 2 == 0  # the dot breathes slowly, as long as it records
+        cr.new_path()
+        cr.set_source_rgba(*c["accent"], 1 if on else 0.45)
+        cr.arc(dot, mid, 3.5, 0, 6.2832)
+        cr.fill()
+        zones.append((dot - 11, end + 8, "rec-stop"))
 
     def click(self, _w, e):
         w = self.where(e.x)
