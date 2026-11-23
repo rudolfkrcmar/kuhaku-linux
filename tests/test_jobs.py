@@ -165,6 +165,15 @@ class TabsTest(TempDirCase):
         self.assertEqual(saved["current"], t.current)
         self.assertEqual(len(saved["tabs"]), 1)
 
+    def test_empty_start_after_boot(self):
+        t = self.tabs()
+        t.tabs[0].update(question="old work", answer={"answer": "done"})
+        blank = t.empty_start()
+        self.assertEqual(t.current, blank["id"])
+        self.assertEqual(len(t.tabs), 2)  # the old conversation stays beside it
+        self.assertEqual(t.empty_start()["id"], blank["id"])  # an empty tab is reused, not piled up
+        self.assertEqual(len(t.tabs), 2)
+
     def test_restart_puts_running_back_in_line(self):
         data = {
             "current": "9",

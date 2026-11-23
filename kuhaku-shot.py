@@ -232,6 +232,8 @@ class Picker(Gtk.Window):
 
 # --- the little picture in the corner ---------------------------------------------------------------
 class Thumb(Gtk.Window):
+    """The picture just taken, small, in the corner: a hairline edge, nothing else."""
+
     def __init__(self, path, pixbuf):
         super().__init__(type=Gtk.WindowType.POPUP)
         self.path = path
@@ -240,27 +242,30 @@ class Thumb(Gtk.Window):
         if h > 200:
             h, w = 200, round(pixbuf.get_width() * 200 / max(1, pixbuf.get_height()))
         self.small = pixbuf.scale_simple(w, h, GdkPixbuf.InterpType.BILINEAR)
+        # Without this GTK paints the window's own background over the picture: an empty sheet.
+        self.set_app_paintable(True)
         self.set_keep_above(True)
         self.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
-        self.set_default_size(w + 8, h + 8)
+        self.set_default_size(w, h)
+        self.set_size_request(w, h)
         self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
         self.connect("draw", self.draw)
         self.connect("button-press-event", self.click)
         mon = Gdk.Display.get_default().get_primary_monitor() or Gdk.Display.get_default().get_monitor(0)
         r = mon.get_geometry()
-        self.move(r.x + r.width - w - 8 - 36, r.y + r.height - h - 8 - 36)
+        self.move(r.x + r.width - w - 36, r.y + r.height - h - 36)
         self.show_all()
         self.timer = GLib.timeout_add_seconds(6, self.leave)
 
     def draw(self, _w, cr):
-        cr.set_source_rgb(1, 1, 1)
+        Gdk.cairo_set_source_pixbuf(cr, self.small, 0, 0)
         cr.paint()
-        Gdk.cairo_set_source_pixbuf(cr, self.small, 4, 4)
-        cr.paint()
-        cr.set_source_rgba(0, 0, 0, 0.15)
+        night = theme() == "night"
+        cr.set_source_rgba(*((0.925, 0.925, 0.925, 0.16) if night else (0.067, 0.067, 0.067, 0.16)))
         cr.set_line_width(1)
-        cr.rectangle(0.5, 0.5, self.small.get_width() + 7, self.small.get_height() + 7)
+        cr.rectangle(0.5, 0.5, self.small.get_width() - 1, self.small.get_height() - 1)
         cr.stroke()
+        return True
 
     def click(self, _w, e):
         GLib.source_remove(self.timer)
@@ -304,7 +309,8 @@ class Editor(Gtk.Window):
         css.load_from_data(
             f"""
           window {{ background:{bg}; }}
-          .bar {{ padding:10px 24px; }}
+          .bar {{ padding:8px 26px 8px 24px; }}
+          .bar label {{ font-family:Inter; font-weight:300; font-size:12.5px; letter-spacing:.005em; }}
           .bar button {{ background:none; border:0; box-shadow:none; outline:none; border-radius:0; padding:6px 10px; color:{muted}; font-family:Inter; font-weight:300; }}
           .bar button:hover, .bar button:active, .bar button:focus {{ background:none; box-shadow:none; outline:none; }}
           .bar button label {{ color:{muted}; font-family:Inter; font-weight:300; }}
@@ -316,7 +322,7 @@ class Editor(Gtk.Window):
           /* Inks are a choice: a word and its square, the square filled with ink when chosen, never red. */
           .bar .sq {{ min-width:10px; min-height:10px; border:1px solid {muted}; margin-right:7px; }}
           .bar button.on .sq {{ background:{fg}; border-color:{fg}; }}
-          .bar .name {{ color:{muted}; font-family:Inter; font-weight:300; margin-right:18px; }}
+          .bar .name {{ color:{muted}; padding:6px 10px; margin-right:14px; }}
           entry.textin {{ background:rgba(255,255,255,.9); color:#111; border:0; border-radius:0; font-family:Inter; font-size:18pt; }}
         """.encode()
         )

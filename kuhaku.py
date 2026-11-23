@@ -87,6 +87,16 @@ def has_microphone():
         return False
 
 
+def boot_time() -> int:
+    """When the computer started (seconds since 1970), 0 if unknown."""
+    try:
+        found = re.search(r"btime (\d+)", Path("/proc/stat").read_text())
+        return int(found.group(1)) if found else 0
+    except Exception:
+        report()
+        return 0
+
+
 class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
     def __init__(self):
         STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -97,6 +107,14 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         self.state = load_json(STATE_FILE, {"session_id": None, "theme": None})
         # Every conversation is a tab; jobs wait in one line (jobs.py). state["session_id"] is the open tab's.
         self.tabs = jobs.Tabs(STATE_DIR / "tabs.json", self.state.get("session_id"))
+        # The first start after the computer starts is empty: a blank tab, nothing left on screen.
+        boot = boot_time()
+        if boot and self.state.get("boot") != boot:
+            if "boot" in self.state:  # (the first Kūhaku with this only notes the time)
+                self.tabs.empty_start()
+            self.state["boot"] = boot
+            self.state["session_id"] = self.tabs.get(self.tabs.current)["session_id"]
+            self.save_state()
         self.state["session_id"] = self.tabs.get(self.tabs.current)["session_id"]
         self.procs, self.live = {}, {}
         self.recorder = None
@@ -240,11 +258,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
             # Answers survive restarts: the list comes back, and the last one
             # stays on screen unless it was closed.
             answers = self.load_answers()[-300:]
-            try:
-                found = re.search(r"btime (\d+)", Path("/proc/stat").read_text())
-                booted = float(found.group(1)) if found else 0
-            except Exception:
-                booted = 0
+            booted = boot_time()
             fresh = bool(answers) and (answers[-1].get("time") or 0) > booted
             self.send("setAnswers", {"answers": answers, "show": fresh and not self.state.get("dismissed")})
             cur = self.tabs.get(self.tabs.current)

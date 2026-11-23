@@ -171,6 +171,19 @@ class Tabs:
     def get(self, ident):
         return next((t for t in self.tabs if t["id"] == ident), None)
 
+    def empty_start(self):
+        """After the computer starts, Kūhaku opens blank: an empty tab, the conversations kept beside it."""
+        idle = [
+            t
+            for t in self.tabs
+            if t["status"] == "idle" and not t.get("question") and not t.get("answer") and not t.get("draft")
+        ]
+        if idle:
+            self.current = idle[-1]["id"]
+            self.save()
+            return idle[-1]
+        return self.new()
+
     def new(self):
         t = self.blank()
         self.tabs.append(t)
