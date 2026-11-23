@@ -34,7 +34,9 @@ HOME = Path.home()
 FOLDER = HOME / "Pictures" / "Screenshots"
 STATE = HOME / ".local/state/kuhaku/state.json"
 ACCENT = (0.878, 0.188, 0.118)
-INK = {"red": ACCENT, "black": (0.067, 0.067, 0.067), "white": (1, 1, 1), "yellow": (1.0, 0.83, 0.2)}
+# Three inks, from the five materials: the seal, ink and paper. No other colour (design codex, law 2).
+INK = {"red": ACCENT, "ink": (0.067, 0.067, 0.067), "paper": (1, 1, 1)}
+INK_WORDS = {"red": "Red", "ink": "Ink", "paper": "White"}
 
 
 def theme():
@@ -295,19 +297,25 @@ class Editor(Gtk.Window):
         self.crop = None
         self.entry = None
         self.night = theme() == "night"
-        bg, fg, muted = ("#121212", "#ececec", "#9a9a9a") if self.night else ("#f7f4f1", "#111111", "#666666")
+        bg, fg, muted, accent = (
+            ("#121212", "#ececec", "#9a9a9a", "#f0705a") if self.night else ("#f7f4f1", "#111111", "#666666", "#e0301e")
+        )
         css = Gtk.CssProvider()
         css.load_from_data(
             f"""
           window {{ background:{bg}; }}
           .bar {{ padding:10px 24px; }}
-          .bar button {{ background:none; border:0; box-shadow:none; border-radius:0; padding:6px 10px; color:{muted}; font-family:Inter; font-weight:300; }}
+          .bar button {{ background:none; border:0; box-shadow:none; outline:none; border-radius:0; padding:6px 10px; color:{muted}; font-family:Inter; font-weight:300; }}
+          .bar button:hover, .bar button:active, .bar button:focus {{ background:none; box-shadow:none; outline:none; }}
           .bar button label {{ color:{muted}; font-family:Inter; font-weight:300; }}
           .bar button:hover label, .bar button.on label {{ color:{fg}; }}
-          .bar button.on {{ box-shadow: inset 0 -1.5px #e0301e; }}
+          /* The current tool: ink, with the red line 14 by 1.5 under its first letter, as every tab in Kuhaku. */
+          .bar button.tool.on {{ background-image:linear-gradient({accent},{accent}); background-size:14px 1.5px;
+                            background-position:10px 100%; background-repeat:no-repeat; }}
           .bar button.done label {{ color:{fg}; }}
-          .bar .ink {{ min-width:14px; min-height:14px; padding:0; margin:0 4px; border-radius:99px; }}
-          .bar .ink.on {{ box-shadow: 0 0 0 2px {bg}, 0 0 0 3.5px {muted}; }}
+          /* Inks are a choice: a word and its square, the square filled with ink when chosen, never red. */
+          .bar .sq {{ min-width:10px; min-height:10px; border:1px solid {muted}; margin-right:7px; }}
+          .bar button.on .sq {{ background:{fg}; border-color:{fg}; }}
           .bar .name {{ color:{muted}; font-family:Inter; font-weight:300; margin-right:18px; }}
           entry.textin {{ background:rgba(255,255,255,.9); color:#111; border:0; border-radius:0; font-family:Inter; font-size:18pt; }}
         """.encode()
@@ -324,6 +332,7 @@ class Editor(Gtk.Window):
         self.tool_buttons = {}
         for key, label in self.TOOLS:
             b = Gtk.Button(label=label)
+            b.get_style_context().add_class("tool")
             b.connect("clicked", lambda _b, k=key: self.set_tool(k))
             bar.pack_start(b, False, False, 0)
             self.tool_buttons[key] = b
@@ -331,18 +340,15 @@ class Editor(Gtk.Window):
         sep.set_size_request(18, 1)
         bar.pack_start(sep, False, False, 0)
         self.ink_buttons = {}
-        for key, rgb in INK.items():
+        for key in INK:
             b = Gtk.Button()
-            b.get_style_context().add_class("ink")
-            p = Gtk.CssProvider()
-            p.load_from_data(
-                (
-                    "button { background:rgb(" + ",".join(str(round(c * 255)) for c in rgb) + ");"
-                    " border:1px solid rgba(0,0,0,.18); }"
-                ).encode()
-            )
-            b.get_style_context().add_provider(p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
-            b.set_valign(Gtk.Align.CENTER)
+            row = Gtk.Box()
+            sq = Gtk.Box()
+            sq.get_style_context().add_class("sq")
+            sq.set_valign(Gtk.Align.CENTER)
+            row.pack_start(sq, False, False, 0)
+            row.pack_start(Gtk.Label(label=INK_WORDS[key]), False, False, 0)
+            b.add(row)
             b.connect("clicked", lambda _b, k=key: self.set_ink(k))
             bar.pack_start(b, False, False, 0)
             self.ink_buttons[key] = b
@@ -451,7 +457,7 @@ class Editor(Gtk.Window):
                 layout.set_font_description(Pango.FontDescription("Inter Medium 22"))
                 layout.set_text(it["text"], -1)
                 x, y = it["pts"][0]
-                if it["ink"] != "white":  # a soft halo keeps text readable on any picture
+                if it["ink"] != "paper":  # a soft halo keeps text readable on any picture
                     cr.set_source_rgba(1, 1, 1, 0.85)
                     cr.move_to(x, y)
                     PangoCairo.layout_path(cr, layout)
