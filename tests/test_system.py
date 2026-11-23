@@ -678,6 +678,11 @@ class OpenedTest(unittest.TestCase):
         for p in (home + "/Projects/a/b.py", home + "/.config/x", "/tmp/a"):
             self.assertEqual(ks.opened(self.use("Write", file_path=p)), [])
 
+    def test_not_helper_agents(self):
+        home = str(ks.HOME)
+        ev = dict(self.use("Write", file_path=home + "/Documents/notes.md"), parent_tool_use_id="toolu_1")
+        self.assertEqual(ks.opened(ev), [])  # a helper agent's notes were not put on screen
+
     def test_nothing_else(self):
         self.assertEqual(self.bash("echo hi"), [])
         self.assertEqual(self.bash("ls /tmp && grep x /etc/hosts"), [])

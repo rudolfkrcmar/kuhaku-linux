@@ -985,7 +985,8 @@ def opened(ev):
     import shlex
 
     found: list[dict] = []
-    if ev.get("type") != "assistant":
+    # Helper agents' own steps (their notes, the pages they read) were not put on screen for you.
+    if ev.get("type") != "assistant" or ev.get("parent_tool_use_id") or ev.get("agent_id"):
         return found
     for block in (ev.get("message") or {}).get("content") or []:
         if block.get("type") != "tool_use":

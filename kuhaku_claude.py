@@ -111,8 +111,10 @@ class ClaudeJobs(Home):
         tab.update(question=text, status="queued", queued=time.time(), at=at, note=None, unseen=False, voice=voice)
         if not tab["title"]:
             tab["title"] = jobs.title_of(text)
-            if not tab.get("named"):
-                threading.Thread(target=self.name_tab, args=(tab["id"], text), daemon=True).start()
+        if not tab.get("named"):
+            # Every new job in a tab names it afresh (a tab that lives all day is not still its first job);
+            # a name you gave the tab yourself stays.
+            threading.Thread(target=self.name_tab, args=(tab["id"], text), daemon=True).start()
         self.tabs.save()
         self.schedule()
 
@@ -526,7 +528,12 @@ class ClaudeJobs(Home):
                     # The conversation lives in another account: start this tab afresh there.
                     lost = True
                 error = "Something went wrong" + (": " + why if why else ".")
-            result = ev.get("result")
+            # One job can end several turns: the answer, then a turn for each background task that
+            # finishes. Those come with an empty result, which must not wipe the answer; words they do
+            # have are added under it.
+            said = ev.get("result")
+            if said and said != result:
+                result = said if not result else result + "\n\n" + said
             u = ev.get("usage") or {}
             run.update(
                 cost=ev.get("total_cost_usd"),
