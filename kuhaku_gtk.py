@@ -4,7 +4,9 @@ system/gtk/kuhaku.css is drawn for night. By day its colours are swapped for the
 for token, and written to ~/.config/gtk-3.0/kuhaku.css, which the user's gtk.css imports. GTK
 apps read it when they start, so an app opened after the switch has the new look."""
 
+import configparser
 import re
+import shutil
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -25,6 +27,11 @@ DAY = {
 }
 _TOKEN = re.compile("|".join(re.escape(k) for k in DAY), re.I)
 
+# Flatpak apps (PrusaSlicer, ...) see only their own sandbox; this lets every one read the two
+# stylesheets, read-only, so their dialogs wear the same look.
+FLATPAK_OVERRIDES = Path.home() / ".local" / "share" / "flatpak" / "overrides" / "global"
+FLATPAK_SHARES = ("xdg-config/gtk-3.0:ro", "xdg-config/gtk-4.0:ro")
+
 _written = None  # the theme last written, so the hourly theme push costs nothing
 
 
@@ -38,6 +45,7 @@ def css_for(theme, night_css):
 def apply(theme, pairs=None):
     """Write the stylesheets for this theme, once per change."""
     global _written
+    real = pairs is None
     pairs = pairs or ((SOURCE, TARGET), (SOURCE4, TARGET4))
     if theme == _written and all(t.exists() for _s, t in pairs):
         return False
@@ -50,5 +58,25 @@ def apply(theme, pairs=None):
         if "kuhaku.css" not in (imports.read_text() if imports.exists() else ""):
             with open(imports, "a") as f:
                 f.write('@import url("kuhaku.css");\n')
+    if real and shutil.which("flatpak"):
+        share_with_flatpaks()
     _written = theme
+    return True
+
+
+def share_with_flatpaks(path=FLATPAK_OVERRIDES):
+    """Add the stylesheet folders to every Flatpak app's sandbox, keeping the user's other overrides."""
+    keys = configparser.ConfigParser(interpolation=None, delimiters=("=",))
+    keys.optionxform = str  # type: ignore[assignment,method-assign]  # keep the keys as written
+    if path.exists():
+        keys.read(path)
+    if not keys.has_section("Context"):
+        keys.add_section("Context")
+    have = [f for f in keys.get("Context", "filesystems", fallback="").split(";") if f]
+    if all(f in have for f in FLATPAK_SHARES):
+        return False
+    keys.set("Context", "filesystems", ";".join(have + [f for f in FLATPAK_SHARES if f not in have]) + ";")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        keys.write(f, space_around_delimiters=False)
     return True

@@ -30,6 +30,19 @@ class GtkThemeTest(TempDirCase):
         self.assertEqual(out.read_text(), self.NIGHT)
         self.assertEqual((out.parent / "gtk.css").read_text().count("kuhaku.css"), 1)
 
+    def test_flatpaks_may_read_the_stylesheets_and_keep_their_own(self):
+        path = self.tmp / "overrides" / "global"
+        path.parent.mkdir()
+        path.write_text("[Context]\nfilesystems=~/Games;\n\n[Environment]\nFOO=1\n")
+        self.assertTrue(kg.share_with_flatpaks(path))
+        text = path.read_text()
+        self.assertIn("filesystems=~/Games;xdg-config/gtk-3.0:ro;xdg-config/gtk-4.0:ro;", text)
+        self.assertIn("FOO=1", text)
+        self.assertFalse(kg.share_with_flatpaks(path))
+        fresh = self.tmp / "none" / "global"
+        self.assertTrue(kg.share_with_flatpaks(fresh))
+        self.assertIn("[Context]", fresh.read_text())
+
     def test_the_real_stylesheets_have_a_day(self):
         for src in (kg.SOURCE, kg.SOURCE4):
             self.check_day(kg.css_for("day", src.read_text()))

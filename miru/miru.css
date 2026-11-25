@@ -108,6 +108,9 @@ body.folder #newf, body.folder #hid { display:inline-block; }
 .head { display:grid; grid-template-columns:30px minmax(0,1fr) 190px 100px 130px; gap:14px; padding:0 14px 8px;
         font-size:12.5px; color:var(--muted); font-weight:300; }
 .head .z { text-align:right; }
+.head [data-sort] { cursor:pointer; user-select:none; }
+.head [data-sort]:hover, .head .on { color:var(--fg); }
+.head i { font-style:normal; margin-left:5px; color:var(--accent); }
 .empty { padding:120px 0; text-align:center; color:var(--muted); font-size:15px; font-weight:300; }
 .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--fg); color:var(--bg);
          font-size:13px; font-weight:300; padding:9px 16px; z-index:9; opacity:0; transition:opacity .25s cubic-bezier(.2,.7,.2,1), transform .25s cubic-bezier(.2,.7,.2,1); pointer-events:none; }

@@ -239,13 +239,15 @@ class Miru:
             entry = {"name": p.name, "path": str(p), "dir": is_dir, "when": when, "t": st.st_mtime}
             if is_dir:
                 try:
-                    entry["size"] = f"{sum(1 for _ in p.iterdir())} items"
+                    entry["n"] = sum(1 for _ in p.iterdir())
+                    entry["size"] = f"{entry['n']} items"
                 except OSError:
                     entry["size"] = ""
                 entry["kind"] = "Folder"
             else:
                 mime, desc = mime_of(p)
                 entry["size"] = human_size(st.st_size)
+                entry["n"] = st.st_size
                 entry["kind"] = (desc[:1].upper() + desc[1:]) if desc else mime
                 if mime in WEB_IMAGES and st.st_size < 15_000_000:
                     entry["thumb"] = p.as_uri()

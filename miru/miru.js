@@ -11,7 +11,25 @@ function toast(text) {
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
+// Click a column's name to sort by it, again to turn the order round. Folders stay first except by date.
+let order = { by: 'name', down: false };
+try { order = JSON.parse(localStorage.getItem('miru-order')) || order; } catch (e) { /* first run */ }
+const COLS = { name: 'Name', kind: 'Kind', size: 'Size', when: 'Modified' };
+const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+function sortEntries(list) {
+  const f = { name: (a, b) => byName.compare(a.name, b.name), kind: (a, b) => byName.compare(a.kind || '', b.kind || ''),
+    size: (a, b) => (a.n || 0) - (b.n || 0), when: (a, b) => (a.t || 0) - (b.t || 0) }[order.by] || ((a, b) => 0);
+  const sign = order.down ? -1 : 1;
+  return list.slice().sort((a, b) => (order.by !== 'when' && a.dir !== b.dir ? (a.dir ? -1 : 1) : 0) ||
+    sign * f(a, b) || byName.compare(a.name, b.name));
+}
+function sortBy(by) {
+  order = order.by === by ? { by, down: !order.down } : { by, down: by === 'when' || by === 'size' };
+  try { localStorage.setItem('miru-order', JSON.stringify(order)); } catch (e) { /* not kept */ }
+  if (dir && dir.entries.length) window.browse({ ...dir, select: [...picked].map((k) => dir.entries[k] && dir.entries[k].name).filter(Boolean) });
+}
 window.browse = (d) => {
+  d = { ...d, entries: sortEntries(d.entries || []) };
   const same = dir && dir.path === d.path;
   const keep = same ? $('stage').scrollTop : 0;
   mode = 'folder'; dir = d; renaming = false;
@@ -29,7 +47,8 @@ window.browse = (d) => {
   sel = found.length ? found[found.length - 1] : Math.max(0, want.length ? -1 : same ? Math.min(sel, d.entries.length - 1) : 0);
   picked = new Set(found.length ? found : d.entries.length ? [sel] : []); anchor = found.length ? found[0] : sel;
   const st = $('stage');
-  st.innerHTML = d.entries.length ? '<div class="list"><div class="head"><span></span><span>Name</span><span>Kind</span><span class="z">Size</span><span>Modified</span></div>' +
+  st.innerHTML = d.entries.length ? '<div class="list"><div class="head"><span></span>' + Object.entries(COLS).map(([k, t]) =>
+      `<span data-sort="${k}" class="${k === 'size' ? 'z ' : ''}${order.by === k ? 'on' : ''}">${t}${order.by === k ? `<i>${order.down ? '↓' : '↑'}</i>` : ''}</span>`).join('') + '</div>' +
     d.entries.map((e, i) => `<div class="row${picked.has(i) ? ' sel' : ''}" data-i="${i}">` +
       `<span class="ic">${e.dir ? FOLDER : e.thumb ? `<img loading="lazy" src="${esc(e.thumb)}" alt="">` : FILE}</span>` +
       `<span class="nm">${esc(e.name)}</span><span class="k">${esc(e.kind)}</span><span class="z">${esc(e.size)}</span><span class="w">${esc(e.when)}</span></div>`).join('') + '</div>'
@@ -113,6 +132,7 @@ $('side').addEventListener('click', (e) => {
   const ej = e.target.closest('.ej'); if (ej) { e.stopPropagation(); return send({ type: 'eject', dev: ej.dataset.dev }); }
   const a = e.target.closest('a'); if (a) send({ type: 'nav', path: a.dataset.path }); });
 $('name').addEventListener('click', (e) => { const c = e.target.closest('.crumbs span:not(.last)'); if (c) send({ type: 'nav', path: c.dataset.path }); });
+$('stage').addEventListener('click', (e) => { const h = e.target.closest('.head [data-sort]'); if (h) return sortBy(h.dataset.sort); });
 $('stage').addEventListener('click', (e) => { const r = e.target.closest('.row'); if (r && mode === 'folder' && !renaming) choose(+r.dataset.i, e.shiftKey ? 'range' : (e.ctrlKey || e.metaKey) ? 'toggle' : null); });
 // Shift+click would otherwise also select the names' text.
 $('stage').addEventListener('mousedown', (e) => { if (e.shiftKey && e.target.closest('.row')) e.preventDefault(); });
