@@ -15,7 +15,14 @@
   button:hover { color:var(--fg); }
 
   /* One line: the address. Everything else waits until the pointer comes near. */
-  .bar { height:52px; display:flex; align-items:center; padding:0 20px 0 32px; gap:18px; }
+  .bar { height:52px; display:flex; align-items:center; padding:0 20px 0 14px; gap:18px; }
+  /* Back and forward sit before the address, where the eye starts; they wait until the pointer comes near. */
+  .nav { margin-right:-4px; }
+  /* A favourite: the star, quiet until the pointer comes near; filled with ink once kept. */
+  .fav { width:30px; height:30px; opacity:0; }
+  body:hover .fav, .fav.on { opacity:1; }
+  .fav.on { color:var(--fg); }
+  .fav.on svg { fill:currentColor; }
   .where { flex:1; min-width:0; display:flex; align-items:center; gap:14px; height:40px; cursor:text; }
   .line { width:1.5px; height:20px; background:var(--accent); flex-shrink:0; }
   /* Loading: the Mado mark, its red line breathing above the window. */
@@ -115,12 +122,17 @@
 </head>
 <body>
   <div class="bar">
+    <div class="quiet nav">
+      <button id="back" title="Back (Alt+Left)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button id="forward" title="Forward (Alt+Right)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
     <div class="where" id="where">
       <span class="line" id="line"></span><span class="dot" id="dot" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M7 9h10v10H7z"/><path class="hot" d="M6 5h12"/></svg></span>
       <div class="addr" id="addr"></div>
       <input id="input" hidden spellcheck="false" autocomplete="off">
       <span class="count" id="count" hidden></span>
     </div>
+    <button class="fav" id="fav" hidden title="Add to favourites (Ctrl+D)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter"><path d="M12 4l2.5 5.2 5.5.7-4 3.9 1 5.6-5-2.7-5 2.7 1-5.6-4-3.9 5.5-.7z"/></svg></button>
     <div class="note" id="note" hidden></div>
     <button class="tool" id="stopped" hidden title="What this site tried to track"></button>
     <button class="tool" id="device" hidden title="Simulate a device"></button>
@@ -132,10 +144,7 @@
       <button data-m="private" title="Private: nothing is kept (Ctrl+Shift+N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 9h10v10H7z" stroke-dasharray="2.5 2.5" stroke-dashoffset="1.25"/><path class="hot" d="M6 5h12"/></svg><span>Private</span><sup id="ptabs"></sup></button>
       <button data-m="developer" title="Developer: tools and devices (F12)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/><path class="hot" d="M14.5 9.5l-5 5"/></svg><span>Developer</span></button>
     </div>
-    <div class="quiet">
-      <button id="back" title="Back (Alt+Left)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <button id="forward" title="Forward (Alt+Right)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5l7 7-7 7"/></svg></button>
-      <span class="gap"></span>
+    <div class="quiet end">
       <button id="minimize" title="Minimise"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
       <button id="quit" title="Close (Ctrl+Q)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
@@ -196,6 +205,9 @@
   window.update = (s) => {
     state = s;
     $('back').disabled = !s.back; $('forward').disabled = !s.forward;
+    $('fav').hidden = !s.url;
+    $('fav').classList.toggle('on', !!s.favourite);
+    $('fav').title = s.favourite ? 'Remove from favourites (Ctrl+D)' : 'Add to favourites (Ctrl+D)';
     $('line').hidden = s.loading; $('dot').hidden = !s.loading;
     $('tabs').innerHTML = s.tabs.map((t, i) =>
       `<button class="tab${t.active ? ' active' : ''}${t.loading ? ' loading' : ''}" data-i="${i}" title="${esc(t.title)}"><span>${esc(t.title)}</span>` +
@@ -283,6 +295,7 @@
 
   $('back').addEventListener('click', () => send({ type: 'back' }));
   $('forward').addEventListener('click', () => send({ type: 'forward' }));
+  $('fav').addEventListener('click', () => send({ type: 'favourite' }));
   $('modes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send({ type: 'mode', mode: b.dataset.m }); });
   $('stopped').addEventListener('click', () => { panel = panel === 'trackers' ? null : 'trackers'; update(state); });
   $('device').addEventListener('click', () => { panel = panel === 'devices' ? null : 'devices'; update(state); });

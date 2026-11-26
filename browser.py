@@ -6,7 +6,7 @@ Chromium (Qt WebEngine), so big sites, sign-ins and Cloudflare's human check
 simply work. Running it again opens the URL as a tab in the window that is
 already there. The WebKit Mado lives on as browser_webkit.py (the fallback).
 
-Keys: Ctrl+L address, Ctrl+T new tab, Ctrl+W close tab, Ctrl+Tab next tab,
+Keys: Ctrl+L address, Ctrl+D favourite, Ctrl+T new tab, Ctrl+W close tab, Ctrl+Tab next tab,
 Ctrl+Shift+W close every tab, Ctrl+F find, Ctrl+R reload, Alt+Left/Right back/forward, Ctrl+plus/minus zoom,
 Ctrl+U the page's source.
 
@@ -38,6 +38,7 @@ CACHE = HOME / ".cache" / "mado-chromium"
 STATE = HOME / ".local" / "state" / "kuhaku" / "browser.json"
 TRUSTED = HOME / ".config" / "kuhaku" / "mado-certificates.json"  # host -> PEM the user chose to trust
 PERMS = HOME / ".config" / "kuhaku" / "mado-permissions.json"  # host -> "media"/"clipboard" -> true/false
+FAVOURITES = HOME / ".config" / "kuhaku" / "mado-favourites.json"  # {"sites": [{"url", "title"}]}, shown on new tabs
 NEWTAB = (HERE / "newtab.html").as_uri()
 PANE = (HERE / "browser/comments.html").as_uri()
 CHROME_HEIGHT = 52
@@ -251,7 +252,7 @@ class Browser:
         bridge.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
         bridge.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         cpage.scripts().insert(bridge)
-        cpage.loadFinished.connect(lambda ok: self.push())
+        cpage.loadFinished.connect(lambda ok: (self.push(), self.ask_address()))
         self.load_chrome()
         self.chrome.setFixedHeight(self.chrome_css)
 
@@ -273,6 +274,7 @@ class Browser:
 
         keys: dict[str, Callable] = {
             "Ctrl+L": lambda: (self.chrome.setFocus(), self.js("editAddress()")),
+            "Ctrl+D": self.toggle_favourite,
             "Ctrl+T": self.new_tab,
             "Ctrl+W": self.close_tab,
             "Ctrl+Shift+W": self.close_all,
@@ -711,7 +713,7 @@ class Browser:
             return []
 
     def save(self):
-        urls = [t.url().toString() for t in self.sets["normal"] if t.url().toString() not in ("", NEWTAB)]
+        urls = [t.url().toString() for t in self.sets["normal"] if not self.blank(t)]
         STATE.write_text(json.dumps({"tabs": urls}))
 
     def quit(self):
@@ -744,6 +746,7 @@ class Browser:
 
         def finished(_ok):
             view.loading, view.progress = False, 1.0
+            self.show_favourites(view)
             if view is self.current and self.mode == "developer":
                 self.sync_notes(view)
             self.changed(view)
@@ -752,7 +755,9 @@ class Browser:
         view.loadProgress.connect(progress)
         view.loadFinished.connect(finished)
         view.titleChanged.connect(lambda _t: self.push())
-        view.urlChanged.connect(lambda _u: (self.canvas(view), self.sync_notes(view), self.changed(view)))
+        view.urlChanged.connect(
+            lambda u: (self.unfavourite_from(view, u), self.canvas(view), self.sync_notes(view), self.changed(view))
+        )
         page.linkHovered.connect(lambda link: self.js(f"window.hover && hover({json.dumps(link or '')})"))
         page.windowCloseRequested.connect(lambda: self.close_tab(view))
         page.fullScreenRequested.connect(self.on_fullscreen)
@@ -790,10 +795,9 @@ class Browser:
         key = key or self.key()
         view = self.make_view(key)
         if url:
+            view.wanted = url
             view.load(QUrl(url))
         self.add_tab(view, focus, key)
-        if focus and url == NEWTAB:
-            view.setFocus()
         return view
 
     def open(self, urls, private=False):
@@ -820,9 +824,57 @@ class Browser:
         if old is not view and old in self.sets["normal"]:
             self.sync_notes(old)
         self.sync_notes(view)
+        self.ask_address()
         if self.mode == "developer" and (not self.session or getattr(self, "session_view", None) is not view):
             self.emulate()
         self.push()
+
+    # --- a blank tab: the address is typed in the bar, the page shows the favourites ---
+    def blank(self, view):
+        if view is None:
+            return False
+        u = view.url().toString() or getattr(view, "wanted", "")
+        return u.split("#")[0] in ("", NEWTAB)
+
+    def ask_address(self):
+        """A new tab waits with the caret in the address line at the top, not in the middle."""
+        if self.blank(self.current):
+            self.chrome.setFocus()
+            self.js("window.editAddress && editAddress()")
+
+    def favourites(self):
+        sites = load_json(FAVOURITES).get("sites", [])
+        return [f for f in sites if isinstance(f, dict) and f.get("url")]
+
+    def set_favourites(self, sites):
+        save_json(FAVOURITES, {"sites": sites})
+        for t in self.sets["normal"] + self.sets["private"]:
+            self.show_favourites(t)
+        self.push()
+
+    def toggle_favourite(self):
+        v = self.current
+        if not v or self.blank(v):
+            return
+        url, sites = v.url().toString(), self.favourites()
+        if any(f["url"] == url for f in sites):
+            sites = [f for f in sites if f["url"] != url]
+        else:
+            title = v.title() if v.title() and v.title() != url else host(url) or url
+            sites.append({"url": url, "title": title})
+        self.set_favourites(sites)
+
+    def show_favourites(self, view):
+        if self.blank(view):
+            view.page().runJavaScript(f"window.favourites && favourites({json.dumps(self.favourites())})")
+
+    def unfavourite_from(self, view, url):
+        """The new tab page asks to forget a favourite by setting its fragment: #forget=<url>."""
+        frag = url.fragment(QUrl.ComponentFormattingOption.FullyDecoded)
+        if not self.blank(view) or not frag.startswith("forget="):
+            return
+        gone = frag[len("forget=") :]
+        self.set_favourites([f for f in self.favourites() if f["url"] != gone])
 
     def step(self, n):
         if len(self.tabs) > 1 and self.current in self.tabs:
@@ -889,9 +941,11 @@ class Browser:
         if not v:
             return
         uri = v.url().toString()
+        if self.blank(v):
+            uri = NEWTAB
 
         def title(t):
-            u = t.url().toString()
+            u = t.url().toString().split("#")[0]
             return (
                 "New tab"
                 if u in ("", NEWTAB)
@@ -904,6 +958,7 @@ class Browser:
             "loading": v.loading,
             "progress": v.progress,
             "back": v.history().canGoBack(),
+            "favourite": any(f["url"] == uri for f in self.favourites()),
             "forward": v.history().canGoForward(),
             "tabs": [{"title": title(t), "active": t is v, "loading": t.loading} for t in self.tabs],
             "download": self.download_note,
@@ -953,6 +1008,8 @@ class Browser:
             v.back()
         elif kind == "forward" and v:
             v.forward()
+        elif kind == "favourite":
+            self.toggle_favourite()
         elif kind == "reload" and v:
             v.stop() if v.loading else v.reload()
         elif kind == "tab":

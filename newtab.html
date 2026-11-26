@@ -8,28 +8,45 @@
   @media (prefers-color-scheme: dark) { :root { --bg:#121212; --fg:#ececec; --muted:#9a9a9a; --accent:#f0705a; } }
   html, body { margin:0; height:100%; }
   body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inter',system-ui,sans-serif;
-         -webkit-font-smoothing:antialiased; display:flex; justify-content:center; align-items:center; padding:0 24px 8vh; }
-  label { width:min(1160px, 100%); display:flex; align-items:stretch; gap:16px; padding:8px 0; }
-  .line { width:1.5px; background:var(--accent); margin:3px 0; flex-shrink:0; }
-  input { flex:1; border:0; outline:none; background:transparent; padding:0; font:inherit; font-size:26px; line-height:1.4;
-          font-weight:200; letter-spacing:-.01em; color:var(--fg); caret-color:var(--accent); }
-  input::placeholder { color:currentColor; opacity:.5; }
+         -webkit-font-smoothing:antialiased; display:flex; justify-content:center; align-items:center; padding:0 24px 8vh;
+         box-sizing:border-box; user-select:none; }
+  /* The address is typed in the bar at the top; the blank page keeps the favourites. */
+  main { width:min(960px, 100%); display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:4px 28px; }
+  a { position:relative; display:flex; flex-direction:column; gap:3px; padding:14px 16px; color:var(--fg); text-decoration:none; }
+  a .t { font-size:17px; font-weight:300; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  a .h { font-size:12.5px; font-weight:300; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  a::before { content:''; position:absolute; left:0; top:16px; bottom:16px; width:1.5px; background:var(--accent);
+              transform:scaleY(0); transition:transform .25s cubic-bezier(.2,.7,.2,1); }
+  a:hover::before, a:focus::before { transform:scaleY(1); }
+  a:focus { outline:none; }
+  .x { position:absolute; right:4px; top:10px; width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+       color:var(--muted); opacity:0; transition:opacity .15s; }
+  a:hover .x { opacity:.6; }
+  .x:hover { opacity:1 !important; color:var(--fg); }
+  .empty { grid-column:1 / -1; text-align:center; font-size:15px; font-weight:300; color:var(--muted); opacity:.7; }
 </style>
 </head>
 <body>
-  <label><span class="line"></span><input id="q" placeholder="Search or type an address" autofocus spellcheck="false" autocomplete="off"></label>
+  <main id="fav"></main>
 <script>
-  const q = document.getElementById('q');
-  q.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || !q.value.trim()) return;
-    const t = q.value.trim();
-    const url = /^[a-z][a-z0-9+.-]*:/i.test(t) && !/^[^/]+:\d/.test(t) ? t
-      : (!/\s/.test(t) && (t.includes('.') || t.startsWith('localhost'))) ? 'https://' + t
-      : 'https://www.google.com/search?q=' + encodeURIComponent(t);
-    location.href = url;
+  const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, '') || u; } catch (e) { return u; } };
+  // Mado hands the favourites over once the page is loaded, and again when they change.
+  window.favourites = (list) => {
+    const m = document.getElementById('fav');
+    m.innerHTML = list.length
+      ? list.map((f) => `<a href="${esc(f.url)}" title="${esc(f.url)}"><span class="t">${esc(f.title || hostOf(f.url))}</span>` +
+          `<span class="h">${esc(hostOf(f.url))}</span>` +
+          `<i class="x" data-url="${esc(f.url)}" title="Remove from favourites"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></i></a>`).join('')
+      : '<p class="empty">Favourites appear here. Keep a page with the star beside its address, or Ctrl+D.</p>';
+  };
+  // Forgetting one: Mado reads the fragment, without a step in the history.
+  document.addEventListener('click', (e) => {
+    const x = e.target.closest('.x');
+    if (!x) return;
+    e.preventDefault();
+    location.replace('#forget=' + encodeURIComponent(x.dataset.url));
   });
-  addEventListener('focus', () => q.focus());
-  addEventListener('mouseup', () => q.focus());
 </script>
 </body>
 </html>
