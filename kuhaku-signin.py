@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")  # else a newer gi picks Gdk 4 and the import fails
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2
 
