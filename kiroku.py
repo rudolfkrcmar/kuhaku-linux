@@ -33,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import claude_accounts as accounts
 import jobs
+import kuhaku_paste  # pasting from an empty clipboard crashed WebKitGTK 3
 from kansei import theme
 from kuhaku_log import report  # faults go to the log instead of vanishing
 
@@ -533,7 +534,7 @@ class Kiroku:
         ucm = WebKit2.UserContentManager()
         ucm.register_script_message_handler("kiroku")
         ucm.connect("script-message-received::kiroku", self.on_message)
-        self.view = WebKit2.WebView.new_with_user_content_manager(ucm)
+        self.view = kuhaku_paste.guard(WebKit2.WebView.new_with_user_content_manager(ucm))
         self.view.set_zoom_level(1.12)
         self.view.get_settings().set_enable_write_console_messages_to_stdout(bool(os.environ.get("KIROKU_DEBUG")))
         bg = (0.071, 0.071, 0.071) if self.night else (0.969, 0.957, 0.945)

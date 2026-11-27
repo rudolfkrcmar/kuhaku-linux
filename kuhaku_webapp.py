@@ -183,6 +183,9 @@ class WebApp:
         else:
             ucm.register_script_message_handler(self.handler)
             self.view = WebKit.WebView.new_with_user_content_manager(ucm)
+            import kuhaku_paste
+
+            kuhaku_paste.guard(self.view)  # GTK 3's WebKit crashes pasting from an empty clipboard
             self.win = Gtk.Window(title=self.title)
             self.win.connect("destroy", Gtk.main_quit)
         self.win.set_icon_name(self.title.lower())

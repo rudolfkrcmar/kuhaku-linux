@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_accounts as accounts
 import jobs
 import kuhaku_gtk
+import kuhaku_paste  # pasting from an empty clipboard crashed WebKitGTK 3
 import kuhaku_pick
 from kuhaku_claude import ClaudeJobs
 from kuhaku_config import (
@@ -137,7 +138,7 @@ class Kuhaku(Panels, Voice, Settings, ClaudeJobs):
         manager = WebKit2.UserContentManager()
         manager.register_script_message_handler("kuhaku")
         manager.connect("script-message-received::kuhaku", self.on_message)
-        self.view = WebKit2.WebView.new_with_user_content_manager(manager)
+        self.view = kuhaku_paste.guard(WebKit2.WebView.new_with_user_content_manager(manager))
         settings = self.view.get_settings()
         settings.set_enable_developer_extras(bool(os.environ.get("KUHAKU_DEBUG")))
         settings.set_enable_page_cache(False)

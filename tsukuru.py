@@ -64,6 +64,7 @@ SKIP = {
 MAX_FILE = 4_000_000
 
 sys.path.insert(0, str(HERE))
+import kuhaku_paste  # pasting from an empty clipboard crashed WebKitGTK 3
 from kuhaku_log import report  # faults go to the log instead of vanishing
 from terminal import THEMES, rgba, theme
 from tsukuru_tools import (
@@ -99,7 +100,7 @@ class Tsukuru:
         ucm = WebKit2.UserContentManager()
         ucm.register_script_message_handler("ide")
         ucm.connect("script-message-received::ide", self.on_message)
-        self.view = WebKit2.WebView.new_with_user_content_manager(ucm)
+        self.view = kuhaku_paste.guard(WebKit2.WebView.new_with_user_content_manager(ucm))
         self.view.set_zoom_level(1.12)  # app type a little larger than the page's own, for reading
         s = self.view.get_settings()
         s.set_allow_file_access_from_file_urls(True)

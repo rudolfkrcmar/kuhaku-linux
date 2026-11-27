@@ -24,6 +24,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2
 
+import kuhaku_paste  # pasting from an empty clipboard crashed WebKitGTK 3
 from kuhaku_log import report  # faults go to the log instead of vanishing
 from kuhaku_sun import is_night  # night follows the sun
 
@@ -139,7 +140,7 @@ class Window:
 
     def popup(self, view, _action):
         # A real popup, related to this page, so it can hand the sign-in back (window.opener).
-        child = WebKit2.WebView.new_with_related_view(view)
+        child = kuhaku_paste.guard(WebKit2.WebView.new_with_related_view(view))
         child.get_settings().set_user_agent(view.get_settings().get_user_agent())
         google_as_firefox(child)
         w = Window(self.label.get_text(), child, None, size=(560, 700))
@@ -173,7 +174,7 @@ def main(url):
     finished = [False]
 
     context = WebKit2.WebContext(website_data_manager=WebKit2.WebsiteDataManager.new_ephemeral())
-    view = WebKit2.WebView(web_context=context)
+    view = kuhaku_paste.guard(WebKit2.WebView(web_context=context))
     view.get_settings().set_user_agent(NATIVE_UA if os.environ.get("KUHAKU_SIGNIN_UA") == "native" else USER_AGENT)
     google_as_firefox(view)
     view.get_settings().set_javascript_can_open_windows_automatically(True)

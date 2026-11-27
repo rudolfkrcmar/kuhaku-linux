@@ -34,6 +34,7 @@ gi.require_version("JavaScriptCore", "4.1")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk, JavaScriptCore, WebKit2
 
+import kuhaku_paste  # pasting from an empty clipboard crashed WebKitGTK 3
 from kuhaku_log import report  # faults go to the log instead of vanishing
 from kuhaku_menus import style_menus
 from kuhaku_sun import is_night  # night follows the sun
@@ -331,7 +332,7 @@ class Browser(Gtk.Application):
         chrome_ucm = WebKit2.UserContentManager()
         chrome_ucm.register_script_message_handler("chrome")
         chrome_ucm.connect("script-message-received::chrome", self.on_chrome)
-        self.chrome = WebKit2.WebView.new_with_user_content_manager(chrome_ucm)
+        self.chrome = kuhaku_paste.guard(WebKit2.WebView.new_with_user_content_manager(chrome_ucm))
         self.chrome_css = CHROME_HEIGHT
         self.fit_chrome()
         # WebKit scales CSS pixels with the text size (Xft DPI); keep the bar tall enough.
@@ -398,6 +399,7 @@ class Browser(Gtk.Application):
             view = WebKit2.WebView(
                 web_context=self.context, settings=self.view_settings(), user_content_manager=self.content
             )
+        kuhaku_paste.guard(view)
         for sig in ("notify::title", "notify::uri", "notify::estimated-load-progress", "notify::is-loading"):
             view.connect(sig, self.on_view_changed)
         view.connect("create", self.on_create)

@@ -27,6 +27,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2
 
+import kuhaku_paste  # pasting from an empty clipboard crashed WebKitGTK 3
 from kuhaku_log import report  # faults go to the log instead of vanishing
 from kuhaku_sun import is_night  # night follows the sun
 
@@ -552,7 +553,7 @@ class Kansei:
         ucm = WebKit2.UserContentManager()
         ucm.register_script_message_handler("kansei")
         ucm.connect("script-message-received::kansei", self.on_message)
-        self.view = WebKit2.WebView.new_with_user_content_manager(ucm)
+        self.view = kuhaku_paste.guard(WebKit2.WebView.new_with_user_content_manager(ucm))
         self.view.set_zoom_level(1.12)  # app type a little larger than the page's own, for reading
         st = self.view.get_settings()
         st.set_enable_write_console_messages_to_stdout(bool(os.environ.get("KANSEI_DEBUG")))
