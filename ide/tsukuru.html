@@ -417,7 +417,7 @@ function inl(t) {
   t = t.replace(/`([^`\n]+)`/g, (_, c) => { parts.push(`<code>${esc(c)}</code>`); return `\u0000${parts.length - 1}\u0000`; });
   t = esc(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, '$1<i>$2</i>')
     .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a data-href="$2">$1</a>')
-    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a data-href="$2">$2</a>');
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]*[^\s<).,;:!?'"&])/g, '$1<a data-href="$2">$2</a>');
   return t.replace(/\u0000(\d+)\u0000/g, (_, i) => parts[+i]);
 }
 function md(src) {

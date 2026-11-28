@@ -1117,7 +1117,7 @@
       if (e.target.closest('[data-vsave]')) return send({ type: 'openFile', key: v.key, index: v.index, save: true });
     };
   }
-  const linkify = (t) => t.replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}">${u}</a>`);
+  const linkify = (t) => t.replace(/https?:\/\/[^\s<]*[^\s<.,;:!?)'"]/g, (u) => `<a href="${u}">${u}</a>`);
   // Plain-text letters: addresses shown short and clean. Redirect wrappers (Google, Outlook safe links, …) are
   // unwrapped to where they really go; the angle brackets around them go; the link text is site + path.
   function realUrl(u) {

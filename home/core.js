@@ -160,7 +160,7 @@ function plain(text) {
 
 function linkify(el, text) {
   el.textContent = '';
-  const re = /https?:\/\/[^\s)]+/g;
+  const re = /https?:\/\/[^\s)]*[^\s).,;:!?'"]/g;  // a full stop or comma after a link is the sentence's, not the link's
   let last = 0, m;
   while ((m = re.exec(text))) {
     el.append(text.slice(last, m.index));
