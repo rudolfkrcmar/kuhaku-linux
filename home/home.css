@@ -31,6 +31,9 @@ body { background:var(--bg); color:var(--fg); font-family:'Inter Variable','Inte
 #wifi path.dim { opacity:.25; }
 #wifi .hot { stroke:currentColor; }
 #wifi.bt .hot { stroke:var(--accent); }
+/* A VPN in use: the bars stand on a thin line, like a tunnel floor. */
+#wifi .vpnline { opacity:0; }
+#wifi.vpn .vpnline { opacity:1; }
 .status { z-index:4; }
 .day.ev b::before { content:''; position:absolute; top:4px; left:50%; width:10px; height:1.5px; margin-left:-5px; background:currentColor; }
 .day b { position:relative; }

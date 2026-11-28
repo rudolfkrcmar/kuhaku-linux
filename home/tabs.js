@@ -280,7 +280,8 @@ window.setAccount = ({ name, many }) => {
 $('acctBtn').addEventListener('click', () => native({ type: 'panel', action: 'account-cycle' }));
 window.setTablet = () => {};
 window.setStatus = ({ battery, wifi, bt: btIcon, signal, vpn }) => {
-  // A VPN in use: named in the connections mark's tooltip; the panel shows and switches it.
+  // A VPN in use: a thin line under the bars, and its name in the tooltip; the panel shows and switches it.
+  $('wifi').classList.toggle('vpn', !!vpn);
   $('wifiBtn').title = 'Connections: Wi‑Fi, VPN, Bluetooth' + (vpn ? ` · VPN ${vpn.name}` : '');
   const bars = wifi === 'on' ? (signal >= 67 ? 3 : signal >= 34 ? 2 : 1) : 0;
   ['l1', 'l2', 'l3'].forEach((c, i) => $('wifi').querySelector('.' + c).classList.toggle('dim', i >= bars));
